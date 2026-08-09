@@ -155,7 +155,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     );
     private readonly debugLog = createDevLogger('VideoPlayerComponent');
 
-    /** Active selected channel */
     readonly activeChannel = this.store.selectSignal(selectActive);
     readonly activePlaybackUrl = this.store.selectSignal(
         selectActivePlaybackUrl
@@ -172,20 +171,18 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     readonly archivePlaybackAvailable = computed(() =>
         isM3uCatchupPlaybackSupported(this.activeChannel())
     );
-    /** Full multi-day programme window for the active channel (timeline). */
+    
     readonly epgPrograms = toSignal(this.epgService.currentEpgPrograms$, {
         initialValue: [] as EpgProgram[],
     });
-    // Shared helper skips blank strings (`tvg-rec=""` is a common default that
-    // `??` would not fall through), so a channel with only `timeshift`/
-    // `catchup-days` still gets its real window instead of 0 (unbounded).
+    
     readonly epgArchiveDays = computed(() =>
         getM3uArchiveDays(this.activeChannel())
     );
     readonly timelineChannelName = computed(
         () => this.activeChannel()?.name ?? ''
     );
-    /** Channel logo from the EPG feed (M3U playlists often lack tvg-logo). */
+    
     private readonly epgChannelLogo = toSignal(
         toObservable(this.activeChannel).pipe(
             switchMap((channel) => {
@@ -229,6 +226,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             epgParams: '',
         } as Channel;
     });
+
     readonly embeddedPlayback = computed<ResolvedPortalPlayback | null>(() => {
         const activeChannel = this.activeChannel();
         const playbackTarget = this.playbackChannel();
@@ -249,8 +247,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             headers['Origin'] = http.origin;
         }
 
+        const rawUrl = `${playbackTarget.url}${playbackTarget.epgParams ?? ''}`;
+
         return {
-            streamUrl: `${playbackTarget.url}${playbackTarget.epgParams ?? ''}`,
+            streamUrl: rawUrl,
             title:
                 activeChannel.name?.trim() ||
                 activeChannel.tvg?.name ||
@@ -263,6 +263,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             origin: http.origin || undefined,
         };
     });
+
     readonly sidebarStorageKey = computed(() =>
         this.activeView() === 'groups'
             ? M3U_GROUPS_SIDEBAR_STORAGE_KEY
@@ -275,7 +276,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         restoreLiveEpgPanelState()
     );
     readonly selectedLiveEpgDate = signal(getTodayEpgDateKey());
-    /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
+    
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
     readonly isLiveEpgPanelCollapsed = computed(
         () => this.liveEpgPanelState() === 'collapsed'
@@ -287,12 +288,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         () => this.liveSidebarState() === 'collapsed'
     );
 
-    /** Channels list */
     readonly channels$: Observable<Channel[]> = this.store.select(
         selectChannels
     ) as Observable<Channel[]>;
 
-    /** Current epg program */
     readonly epgProgram = this.store.selectSignal(selectCurrentEpgProgram);
     readonly liveEpgPanelSummary = computed(() =>
         this.toLiveEpgPanelSummary(
@@ -308,7 +307,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         () => this.activeEpgProgramOrNull() !== null
     );
 
-    /** Active M3U view (all, groups, favorites, recent) */
     readonly activeView = toSignal(
         this.activatedRoute.params.pipe(
             map((params) => params['view'] || 'all')
@@ -316,7 +314,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         { initialValue: 'all' }
     );
 
-    /** Selected video player options */
     playerSettings: Partial<Settings> = {
         player: VideoPlayer.VideoJs,
         showCaptions: false,
@@ -326,7 +323,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     readonly supportsEpg = this.runtime.supportsEpg;
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
 
-    /** EPG overlay reference */
     private overlayRef!: OverlayRef;
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
@@ -337,7 +333,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         this.externalPlayback.activeSession()
     );
 
-    /** Channel number input state */
     channelNumberInput = '';
     showChannelNumberOverlay = false;
     private channelNumberTimeout?: number;
@@ -345,13 +340,11 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     readonly volume = signal(1);
 
     constructor() {
-        // Initialize volume from localStorage in constructor
         const savedVolume = localStorage.getItem('volume');
         if (savedVolume !== null) {
             this.volume.set(Number(savedVolume));
         }
 
-        // React to settings changes
         effect(() => {
             this.playerSettings = {
                 player: this.settingsStore.player(),
@@ -359,7 +352,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             };
         });
 
-        // Keep "now" fresh so EPG state re-evaluates over time.
         effect((onCleanup) => {
             const intervalId = window.setInterval(
                 () => this.epgNowMs.set(Date.now()),
@@ -368,17 +360,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             onCleanup(() => clearInterval(intervalId));
         });
 
-        // Mirror the legacy uncontrolled epg-list store side effects so the
-        // toolbar, summary and diagnostics keep reflecting the live programme.
         effect(() => {
             const channel = this.activeChannel();
             const nowMs = this.epgNowMs();
 
-            // The old uncontrolled <app-epg-list> only existed (and only
-            // dispatched these) while a non-radio channel was active and EPG
-            // was supported. Outside that window it dispatched nothing, so the
-            // flag/current-program held their last value. Preserve that to
-            // avoid clobbering EPG state on radio/no-channel.
             if (!channel || channel.radio === 'true' || !this.supportsEpg) {
                 return;
             }
@@ -394,11 +379,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                     EpgActions.setCurrentEpgProgram({ program: currentProgram })
                 );
             } else if (!this.activePlaybackUrl()) {
-                // No live programme right now. Only clear stale EPG state when
-                // NOT in catch-up/timeshift: resetActiveEpgProgram also nulls
-                // activePlaybackUrl, so firing it on every 30s tick would knock
-                // the user out of an in-progress archive playback whenever the
-                // channel has an EPG gap at the current clock time.
                 this.store.dispatch(EpgActions.resetActiveEpgProgram());
             }
         });
@@ -497,15 +477,11 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         });
     }
 
-    /**
-     * Sets video player and subscribes to channel list from the store
-     */
     ngOnInit(): void {
         this.applySettings();
         this.getPlaylistUrlAsParam();
         this.registerHeaderShortcut();
 
-        // Setup remote control channel change listener (Electron only)
         const remoteControl = this.remoteControlBridge;
         if (remoteControl?.onChannelChange) {
             const unsubscribe = remoteControl.onChannelChange(
@@ -561,13 +537,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         });
     }
 
-    /**
-     * Handle remote control channel change
-     */
     handleRemoteChannelChange(direction: 'up' | 'down'): void {
         this.debugLog('Remote control channel change:', direction);
 
-        // Use combineLatest to get both values and take only the first emission
         combineLatest([this.channels$, this.store.select(selectActive)])
             .pipe(
                 filter(([channels, activeChannel]) => {
@@ -665,11 +637,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         );
     }
 
-    /**
-     * Opens a playlist provided as a url param
-     * e.g. iptvnat.or?url=http://...
-     * @pwaOnly
-     */
     getPlaylistUrlAsParam() {
         const URL_REGEX = /^(http|https|file):\/\/[^ "]+$/;
         const playlistUrl = this.activatedRoute.snapshot.queryParams['url'];
@@ -682,9 +649,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         }
     }
 
-    /**
-     * Reads the app configuration from the browsers storage and applies the settings in the current component
-     */
     applySettings(): void {
         this.storage.get(STORE_KEY.Settings).subscribe((settings: unknown) => {
             if (settings && Object.keys(settings as Settings).length > 0) {
@@ -780,13 +744,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             delete nextState['openM3uChannelUrl'];
             window.history.replaceState(nextState, document.title);
         } catch {
-            // no-op
         }
     }
 
-    /**
-     * Opens the overlay with multi EPG view
-     */
     openMultiEpgView(): void {
         if (!this.supportsEpg) {
             return;
@@ -825,7 +785,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             selectChannels
         ) as Observable<Channel[]>;
 
-        // Pass the active channel's tvg.id for highlighting
         const currentChannel = this.activeChannel();
         if (currentChannel) {
             componentRef.instance.activeChannelId =
@@ -853,37 +812,26 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         if (event.metaKey || event.ctrlKey || event.altKey) {
             return;
         }
-        // Only handle digit keys (0-9)
         if (event.key >= '0' && event.key <= '9') {
             event.preventDefault();
             this.handleChannelNumberInput(event.key);
         }
     }
 
-    /**
-     * Handle channel number input from keyboard
-     * Debounces input to allow multi-digit channel numbers
-     */
     handleChannelNumberInput(digit: string): void {
-        // Clear existing timeout
         if (this.channelNumberTimeout) {
             clearTimeout(this.channelNumberTimeout);
         }
 
-        // Add digit to current input
         this.channelNumberInput += digit;
         this.showChannelNumberOverlay = true;
 
-        // Set timeout to switch channel after 2 seconds of no input
         this.channelNumberTimeout = window.setTimeout(() => {
             this.switchToChannelByNumber(parseInt(this.channelNumberInput, 10));
             this.clearChannelNumberInput();
         }, 2000);
     }
 
-    /**
-     * Switch to channel by number (1-based index)
-     */
     switchToChannelByNumber(channelNumber: number): void {
         this.channels$
             .pipe(
@@ -901,9 +849,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             });
     }
 
-    /**
-     * Clear channel number input and hide overlay
-     */
     clearChannelNumberInput(): void {
         this.channelNumberInput = '';
         this.showChannelNumberOverlay = false;
@@ -977,18 +922,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
-        const payload = buildExternalPlayerPayload(
-            this.activeChannel(),
-            request.playback.streamUrl
-        );
-        if (!payload) {
-            return;
-        }
-
-        this.dataService.sendIpcEvent(
-            request.player === 'mpv' ? OPEN_MPV_PLAYER : OPEN_VLC_PLAYER,
-            payload
-        );
+        return;
     }
 
     private toLiveEpgPanelSummary(

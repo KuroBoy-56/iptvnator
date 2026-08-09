@@ -63,10 +63,6 @@ const EPG_URL_PATTERN = /^\s*(http|https|file):\/\/[^ "]+\s*$/;
                 gap: 14px;
             }
 
-            // Material's '.mat-mdc-dialog-title + .mat-mdc-dialog-content' rule
-            // zeroes padding-top with higher specificity than a scoped override,
-            // which clips the first field's floating label. Pushing the first
-            // field down with margin-top side-steps that entirely.
             mat-dialog-content > mat-form-field:first-child {
                 margin-top: 10px;
             }
@@ -325,14 +321,6 @@ export class PlaylistInfoComponent {
         if (!success) {
             throw new Error('Failed to update playlist in database');
         }
-
-        // TODO: circular dependency
-        /* this.xtreamStore.updatePlaylist({
-            name: playlist.title,
-            username: playlist.username,
-            password: playlist.password,
-            serverUrl: playlist.serverUrl,
-        }); */
     }
 
     async refreshPlaylistEpgSource(url: string): Promise<void> {
@@ -494,7 +482,7 @@ export class PlaylistInfoComponent {
         );
 
         if (this.runtime.supportsDesktopFileSave) {
-            const desktopFileBridge = window.electron as DesktopFileSaveBridge;
+            const desktopFileBridge = (window as any).electron as DesktopFileSaveBridge;
 
             try {
                 const savePath = await desktopFileBridge.saveFileDialog(
@@ -554,9 +542,6 @@ export class PlaylistInfoComponent {
         document.body.removeChild(element);
     }
 
-    /**
-     * Copy URL to clipboard
-     */
     copyUrl(): void {
         const url = this.playlistDetails.get('url')?.value;
         if (url) {

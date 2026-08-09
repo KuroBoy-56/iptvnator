@@ -5,6 +5,8 @@ import {
     inject,
     signal,
 } from '@angular/core';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -56,6 +58,7 @@ export class AccountInfoComponent {
         }) ?? {};
     private readonly xtreamApiService = inject(XtreamApiService);
     private readonly xtreamStore = inject(XtreamStore);
+    private readonly http = inject(HttpClient);
     private readonly logger = createLogger('XtreamAccountInfo');
 
     readonly currentPlaylist = computed(
@@ -69,13 +72,21 @@ export class AccountInfoComponent {
     readonly isActive = computed(
         () => resolveXtreamPortalStatus(this.accountInfo()) === 'active'
     );
-    readonly isTrial = computed(
-        () => this.accountInfo()?.user_info?.is_trial === '1'
-    );
-    readonly playlistLabel = computed(() => {
+    
+    // LECTURA DEL MARCADOR INDESTRUCTIBLE (Saltando la regla estricta de TypeScript)
+    readonly isTrial = computed(() => {
         const playlist = this.currentPlaylist();
         const info = this.accountInfo();
+        const pid = (playlist as any)?._id || (playlist as any)?.id;
+        const isSessionDemo = pid ? localStorage.getItem(`is_demo_${pid}`) === 'true' : false;
+        
+        return info?.user_info?.is_trial === '1' || playlist?.title === 'DEMO' || isSessionDemo;
+    });
 
+    readonly playlistLabel = computed(() => {
+        if (this.isTrial()) return 'DEMO';
+        const playlist = this.currentPlaylist();
+        const info = this.accountInfo();
         return (
             playlist?.title ||
             playlist?.name ||
@@ -84,43 +95,44 @@ export class AccountInfoComponent {
             '-'
         );
     });
-    readonly serverHost = computed(
-        () => this.accountInfo()?.server_info?.url || '-'
-    );
+
+    readonly serverHost = computed(() => {
+        if (this.isTrial()) return '***************';
+        return this.accountInfo()?.server_info?.url || '-';
+    });
+
     readonly activeConnections = computed(() =>
         this.parseNumber(this.accountInfo()?.user_info?.active_cons)
     );
     readonly maxConnections = computed(() =>
         this.parseNumber(this.accountInfo()?.user_info?.max_connections)
     );
+    
     readonly connectionUsagePercent = computed(() => {
+        if (this.isTrial()) return 100;
         const maxConnections = this.maxConnections();
-
-        if (maxConnections <= 0) {
-            return 0;
-        }
-
-        return Math.min(
-            100,
-            Math.round((this.activeConnections() / maxConnections) * 100)
-        );
+        if (maxConnections <= 0) return 0;
+        return Math.min(100, Math.round((this.activeConnections() / maxConnections) * 100));
     });
-    readonly activeConnectionsLabel = computed(
-        () =>
-            `${this.activeConnections()}/${Math.max(this.maxConnections(), 0)}`
-    );
-    readonly formattedExpDate = computed(() =>
-        this.formatUnixDate(this.accountInfo()?.user_info?.exp_date)
-    );
-    readonly formattedCreatedDate = computed(() =>
-        this.formatUnixDate(this.accountInfo()?.user_info?.created_at)
-    );
+
+    readonly activeConnectionsLabel = computed(() => {
+        if (this.isTrial()) return '1/1';
+        return `${this.activeConnections()}/${Math.max(this.maxConnections(), 0)}`;
+    });
+
+    readonly formattedExpDate = computed(() => {
+        return this.formatUnixDate(this.accountInfo()?.user_info?.exp_date);
+    });
+    readonly formattedCreatedDate = computed(() => {
+        return this.formatUnixDate(this.accountInfo()?.user_info?.created_at);
+    });
+
     readonly allowedFormats = computed(
         () => this.accountInfo()?.user_info?.allowed_output_formats ?? []
     );
+    
     readonly ports = computed<AccountPort[]>(() => {
         const serverInfo = this.accountInfo()?.server_info;
-
         return [
             {
                 labelKey: 'XTREAM.ACCOUNT_INFO.HTTP_PORT',
@@ -136,6 +148,7 @@ export class AccountInfoComponent {
             },
         ];
     });
+    
     readonly heroStats = computed<AccountStat[]>(() => [
         {
             icon: 'bolt',
@@ -162,43 +175,52 @@ export class AccountInfoComponent {
             meter: null,
         },
     ]);
-    readonly userDetails = computed<AccountDetailRow[]>(() => [
-        {
-            labelKey: 'XTREAM.ACCOUNT_INFO.STATUS',
-            value: this.accountInfo()?.user_info?.status || '-',
-            tone: this.isActive() ? 'positive' : undefined,
-        },
-        {
-            labelKey: 'XTREAM.ACCOUNT_INFO.USERNAME',
-            value: this.accountInfo()?.user_info?.username || '-',
-            mono: true,
-        },
-        {
-            labelKey: 'XTREAM.ACCOUNT_INFO.ACTIVE_CONNECTIONS',
-            value: this.activeConnectionsLabel(),
-            tone: 'accent',
-        },
-        {
-            labelKey: 'XTREAM.ACCOUNT_INFO.CREATED',
-            value: this.formattedCreatedDate(),
-        },
-        {
-            labelKey: 'XTREAM.ACCOUNT_INFO.EXPIRES',
-            value: this.formattedExpDate(),
-        },
-        {
+    
+    readonly userDetails = computed<AccountDetailRow[]>(() => {
+        const isDemo = this.isTrial();
+        const rows: AccountDetailRow[] = [
+            {
+                labelKey: 'XTREAM.ACCOUNT_INFO.STATUS',
+                value: this.accountInfo()?.user_info?.status || '-',
+                tone: this.isActive() ? 'positive' : undefined,
+            },
+            {
+                labelKey: 'XTREAM.ACCOUNT_INFO.USERNAME',
+                value: isDemo ? 'DEMO' : (this.accountInfo()?.user_info?.username || '-'),
+                mono: true,
+            },
+            {
+                labelKey: 'XTREAM.ACCOUNT_INFO.ACTIVE_CONNECTIONS',
+                value: this.activeConnectionsLabel(),
+                tone: 'accent',
+            }
+        ];
+
+        if (!isDemo) {
+            rows.push({
+                labelKey: 'XTREAM.ACCOUNT_INFO.CREATED',
+                value: this.formattedCreatedDate(),
+            });
+            rows.push({
+                labelKey: 'XTREAM.ACCOUNT_INFO.EXPIRES',
+                value: this.formattedExpDate(),
+            });
+        }
+
+        rows.push({
             labelKey: 'XTREAM.ACCOUNT_INFO.TRIAL_ACCOUNT',
-            value: this.isTrial()
-                ? 'XTREAM.ACCOUNT_INFO.YES'
-                : 'XTREAM.ACCOUNT_INFO.NO',
+            value: isDemo ? 'XTREAM.ACCOUNT_INFO.YES' : 'XTREAM.ACCOUNT_INFO.NO',
             translateValue: true,
-            tone: this.isTrial() ? 'warning' : undefined,
-        },
-    ]);
+            tone: isDemo ? 'warning' : undefined,
+        });
+
+        return rows;
+    });
+    
     readonly serverDetails = computed<AccountDetailRow[]>(() => [
         {
             labelKey: 'XTREAM.ACCOUNT_INFO.URL',
-            value: this.accountInfo()?.server_info?.url || '-',
+            value: this.isTrial() ? '***************' : (this.accountInfo()?.server_info?.url || '-'),
             mono: true,
         },
         {
@@ -222,7 +244,6 @@ export class AccountInfoComponent {
 
     async reload(): Promise<void> {
         const playlist = this.currentPlaylist();
-
         if (!playlist?.serverUrl || !playlist.username || !playlist.password) {
             this.loadState.set('error');
             this.accountInfo.set(null);
@@ -230,13 +251,31 @@ export class AccountInfoComponent {
         }
 
         this.loadState.set('loading');
-
         try {
-            const accountInfo = await this.xtreamApiService.getAccountInfo({
+            let rawAccountInfo = await this.xtreamApiService.getAccountInfo({
                 serverUrl: playlist.serverUrl,
                 username: playlist.username,
                 password: playlist.password,
             });
+
+            let accountInfo = JSON.parse(JSON.stringify(rawAccountInfo));
+            
+            const pid = (playlist as any)?._id || (playlist as any)?.id;
+            const isSessionDemo = pid ? localStorage.getItem(`is_demo_${pid}`) === 'true' : false;
+            const isDemo = playlist.title === 'DEMO' || accountInfo?.user_info?.is_trial === '1' || isSessionDemo;
+
+            if (isDemo && accountInfo?.user_info && accountInfo?.server_info) {
+                accountInfo.user_info.is_trial = '1';
+                accountInfo.user_info.username = 'DEMO';
+                accountInfo.user_info.password = '**********';
+                accountInfo.server_info.url = '***************';
+                accountInfo.server_info.port = '***';
+                accountInfo.server_info.https_port = '***';
+                accountInfo.server_info.rtmp_port = '***';
+                
+                accountInfo.user_info.active_cons = '1';
+                accountInfo.user_info.max_connections = '1';
+            }
 
             this.accountInfo.set(accountInfo);
             this.loadState.set('ready');
@@ -249,12 +288,22 @@ export class AccountInfoComponent {
 
     private formatUnixDate(timestamp?: string): string {
         const value = Number.parseInt(timestamp ?? '', 10);
-
         if (!Number.isFinite(value) || value <= 0) {
             return '-';
         }
-
-        return new Date(value * 1000).toLocaleDateString();
+        
+        const dateMs = value < 10000000000 ? value * 1000 : value;
+        
+        return new Date(dateMs).toLocaleString('es-PA', { 
+            timeZone: 'America/Panama',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
     }
 
     private parseNumber(value?: string): number {

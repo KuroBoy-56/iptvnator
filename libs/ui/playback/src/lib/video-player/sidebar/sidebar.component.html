@@ -1,19 +1,14 @@
 @if (showPlaylistHeader()) {
     <div class="current-playlist">
+        <!-- Botón modificado: Redirige a Ajustes y bloquea el acceso al Home/Sources -->
         <button
             mat-icon-button
-            routerLink="/"
-            [matTooltip]="'SETTINGS.BACK_TO_HOME' | translate"
+            routerLink="/settings"
+            [matTooltip]="'SETTINGS.NAVIGATION.SETTINGS' | translate"
             class="home-btn"
         >
-            <mat-icon>home</mat-icon>
+            <mat-icon>settings</mat-icon>
         </button>
-
-        <app-playlist-switcher
-            class="switcher"
-            [currentTitle]="playlistTitle()"
-            [subtitle]="subtitle()"
-        />
     </div>
 }
 

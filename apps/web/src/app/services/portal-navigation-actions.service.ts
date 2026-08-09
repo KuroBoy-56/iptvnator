@@ -1,6 +1,6 @@
 import { inject, Injectable, Provider } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { PlaylistInfoComponent } from '@iptvnator/playlist/shared/ui';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import {
     PORTAL_NAVIGATION_ACTIONS,
     PortalNavigationActions,
@@ -15,6 +15,7 @@ export class AppPortalNavigationActionsService
 {
     private readonly dialog = inject(MatDialog);
     private readonly xtreamStore = inject(XtreamStore);
+    private readonly snackBar = inject(MatSnackBar);
 
     openAccountInfo(): void {
         const data = {
@@ -36,9 +37,10 @@ export class AppPortalNavigationActionsService
     }
 
     openPlaylistInfo(playlist: Playlist | null | undefined): void {
-        this.dialog.open(PlaylistInfoComponent, {
-            data: playlist ?? null,
-        });
+        // BLOQUEO ABSOLUTO DE SEGURIDAD
+        // Se elimina la llamada al componente visual y se bloquea la extracción de datos.
+        // Nadie podrá ver credenciales ni URLs desde el reproductor.
+        this.snackBar.open('Detalles de cuenta bloqueados por seguridad.', 'CERRAR', { duration: 4000 });
     }
 
     openSettings(): void {

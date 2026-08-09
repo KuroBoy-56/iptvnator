@@ -22,7 +22,6 @@ import { TranslateService } from '@ngx-translate/core';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     PlaylistActions,
-    selectActiveTypeFilters,
     selectAllPlaylistsMeta,
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
@@ -130,48 +129,24 @@ export class RecentPlaylistsComponent {
     );
 
     constructor() {
-        // Update searchQuery when input changes
         effect(() => {
             this.searchQuery.next(this.searchQueryInput());
         });
     }
 
+    // ELIMINADA TODA LA LÓGICA DE M3U, STALKER Y XTREAM. SOLO BUSCADOR.
     readonly playlistsData$ = combineLatest([
         this.store.select(selectAllPlaylistsMeta),
         this.searchQuery,
-        this.store.select(selectActiveTypeFilters),
         this.sortService.getSortOptions(),
     ]).pipe(
-        map(([playlists, searchQuery, filters, sortOptions]) => {
-            const filteredPlaylists = playlists
-                .filter((item) => {
-                    const isStalkerFilter =
-                        item.macAddress && filters.includes('stalker');
-                    const isXtreamFilter =
-                        item.username &&
-                        item.password &&
-                        item.serverUrl &&
-                        filters.includes('xtream');
-                    const isM3uFilter =
-                        !item.username &&
-                        !item.password &&
-                        !item.serverUrl &&
-                        !item.macAddress &&
-                        filters.includes('m3u');
+        map(([playlists, searchQuery, sortOptions]) => {
+            const filteredPlaylists = playlists.filter((item) =>
+                (item.title || '')
+                    .toLowerCase()
+                    .includes(searchQuery.toLowerCase())
+            );
 
-                    return (
-                        (isStalkerFilter && filters.includes('stalker')) ||
-                        (isXtreamFilter && filters.includes('xtream')) ||
-                        (isM3uFilter && filters.includes('m3u'))
-                    );
-                })
-                .filter((item) =>
-                    (item.title || '')
-                        .toLowerCase()
-                        .includes(searchQuery.toLowerCase())
-                );
-
-            // Apply sorting using the SortService
             const sortedPlaylists = this.sortService.sortPlaylists(
                 filteredPlaylists,
                 sortOptions
@@ -191,20 +166,12 @@ export class RecentPlaylistsComponent {
         },
     });
 
-    /**
-     * Opens the details dialog with the information about the provided playlist
-     * @param data selected playlist
-     */
     openInfoDialog(data: PlaylistMeta): void {
         this.dialog.open(PlaylistInfoComponent, {
             data,
         });
     }
 
-    /**
-     * Drop event handler - applies the new sort order to the playlists array
-     * @param event drop event
-     */
     drop(event: CdkDragDrop<PlaylistMeta[]>, playlists: PlaylistMeta[]): void {
         moveItemInArray(playlists, event.previousIndex, event.currentIndex);
         this.store.dispatch(
@@ -232,10 +199,6 @@ export class RecentPlaylistsComponent {
         }
     }
 
-    /**
-     * Triggers on remove click
-     * @param playlistId playlist id to remove
-     */
     removeClicked(item: PlaylistMeta): void {
         if (this.isDeletePending(item._id) || this.isRefreshPending(item._id)) {
             return;
@@ -252,10 +215,6 @@ export class RecentPlaylistsComponent {
         });
     }
 
-    /**
-     * Removes the provided playlist from the database
-     * @param playlistId playlist id to remove
-     */
     async removePlaylist(item: PlaylistMeta) {
         if (this.isDeletePending(item._id) || this.isRefreshPending(item._id)) {
             return;
@@ -290,17 +249,12 @@ export class RecentPlaylistsComponent {
         }
     }
 
-    /**
-     * Sends an IPC event with the playlist details to the main process to trigger the refresh operation
-     * @param item playlist to update
-     */
     refreshPlaylist(item: PlaylistMeta) {
         if (this.isDeletePending(item._id) || this.isRefreshPending(item._id)) {
             return;
         }
 
         if (item.serverUrl && this.supportsXtreamSqliteDataSource) {
-            // For Xtream playlists, delete and re-import
             this.refreshXtreamPlaylist(item);
         } else if (
             this.supportsPlaylistRefresh &&
@@ -308,7 +262,6 @@ export class RecentPlaylistsComponent {
         ) {
             void this.refreshM3uPlaylist(item);
         } else if (item.url) {
-            // Browser/PWA URL refresh uses the PWA data service path.
             this.dataService.sendIpcEvent(PLAYLIST_UPDATE, {
                 id: item._id,
                 title: item.title,
@@ -317,10 +270,6 @@ export class RecentPlaylistsComponent {
         }
     }
 
-    /**
-     * Refresh Xtream playlist by deleting all data and re-importing from remote
-     * @param item Xtream playlist to refresh
-     */
     async refreshXtreamPlaylist(item: PlaylistMeta) {
         if (this.isDeletePending(item._id) || this.isRefreshPending(item._id)) {
             return;
@@ -347,8 +296,6 @@ export class RecentPlaylistsComponent {
                     this.databaseService.createOperationId('xtream-refresh');
 
                 try {
-                    // Show immediate feedback — deletion can take several seconds
-                    // for large playlists.
                     this.snackBar.open(
                         this.translate.instant(
                             'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.STARTED'
@@ -357,8 +304,6 @@ export class RecentPlaylistsComponent {
                         { duration: 2000 }
                     );
 
-                    // Delete content/categories and update the timestamp in
-                    // parallel — both operations are fully independent.
                     const updateDate = Date.now();
                     const [restoreState, playbackPositions] = await Promise.all(
                         [
@@ -388,14 +333,12 @@ export class RecentPlaylistsComponent {
                         playbackPositions,
                     });
 
-                    // Update the timestamp in NgRx / IndexedDB
                     this.store.dispatch(
                         PlaylistActions.updatePlaylistMeta({
                             playlist: { ...item, updateDate },
                         })
                     );
 
-                    // Navigate to the playlist to trigger re-import
                     this.router.navigate(['/workspace', 'xtreams', item._id]);
                 } catch (error) {
                     if (!isDbAbortError(error)) {

@@ -126,7 +126,7 @@ async function fetchPlaylistFromUrl(
 
     return createPlaylistObject(
         payload.title || playlistName,
-        parsedPlaylist,
+        parsedPlaylist as any,
         payload.url,
         'URL'
     );
@@ -146,7 +146,7 @@ async function fetchPlaylistFromFile(
 
     return createPlaylistObject(
         payload.title,
-        parsedPlaylist,
+        parsedPlaylist as any,
         payload.filePath,
         'FILE'
     );

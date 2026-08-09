@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import { getElectronUserDataPath } from '@iptvnator/shared/database';
 import { autoUpdater } from 'electron-updater';
 import fixPath from 'fix-path';
@@ -31,16 +31,10 @@ import { databaseWorkerClient } from './app/services/database-worker-client';
 import WindowEvents from './app/events/window.events';
 import XtreamEvents from './app/events/xtream.events';
 import { environment } from './environments/environment';
+import { execSync } from 'child_process';
 
 app.setName('iptvnator');
 
-// Packaged Linux launchers force X11 via the .desktop entry
-// (electron-builder `executableArgs`), but direct binary/AppImage launches
-// from a terminal bypass that entry. Embedded MPV supports X11/XWayland
-// only, and its support probe requires the ozone switch to be present, so
-// mirror the launcher behavior here. Explicit user intent wins: both an
-// --ozone-platform switch and the ELECTRON_OZONE_PLATFORM_HINT env var
-// suppress the fallback.
 if (
     process.platform === 'linux' &&
     !app.commandLine.hasSwitch('ozone-platform') &&
@@ -57,14 +51,6 @@ if (electronUserDataPath) {
 
 let fixPathScheduled = false;
 
-/**
- * Update process.env.PATH from the user's interactive login shell so that
- * spawned external players (MPV/VLC) can be resolved by binary name.
- *
- * Runs after window creation + IPC handler registration so the 50-300 ms
- * shell-spawn cost (bash/zsh -ilc env) doesn't block startup. Idempotent:
- * subsequent calls are no-ops.
- */
 function scheduleDeferredFixPath(): void {
     if (fixPathScheduled || process.platform === 'win32') {
         return;
@@ -78,7 +64,6 @@ function scheduleDeferredFixPath(): void {
                 trace('startup', 'fix-path:done');
             }
         } catch (error) {
-            console.warn('fix-path failed:', error);
         }
     });
 }
@@ -86,7 +71,6 @@ function scheduleDeferredFixPath(): void {
 export default class Main {
     static initialize() {
         if (SquirrelEvents.handleEvents()) {
-            // squirrel event handled (except first run event) and app will exit in 1000ms, so don't do anything else
             app.quit();
         }
     }
@@ -125,21 +109,14 @@ export default class Main {
         EpgEvents.bootstrapEpgEvents();
         RemoteControlEvents.bootstrapRemoteControlEvents();
 
-        // Set main window for downloads and reset stale downloads
         if (App.mainWindow) {
             setDownloadsMainWindow(App.mainWindow);
         }
 
-        // Load the renderer only after IPC handlers are registered. On slower
-        // Linux CI hosts the renderer can otherwise invoke Electron bridge IPC
-        // before the main process has installed handlers.
         await App.loadMainWindow();
+
         void appUpdateService.checkForUpdatesOnStartup();
 
-        // Initialize the database after the first renderer load is underway so
-        // Linux Electron E2E can observe a BrowserWindow even when SQLite
-        // startup or download recovery is slow. IPC handlers call getDatabase()
-        // lazily and share the same initialization promise.
         await initDatabase();
 
         if (isStartupTraceEnabled()) {
@@ -156,25 +133,35 @@ export default class Main {
             trace('startup', 'bootstrap-events:done');
         }
 
-        // Hydrate process.env.PATH from the user's login shell now — after
-        // the window has loaded and IPC handlers are live. Fire-and-forget
-        // (setImmediate) so it doesn't gate any user-visible work. Worst
-        // case: the user clicks an external player within the ~100 ms it
-        // takes to complete; the spawn would still find MPV/VLC at any of
-        // the well-known paths checked by getDefault*Path before falling
-        // back to bare-name PATH lookup.
         scheduleDeferredFixPath();
     }
 }
 
-// handle setup events as quickly as possible
 Main.initialize();
 
-// bootstrap app
 Main.bootstrapApp();
 
-// Bootstrap app events after Electron app is ready
 app.whenReady().then(async () => {
+    ipcMain.handle('GET_HARDWARE_ID', () => {
+        try {
+            let uuid = '';
+            if (process.platform === 'win32') {
+                uuid = execSync('wmic csproduct get uuid').toString().split('\n')[1].trim();
+            } else if (process.platform === 'darwin') {
+                uuid = execSync('ioreg -rd1 -c IOPlatformExpertDevice | grep IOPlatformUUID').toString().split('"')[3];
+            } else {
+                uuid = execSync('cat /etc/machine-id').toString().trim();
+            }
+            if (uuid) {
+                const clean = uuid.replace(/[^a-fA-F0-9]/g, '').toUpperCase();
+                const first16 = clean.substring(0, 16).padEnd(16, '0');
+                const pairs = first16.match(/.{1,2}/g);
+                return pairs ? pairs.join('.') : null;
+            }
+        } catch (e) {}
+        return null;
+    });
+
     if (isStartupTraceEnabled()) {
         trace('startup', 'app.whenReady');
     }

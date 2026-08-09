@@ -1,17 +1,5 @@
 @if (playlistsData(); as data) {
-    @if (data.playlists.length === 0) {
-        @if (data.totalCount === 0) {
-            <!-- Welcome state: no playlists at all -->
-            <app-empty-state
-                [type]="'welcome-sources'"
-                [showElectronOnlyValueProps]="isElectron"
-                (addPlaylistClicked)="onAddPlaylist($event)"
-            />
-        } @else {
-            <!-- No results state: search/filter returned nothing -->
-            <app-empty-state [type]="'no-results'" />
-        }
-    } @else {
+    @if (data.playlists.length > 0) {
         <div
             class="playlists-list"
             cdkDropList

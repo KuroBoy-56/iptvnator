@@ -27,10 +27,6 @@ import {
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 
-/**
- * This component contains the implementation of video player that is based on video.js library
- */
-
 type VideoPlayerSource = {
     src: string;
     type?: string;
@@ -104,13 +100,9 @@ const debugVjsPlayer = createDevLogger('VjsPlayer');
     standalone: true,
 })
 export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
-    /** DOM-element reference */
     readonly target = viewChild.required<ElementRef<Element>>('target');
-    /** Options of VideoJs player */
     readonly options = input.required<VideoPlayerOptions>();
-    /** VideoJs object */
     player!: VideoJsPlayer;
-    /** mpegts.js player for raw MPEG-TS streams */
     private mpegtsPlayer: mpegts.Player | null = null;
     private mpegTsVodDurationTarget: HTMLVideoElement | null = null;
     private readonly mpegTsVodDurationEvents = [
@@ -143,9 +135,6 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         this.queueDurationSync(() => this.syncMpegTsVodDuration());
     };
 
-    /**
-     * Instantiate Video.js on component init
-     */
     ngOnInit(): void {
         const source = this.options().sources?.[0];
         const isMpegTs = this.isMpegTsSource(source?.src);
@@ -154,16 +143,21 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         targetVideo.addEventListener('playing', this.clearPlaybackIssue);
         targetVideo.addEventListener('ended', this.handlePlaybackEnded);
 
-        // For raw MPEG-TS streams, init Video.js without a source (UI/controls only)
-        const vjsOptions = isMpegTs
+        const vjsOptions: any = isMpegTs
             ? { ...this.options(), sources: [], autoplay: false }
             : { ...this.options(), autoplay: true };
 
+        // FORZAMOS LA OPCION DE AUDIO Y SUBTITULOS A VIDEOJS
+        vjsOptions.controlBar = {
+            ...(vjsOptions.controlBar || {}),
+            audioTrackButton: true,
+            subsCapsButton: true
+        };
+        vjsOptions.html5 = {
+            vhs: { overrideNative: !videoJs.browser.IS_ANY_SAFARI }
+        };
+
         this.player = videoJs(this.target().nativeElement, vjsOptions, () => {
-            debugVjsPlayer(
-                'Setting VideoJS player initial volume to:',
-                this.volume()
-            );
             this.player.volume(this.volume());
 
             this.player.on('loadedmetadata', () => {
@@ -171,7 +165,6 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
                     this.player.currentTime(this.startTime());
                 }
                 this.playbackIssue.emit(null);
-                this.logAudioTracks();
                 this.setupAudioTrackMenu();
             });
 
@@ -179,27 +172,13 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 this.handleVideoJsPlaybackError();
             });
 
-            // Audio tracks may be added after loadedmetadata (e.g. HLS alternate audio)
             const audioTracks = this.player.audioTracks();
             if (audioTracks) {
                 audioTracks.addEventListener('addtrack', () => {
-                    debugVjsPlayer(
-                        '[AudioTrack] addtrack event fired, total tracks:',
-                        audioTracks.length
-                    );
-                    this.logAudioTracks();
                     this.setupAudioTrackMenu();
                 });
                 audioTracks.addEventListener('removetrack', () => {
-                    debugVjsPlayer(
-                        '[AudioTrack] removetrack event fired, total tracks:',
-                        audioTracks.length
-                    );
-                    this.logAudioTracks();
                     this.setupAudioTrackMenu();
-                });
-                audioTracks.addEventListener('change', () => {
-                    this.logAudioTracks();
                 });
             }
 
@@ -215,33 +194,25 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 });
             });
 
-            // Attach mpegts.js after Video.js is ready
             if (isMpegTs && source) {
                 this.initMpegTs(source.src);
             }
         }) as unknown as VideoJsPlayer;
+        
         try {
             if (typeof this.player.qualitySelectorHls === 'function') {
                 this.player.qualitySelectorHls({
                     displayCurrentQuality: true,
                 });
             }
-        } catch (e) {
-            console.warn('qualitySelectorHls plugin failed to initialize:', e);
-        }
+        } catch (e) {}
         try {
             if (typeof this.player.aspectRatioPanel === 'function') {
                 this.player.aspectRatioPanel();
             }
-        } catch (e) {
-            console.warn('aspectRatioPanel plugin failed to initialize:', e);
-        }
+        } catch (e) {}
     }
 
-    /**
-     * Replaces the url source of the player with the changed source url
-     * @param changes contains changed channel object
-     */
     ngOnChanges(changes: SimpleChanges): void {
         if (changes['options']?.previousValue) {
             const previousSource =
@@ -268,17 +239,10 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             }
         }
         if (changes['volume']?.currentValue !== undefined && this.player) {
-            debugVjsPlayer(
-                'Setting VideoJS player volume to:',
-                changes['volume'].currentValue
-            );
             this.player.volume(changes['volume'].currentValue);
         }
     }
 
-    /**
-     * Removes the players HTML reference on destroy
-     */
     ngOnDestroy(): void {
         this.destroyMpegTs();
         this.removeNativePlaybackListeners();
@@ -315,9 +279,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             );
             targetVideo.removeEventListener('playing', this.clearPlaybackIssue);
             targetVideo.removeEventListener('ended', this.handlePlaybackEnded);
-        } catch {
-            // Required viewChild can be unavailable when a shallow unit test destroys an unrendered component.
-        }
+        } catch {}
     }
 
     private initMpegTs(url: string): void {
@@ -326,7 +288,6 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             ?.el?.();
         if (!videoEl) return;
 
-        debugVjsPlayer('Using mpegts.js for TS stream:', url);
         const isLive = this.options().isLive !== false;
         this.mpegtsPlayer = mpegts.createPlayer({
             type: 'mpegts',
@@ -345,11 +306,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 this.syncMpegTsVodDuration();
                 this.playbackIssue.emit(
                     classifyMpegTsPlaybackIssue(
-                        {
-                            type,
-                            details,
-                            info,
-                        },
+                        { type, details, info },
                         this.createSourceMetadata(url, 'video/mp2t')
                     )
                 );
@@ -444,7 +401,6 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 continue;
             }
         }
-
         return null;
     }
 
@@ -453,7 +409,6 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             queueMicrotask(callback);
             return;
         }
-
         void Promise.resolve().then(callback);
     }
 
@@ -476,73 +431,14 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         }
     }
 
-    /**
-     * Logs all available audio tracks for debugging.
-     */
-    private logAudioTracks(): void {
-        const audioTracks = this.player.audioTracks();
-        debugVjsPlayer(
-            '[AudioTrack] Audio tracks count:',
-            audioTracks?.length ?? 0
-        );
-        if (!audioTracks) {
-            return;
-        }
-
-        for (let i = 0; i < audioTracks.length; i++) {
-            const t = audioTracks[i];
-            debugVjsPlayer(
-                `[AudioTrack] Track ${i}: label="${t.label}", language="${t.language}", enabled=${t.enabled}, kind="${t.kind}"`
-            );
-        }
-
-        // Also check the underlying tech for HLS audio tracks
-        const tech =
-            typeof this.player?.tech === 'function'
-                ? this.player.tech({ IWillNotUseThisInPlugins: true })
-                : null;
-        const audioMediaGroups =
-            tech?.vhs?.playlists?.main?.mediaGroups?.AUDIO ??
-            tech?.vhs?.playlists?.master?.mediaGroups?.AUDIO;
-
-        if (audioMediaGroups) {
-            debugVjsPlayer(
-                '[AudioTrack] HLS AUDIO media groups:',
-                JSON.stringify(Object.keys(audioMediaGroups))
-            );
-        } else {
-            debugVjsPlayer(
-                '[AudioTrack] HLS AUDIO media groups: none found in playlist metadata'
-            );
-        }
-    }
-
-    /**
-     * Sets up the audio track selection menu in the control bar.
-     * Uses the Video.js audioTracks() API which works with both
-     * native multi-audio streams and HLS.js alternate audio tracks.
-     */
     private setupAudioTrackMenu(): void {
         const audioTracks = this.player.audioTracks();
-        debugVjsPlayer(
-            '[AudioTrack] setupAudioTrackMenu called, tracks:',
-            audioTracks?.length ?? 0
-        );
         if (!audioTracks || audioTracks.length <= 1) {
-            debugVjsPlayer(
-                '[AudioTrack] Skipping menu: need >1 tracks, have',
-                audioTracks?.length ?? 0
-            );
-            debugVjsPlayer(
-                '[AudioTrack] If VLC/MPV show more tracks, the HLS manifest likely does not expose alternate audio via EXT-X-MEDIA'
-            );
             return;
         }
 
         const controlBar = this.player.getChild('controlBar');
-        if (!controlBar) {
-            return;
-        }
+        if (!controlBar) return;
 
         let audioButton =
             controlBar.getChild?.('audioTrackButton') ??

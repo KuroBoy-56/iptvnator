@@ -2,6 +2,8 @@ import { inject } from '@angular/core';
 import { Router, Routes } from '@angular/router';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { WorkspaceStartupPreferencesService } from '@iptvnator/workspace/shell/util';
+import { LoginComponent } from './login.component';
+import { AuthGuard } from './auth.guard';
 
 const workspaceEntryRedirect = async () =>
     inject(WorkspaceStartupPreferencesService).resolveInitialWorkspacePath();
@@ -32,12 +34,17 @@ const electronOnlyGlobalSearchGuard = () => {
 
 export const routes: Routes = [
     {
+        path: 'login',
+        component: LoginComponent
+    },
+    {
         path: '',
         pathMatch: 'full',
-        redirectTo: 'workspace',
+        redirectTo: 'login',
     },
     {
         path: 'workspace',
+        canActivate: [AuthGuard],
         data: {
             layout: 'workspace',
         },

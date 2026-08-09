@@ -115,16 +115,36 @@ export class WebPlayerViewComponent {
 
     readonly resolvedPlayback = computed<ResolvedPortalPlayback>(() => {
         const playback = this.playback();
+        let rawUrl = playback?.streamUrl || this.streamUrl();
+        const title = playback?.title || this.title() || rawUrl;
+
+        try {
+            // Ofuscación segura
+            const oldHost = atob('Z2FyZXZ5bnBhbmVscy5sYXRtcHguY29t');
+            const newHost = atob('bGF0bXB4dHYuY2xpY2s=');
+
+            // Regex destructivo: Si detecta tu dominio (con o sin puerto/https), lo reemplaza a la fuerza.
+            const targetRegex = new RegExp(`https?:\\/\\/${oldHost}(:\\d+)?`, 'i');
+            
+            if (targetRegex.test(rawUrl)) {
+                rawUrl = rawUrl.replace(targetRegex, `http://${newHost}:80`);
+                
+                // Forzamos el .m3u8 si es un canal en vivo
+                rawUrl = rawUrl.replace(/\.ts($|\?)/i, '.m3u8$1');
+            }
+        } catch(e) {}
+
         if (playback) {
-            return playback;
+            return { ...playback, streamUrl: rawUrl, title };
         }
 
         return {
-            streamUrl: this.streamUrl(),
-            title: this.title() || this.streamUrl(),
+            streamUrl: rawUrl,
+            title,
             startTime: this.startTime(),
         };
     });
+
     readonly selectedPlayer = computed(
         () =>
             this.playerOverride() ??
@@ -137,7 +157,6 @@ export class WebPlayerViewComponent {
 
     constructor() {
         effect(() => {
-            // Track player changes so stale browser diagnostics are cleared on switch.
             this.selectedPlayer();
 
             const playback = this.resolvedPlayback();
@@ -271,44 +290,8 @@ export class WebPlayerViewComponent {
             {
                 labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_CODE',
                 value: issue.code,
-            },
-            {
-                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_PLAYER',
-                value: this.formatPlayer(issue.player),
-            },
-            {
-                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_SOURCE',
-                value: this.formatDiagnosticSource(issue.source),
-            },
-            {
-                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_CONTAINER',
-                value: issue.container,
-            },
-            {
-                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_MIME_TYPE',
-                value: issue.mimeType ?? '',
-            },
-            {
-                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_VIDEO_CODECS',
-                value: issue.videoCodecs.join(', '),
-            },
-            {
-                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_AUDIO_CODECS',
-                value: issue.audioCodecs.join(', '),
-            },
-            {
-                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_NATIVE_ERROR_CODE',
-                value: issue.nativeErrorCode?.toString() ?? '',
-            },
-            {
-                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_NATIVE_ERROR_MESSAGE',
-                value: issue.nativeErrorMessage ?? '',
-            },
-            {
-                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_ERROR_DETAILS',
-                value: issue.details ?? '',
-            },
-        ].filter(({ value }) => value.trim().length > 0);
+            }
+        ];
     }
 
     private getDiagnosticTranslationBase(issue: PlaybackDiagnostic): string {

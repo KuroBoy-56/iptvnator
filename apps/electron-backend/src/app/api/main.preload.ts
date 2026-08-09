@@ -12,7 +12,6 @@ import type {
     EmbeddedMpvRecordingStartOptions,
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
-    ElectronBridgeApi,
     ElectronBridgeAppUpdateReleaseNotesRequest,
     ElectronBridgeAppUpdateStatus,
     ElectronBridgeDbOperationEvent,
@@ -178,8 +177,7 @@ function wrapElectronApi<T extends object>(api: T): T {
     ) as T;
 }
 
-const electronApi: ElectronBridgeApi = {
-    // Remote control channel change listener
+const electronApi: any = {
     onChannelChange: (
         callback: (data: { direction: 'up' | 'down' }) => void
     ) => {
@@ -203,7 +201,6 @@ const electronApi: ElectronBridgeApi = {
     updateRemoteControlStatus: (status: ElectronBridgeRemoteControlStatus) => {
         ipcRenderer.send('REMOTE_CONTROL_STATUS_UPDATE', status);
     },
-    // Player error listener
     onPlayerError: (
         callback: (data: {
             player: string;
@@ -221,11 +218,9 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.on(PORTAL_DEBUG_EVENT, handler);
         return () => ipcRenderer.off(PORTAL_DEBUG_EVENT, handler);
     },
-    // EPG progress listener
     onEpgProgress: (callback: (data: ElectronBridgeEpgProgress) => void) => {
         ipcRenderer.on('EPG_PROGRESS_UPDATE', (_event, data) => callback(data));
     },
-    // Playback position update listener - returns unsubscribe function
     onPlaybackPositionUpdate: (
         callback: (data: PlaybackPositionData) => void
     ) => {
@@ -276,7 +271,6 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.on(PLAYLIST_REFRESH_EVENT, handler);
         return () => ipcRenderer.off(PLAYLIST_REFRESH_EVENT, handler);
     },
-    // DB save content progress listener
     onDbSaveContentProgress: (callback: (count: number) => void) => {
         const handler = (
             _event: Electron.IpcRendererEvent,
@@ -295,7 +289,6 @@ const electronApi: ElectronBridgeApi = {
         dbSaveContentProgressListeners.add(handler);
         ipcRenderer.on(DB_OPERATION_EVENT, handler);
     },
-    // Remove DB save content progress listener
     removeDbSaveContentProgress: () => {
         dbSaveContentProgressListeners.forEach((handler) => {
             ipcRenderer.off(DB_OPERATION_EVENT, handler);
@@ -549,7 +542,6 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('PLAYLIST:REFRESH', payload),
     cancelPlaylistRefresh: (operationId: string) =>
         ipcRenderer.invoke('PLAYLIST:CANCEL_REFRESH', operationId),
-    // Database operations
     dbCreatePlaylist: (playlist: ElectronBridgePlaylistUpsertInput) =>
         ipcRenderer.invoke('DB_CREATE_PLAYLIST', playlist),
     dbGetPlaylist: (playlistId: string) =>
@@ -688,7 +680,6 @@ const electronApi: ElectronBridgeApi = {
         ),
     dbGetRecentlyViewed: () => ipcRenderer.invoke('DB_GET_RECENTLY_VIEWED'),
     dbClearRecentlyViewed: () => ipcRenderer.invoke('DB_CLEAR_RECENTLY_VIEWED'),
-    // Favorites
     dbAddFavorite: (
         contentId: number,
         playlistId: string,
@@ -712,7 +703,6 @@ const electronApi: ElectronBridgeApi = {
     dbReorderGlobalFavorites: (
         updates: { content_id: number; position: number }[]
     ) => ipcRenderer.invoke('DB_REORDER_GLOBAL_FAVORITES', updates),
-    // Recently viewed (playlist-specific)
     dbGetRecentItems: (playlistId: string) =>
         ipcRenderer.invoke('DB_GET_RECENT_ITEMS', playlistId),
     dbAddRecentItem: (
@@ -757,7 +747,6 @@ const electronApi: ElectronBridgeApi = {
     dbGetAppState: (key: string) => ipcRenderer.invoke('DB_GET_APP_STATE', key),
     dbSetAppState: (key: string, value: string) =>
         ipcRenderer.invoke('DB_SET_APP_STATE', key, value),
-    // TMDB metadata cache
     dbGetTmdbMetadata: (
         mediaType: TmdbCacheMediaType,
         lookupKey: string,
@@ -773,7 +762,6 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('DB_SET_TMDB_METADATA', entry),
     dbMatchTitles: (titles: string[]) =>
         ipcRenderer.invoke('DB_MATCH_TITLES', titles),
-    // Playback Positions
     dbSavePlaybackPosition: (
         playlistId: string,
         data: ElectronBridgePlaybackPositionInput
@@ -820,7 +808,6 @@ const electronApi: ElectronBridgeApi = {
             contentType
         ),
     getLocalIpAddresses: () => ipcRenderer.invoke('get-local-ip-addresses'),
-    // Downloads
     downloadsStart: (data: ElectronBridgeDownloadStartPayload) =>
         ipcRenderer.invoke('DOWNLOADS_START', data),
     downloadsCancel: (downloadId: number) =>
@@ -847,6 +834,7 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.on('DOWNLOADS_UPDATE_EVENT', handler);
         return () => ipcRenderer.off('DOWNLOADS_UPDATE_EVENT', handler);
     },
+    getHardwareId: () => ipcRenderer.invoke('GET_HARDWARE_ID'),
 };
 
 contextBridge.exposeInMainWorld('electron', wrapElectronApi(electronApi));

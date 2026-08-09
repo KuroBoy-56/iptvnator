@@ -1,5 +1,5 @@
 import { Location } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util';
@@ -12,7 +12,8 @@ import { SettingsContextService } from '@iptvnator/workspace/shell/util';
         <h2 class="panel-title">{{ 'SETTINGS.TITLE' | translate }}</h2>
         <div class="settings-panel-body">
             <div class="nav-list settings-sections-list">
-                @for (section of ctx.sections(); track section.id) {
+                <!-- AHORA LEE NUESTRA LISTA FILTRADA EN LUGAR DE LA ORIGINAL -->
+                @for (section of filteredSections(); track section.id) {
                     <button
                         type="button"
                         class="nav-item settings-section-item"
@@ -40,6 +41,13 @@ import { SettingsContextService } from '@iptvnator/workspace/shell/util';
 export class WorkspaceSettingsContextPanelComponent {
     readonly ctx = inject(SettingsContextService);
     private readonly location = inject(Location);
+
+    // EL FILTRO ASESINO: Borra "Acerca de" y "Reset" de la barra de ajustes
+    readonly filteredSections = computed(() => {
+        return this.ctx.sections().filter(
+            (section) => section.id !== 'about' && section.id !== 'reset'
+        );
+    });
 
     onBack() {
         this.location.back();

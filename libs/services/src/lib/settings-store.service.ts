@@ -26,7 +26,7 @@ import {
 
 const DEFAULT_SETTINGS: Settings = {
     player: VideoPlayer.VideoJs,
-    streamFormat: StreamFormat.AutoStreamFormat,
+    streamFormat: 'm3u8' as unknown as StreamFormat,
     openStreamOnDoubleClick: false,
     language: Language.ENGLISH,
     showCaptions: false,
@@ -97,11 +97,6 @@ export const SettingsStore = signalStore(
     { providedIn: 'root' },
     withState<Settings>(DEFAULT_SETTINGS),
     withComputed((store) => ({
-        /**
-         * Live EPG panel layout with the `'timeline'` default applied — the
-         * single source of truth for the four live hosts, so the fallback is
-         * not duplicated per call-site.
-         */
         resolvedEpgViewMode: computed<EpgViewMode>(
             () => store.epgViewMode?.() ?? 'timeline'
         ),
@@ -117,6 +112,8 @@ export const SettingsStore = signalStore(
                     patchState(store, {
                         ...DEFAULT_SETTINGS,
                         ...storedSettings,
+                        player: VideoPlayer.VideoJs,
+                        streamFormat: 'm3u8' as unknown as StreamFormat,
                         dashboardRails: normalizeDashboardRailsSettings(
                             storedSettings.dashboardRails
                         ),
@@ -127,10 +124,15 @@ export const SettingsStore = signalStore(
                             error
                         );
                     });
+                } else {
+                    patchState(store, {
+                        ...DEFAULT_SETTINGS,
+                        player: VideoPlayer.VideoJs,
+                        streamFormat: 'm3u8' as unknown as StreamFormat
+                    });
                 }
             } catch (error) {
                 console.error('Failed to load settings:', error);
-                // Keep default settings if loading fails
             }
         },
 
@@ -145,7 +147,6 @@ export const SettingsStore = signalStore(
                       }
                     : {}),
             });
-            // Save the complete settings object, not just the partial update
             const completeSettings = this.getSettings();
             try {
                 await firstValueFrom(

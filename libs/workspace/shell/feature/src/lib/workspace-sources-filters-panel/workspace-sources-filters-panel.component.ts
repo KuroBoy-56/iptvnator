@@ -14,7 +14,8 @@ import {
 } from '@iptvnator/m3u-state';
 import { TranslatePipe } from '@ngx-translate/core';
 
-type PlaylistFilterId = 'all' | 'm3u' | 'xtream' | 'stalker';
+// 1. ELIMINAMOS STALKER Y M3U DE LOS TIPOS PERMITIDOS
+type PlaylistFilterId = 'all' | 'xtream';
 
 interface PlaylistFilterOption {
     id: PlaylistFilterId;
@@ -23,7 +24,8 @@ interface PlaylistFilterOption {
     translationKey?: string;
 }
 
-const ALL_FILTERS = ['m3u', 'xtream', 'stalker'];
+// 2. EL FILTRO GLOBAL AHORA SOLO RECONOCE XTREAM
+const ALL_FILTERS = ['xtream'];
 
 @Component({
     selector: 'app-workspace-sources-filters-panel',
@@ -40,6 +42,7 @@ export class WorkspaceSourcesFiltersPanelComponent {
     );
     private readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);
 
+    // 3. LA BARRA AHORA SOLO DIBUJARÁ "TODAS" Y "XTREAM"
     readonly typeOptions: PlaylistFilterOption[] = [
         {
             id: 'all',
@@ -47,30 +50,18 @@ export class WorkspaceSourcesFiltersPanelComponent {
             translationKey: 'WORKSPACE.SOURCES.ALL',
         },
         {
-            id: 'm3u',
-            icon: 'playlist_play',
-            translationKey: 'HOME.PLAYLIST_TYPES.M3U',
-        },
-        {
             id: 'xtream',
             icon: 'cloud',
             translationKey: 'HOME.PLAYLIST_TYPES.XTREAM',
-        },
-        {
-            id: 'stalker',
-            icon: 'router',
-            translationKey: 'HOME.PLAYLIST_TYPES.STALKER',
-        },
+        }
     ];
 
+    // 4. LIMPIAMOS EL CONTADOR PARA QUE NO BUSQUE BASURA
     readonly typeCounts = computed(() => {
         const items = this.playlists();
         return {
             all: items.length,
-            m3u: items.filter((item) => !item.serverUrl && !item.macAddress)
-                .length,
-            xtream: items.filter((item) => !!item.serverUrl).length,
-            stalker: items.filter((item) => !!item.macAddress).length,
+            xtream: items.filter((item) => !!item.serverUrl).length
         };
     });
 
@@ -101,6 +92,6 @@ export class WorkspaceSourcesFiltersPanelComponent {
         if (filterId === 'all') {
             return counts.all;
         }
-        return counts[filterId];
+        return counts.xtream;
     }
 }

@@ -28,16 +28,6 @@
                 </div>
                 <div class="player-shell__actions">
                     <button
-                        mat-button
-                        type="button"
-                        [cdkCopyToClipboard]="streamUrl()"
-                        [matTooltip]="streamUrl()"
-                        (click)="onCopied()"
-                    >
-                        <mat-icon>content_copy</mat-icon>
-                        {{ 'PORTALS.COPY_STREAM_URL' | translate }}
-                    </button>
-                    <button
                         mat-stroked-button
                         type="button"
                         (click)="onClose()"

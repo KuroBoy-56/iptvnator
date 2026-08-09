@@ -53,7 +53,7 @@ export async function fetchPlaylistFromUrl(
 
     return createPlaylistObject(
         title ?? playlistName,
-        parsedPlaylist,
+        parsedPlaylist as any,
         url,
         'URL'
     );
@@ -64,7 +64,7 @@ export async function fetchPlaylistFromFile(
     title: string
 ): Promise<Playlist> {
     const fileContent = await readFile(filePath, 'utf-8');
-    return createPlaylistObject(title, parse(fileContent), filePath, 'FILE');
+    return createPlaylistObject(title, parse(fileContent) as any, filePath, 'FILE');
 }
 
 export function derivePlaylistTitleFromFilePath(filePath: string): string {

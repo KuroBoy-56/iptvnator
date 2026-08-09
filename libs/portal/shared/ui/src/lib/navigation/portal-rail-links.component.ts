@@ -19,7 +19,18 @@ import { PortalRailLink, PortalRailSection } from '@iptvnator/portal/shared/util
 export class PortalRailLinksComponent {
     private readonly router = inject(Router);
 
-    readonly links = input<PortalRailLink[]>([]);
+    // LA GUILLOTINA: Filtramos la lista de botones antes de que el HTML los dibuje
+    readonly links = input<PortalRailLink[], PortalRailLink[]>([], {
+        transform: (value: PortalRailLink[]) => {
+            if (!value) return [];
+            return value.filter(link => {
+                const normalizedPath = link.path.map((segment) => String(segment)).join('/');
+                // Si la ruta del botón apunta a 'sources', lo aniquilamos
+                return !normalizedPath.includes('sources');
+            });
+        }
+    });
+
     readonly selectedSection = input<
         PortalRailSection | string | null | undefined
     >(null);
