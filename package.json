@@ -1,5 +1,6 @@
 {
-    "name": "iptvnator",
+    "name": "latmpx-tv",
+    "productName": "LatMpx TV+",
     "version": "0.22.0",
     "license": "MIT",
     "description": "IPTV player application.",

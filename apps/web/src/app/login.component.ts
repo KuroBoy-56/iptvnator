@@ -35,7 +35,6 @@ export class LoginComponent implements OnInit {
         const macAddress = await this.getPcMacAddress();
 
         try {
-            // EL AUTO-LOGIN AHORA FUNCIONARÁ PORQUE LA MAC TIENE EL "PC:" ORIGINAL
             const autoResponse = await firstValueFrom(
                 this.http.post<{ success: boolean; username?: string; password?: string; message?: string; title?: string }>(
                     targetUrl,
@@ -46,14 +45,12 @@ export class LoginComponent implements OnInit {
             if (autoResponse && autoResponse.success && autoResponse.username && autoResponse.password) {
                 await this.login(autoResponse.username, autoResponse.password, autoResponse.title);
             } else {
-                await this.nukeOldPlaylists();
                 if (autoResponse?.message) {
                     this.errorMessage = autoResponse.message;
                 }
                 this.isLoading = false;
             }
         } catch (error) {
-            await this.nukeOldPlaylists();
             this.isLoading = false;
         }
     }
@@ -101,7 +98,6 @@ export class LoginComponent implements OnInit {
     private async getPcMacAddress(): Promise<string> {
         let deviceId = localStorage.getItem('pc_hardware_id');
         
-        // BORRAMOS FORMATOS INVENTADOS (los que no tienen PC:) PARA VOLVER AL ORIGINAL
         if (deviceId && !deviceId.includes('PC:')) {
             localStorage.removeItem('pc_hardware_id');
             deviceId = null;
@@ -118,7 +114,6 @@ export class LoginComponent implements OnInit {
                 }
             } catch (e) {}
             
-            // GENERADOR DE MAC RESTAURADO AL ORIGINAL "PC:XX.XX..."
             if (!deviceId) {
                 const hex = () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0').toUpperCase();
                 deviceId = `PC:${hex()}.${hex()}.${hex()}.${hex()}.${hex()}.${hex()}.${hex()}.${hex()}`;
@@ -238,6 +233,32 @@ export class LoginComponent implements OnInit {
             );
 
             if (connectionStatus === 'active') {
+                const playlists = await firstValueFrom(this.store.select(selectAllPlaylistsMeta));
+                const existingPlaylist = playlists.find(p => 
+                    p.serverUrl === resolvedServerUrl && 
+                    p.username === user && 
+                    p.password === pass
+                );
+
+                const sessionToken = authResponse.token || 'token-' + uuid();
+                localStorage.setItem('session_token', sessionToken);
+                localStorage.setItem('session_date', new Date().getTime().toString());
+                localStorage.setItem('session_user', user);
+
+                if (existingPlaylist) {
+                    if (finalTitle === 'DEMO') {
+                        localStorage.setItem(`is_demo_${existingPlaylist._id}`, 'true');
+                    }
+
+                    setTimeout(async () => {
+                        const navExitoso = await this.router.navigate(['/workspace']);
+                        if (!navExitoso) {
+                            this.isLoading = false;
+                        }
+                    }, 800);
+                    return;
+                }
+
                 await this.nukeOldPlaylists();
 
                 const newPlaylistId = uuid();
@@ -245,11 +266,6 @@ export class LoginComponent implements OnInit {
                 if (finalTitle === 'DEMO') {
                     localStorage.setItem(`is_demo_${newPlaylistId}`, 'true');
                 }
-
-                const sessionToken = authResponse.token || 'token-' + uuid();
-                localStorage.setItem('session_token', sessionToken);
-                localStorage.setItem('session_date', new Date().getTime().toString());
-                localStorage.setItem('session_user', user);
 
                 this.store.dispatch(
                     PlaylistActions.addPlaylist({

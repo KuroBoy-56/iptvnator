@@ -1,6 +1,6 @@
 {
     "appId": "com.fourgray.iptvnator",
-    "productName": "IPTVnator",
+    "productName": "LatMpx TV+",
     "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
     "publish": [
         {
@@ -35,8 +35,8 @@
         "**/embedded-mpv-runtime.json"
     ],
     "extraMetadata": {
-        "name": "iptvnator",
-        "productName": "IPTVnator",
+        "name": "LatMpx TV+",
+        "productName": "LatMpx TV+",
         "main": "electron-backend/main.js"
     },
     "extraResources": ["dist/apps/electron-backend/workers"],
@@ -62,11 +62,11 @@
     },
     "linux": {
         "category": "Video",
-        "executableName": "iptvnator",
+        "executableName": "LatMpx TV+",
         "executableArgs": ["--ozone-platform=x11"],
         "desktop": {
             "entry": {
-                "StartupWMClass": "iptvnator"
+                "StartupWMClass": "LatMpx TV+"
             }
         },
         "target": [

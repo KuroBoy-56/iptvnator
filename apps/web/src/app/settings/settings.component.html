@@ -98,28 +98,6 @@
                 (exportData)="exportData()"
             />
 
-            <app-settings-reset-section
-                [activeSection]="activeSection()"
-                [isRemovingAllPlaylists]="isRemovingAllPlaylists()"
-                [canRemoveAllPlaylists]="canRemoveAllPlaylists()"
-                [playlistDeleteSummary]="playlistDeleteSummary()"
-                [removeAllProgressLabel]="removeAllProgressLabel()"
-                (removeAll)="removeAll()"
-            />
-
-            <app-settings-about-section
-                [activeSection]="activeSection()"
-                [isDesktop]="isDesktop"
-                [version]="version"
-                [updateMessage]="updateMessage"
-                [appUpdateStatus]="appUpdateStatus()"
-                (checkForAppUpdate)="checkForAppUpdate()"
-                (downloadAppUpdate)="downloadAppUpdate()"
-                (installAppUpdate)="installAppUpdate()"
-                (openManualAppUpdate)="openManualAppUpdate()"
-                (openAppUpdateReleaseNotes)="openAppUpdateReleaseNotes()"
-            />
-
             <footer class="action-bar" data-test-id="settings-action-bar">
                 @if (isDialog) {
                     <button
