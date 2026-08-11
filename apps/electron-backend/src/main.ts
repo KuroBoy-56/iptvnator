@@ -33,7 +33,7 @@ import XtreamEvents from './app/events/xtream.events';
 import { environment } from './environments/environment';
 import { execSync } from 'child_process';
 
-app.setName('iptvnator');
+app.setName('LatMpx TV+');
 
 if (
     process.platform === 'linux' &&
