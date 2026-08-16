@@ -1,6 +1,5 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { getElectronUserDataPath } from '@iptvnator/shared/database';
-import { autoUpdater } from 'electron-updater';
 import fixPath from 'fix-path';
 import App from './app/app';
 import { initDatabase } from './app/database/connection';
@@ -14,7 +13,6 @@ import EmbeddedMpvEvents, {
     shutdownEmbeddedMpv,
 } from './app/events/embedded-mpv.events';
 import EpgEvents from './app/events/epg.events';
-import AppUpdateEvents from './app/events/app-update.events';
 import { shutdownMpvSession } from './app/events/mpv-session.service';
 import PlayerEvents from './app/events/player.events';
 import { shutdownVlcSession } from './app/events/vlc-session.service';
@@ -26,7 +24,6 @@ import SquirrelEvents from './app/events/squirrel.events';
 import StalkerEvents from './app/events/stalker.events';
 import { isStartupTraceEnabled, trace } from './app/services/debug-trace';
 import { registerStaticHeaderShims } from './app/services/request-header-overrides.service';
-import { AppUpdateService } from './app/services/app-update.service';
 import { databaseWorkerClient } from './app/services/database-worker-client';
 import WindowEvents from './app/events/window.events';
 import XtreamEvents from './app/events/xtream.events';
@@ -87,14 +84,6 @@ export default class Main {
             trace('startup', 'bootstrap-events:start');
         }
 
-        const appUpdateService = new AppUpdateService({
-            app,
-            appVersion: environment.version,
-            getMainWindow: () => App.mainWindow,
-            updater: () => autoUpdater,
-        });
-        AppUpdateEvents.bootstrapAppUpdateEvents(appUpdateService);
-
         registerStaticHeaderShims();
         ElectronEvents.bootstrapElectronEvents();
         WindowEvents.bootstrapWindowEvents();
@@ -114,8 +103,6 @@ export default class Main {
         }
 
         await App.loadMainWindow();
-
-        void appUpdateService.checkForUpdatesOnStartup();
 
         await initDatabase();
 

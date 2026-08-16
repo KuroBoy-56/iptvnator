@@ -2,13 +2,6 @@
     "appId": "com.fourgray.iptvnator",
     "productName": "LatMpx TV+",
     "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
-    "publish": [
-        {
-            "provider": "github",
-            "owner": "4gray",
-            "repo": "iptvnator"
-        }
-    ],
     "directories": {
         "buildResources": "dist/apps",
         "output": "dist/executables"

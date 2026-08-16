@@ -36,14 +36,88 @@ export class LoginComponent implements OnInit {
 
         try {
             const autoResponse = await firstValueFrom(
-                this.http.post<{ success: boolean; username?: string; password?: string; message?: string; title?: string }>(
+                this.http.post<any>(
                     targetUrl,
                     { action: 'auto_login', mac_address: macAddress, device_id: macAddress }
                 )
             );
 
-            if (autoResponse && autoResponse.success && autoResponse.username && autoResponse.password) {
-                await this.login(autoResponse.username, autoResponse.password, autoResponse.title);
+            const validAccounts = (autoResponse && autoResponse.success && autoResponse.accounts) ? autoResponse.accounts : [];
+            const playlists = await firstValueFrom(this.store.select(selectAllPlaylistsMeta));
+            
+            for (const p of playlists) {
+                const stillActive = validAccounts.find((a: any) => 
+                    a.username === p.username && 
+                    a.password === p.password && 
+                    normalizeXtreamServerUrl(a.dns) === p.serverUrl
+                );
+
+                if (!stillActive) {
+                    await this.playlistDeleteAction.deletePlaylist(p);
+                    this.store.dispatch(PlaylistActions.removePlaylist({ playlistId: p._id }));
+                    localStorage.removeItem(`is_demo_${p._id}`);
+                }
+            }
+
+            if (autoResponse && autoResponse.success && autoResponse.accounts && autoResponse.accounts.length > 0) {
+                const alertAccounts = [];
+                let hasChanges = false;
+
+                for (const acc of autoResponse.accounts) {
+                    const serverUrl = normalizeXtreamServerUrl(acc.dns);
+                    
+                    const existingPlaylist = playlists.find(p => 
+                        p.serverUrl === serverUrl && 
+                        p.username === acc.username && 
+                        p.password === acc.password
+                    );
+
+                    if (!existingPlaylist) {
+                        const newPlaylistId = uuid();
+                        if (acc.title === 'DEMO') {
+                            localStorage.setItem(`is_demo_${newPlaylistId}`, 'true');
+                        }
+
+                        this.store.dispatch(
+                            PlaylistActions.addPlaylist({
+                                playlist: {
+                                    _id: newPlaylistId,
+                                    title: acc.title || 'LatMpx Pro+',
+                                    username: acc.username,
+                                    password: acc.password,
+                                    serverUrl: serverUrl,
+                                    importDate: new Date().toISOString(),
+                                } as Playlist,
+                            })
+                        );
+                        hasChanges = true;
+                    }
+
+                    alertAccounts.push({
+                        user: acc.username,
+                        pass: acc.password,
+                        dns: serverUrl,
+                        title: acc.title || 'Aviso de Vencimiento'
+                    });
+                }
+
+                if (alertAccounts.length > 0) {
+                    localStorage.setItem('alert_accounts', JSON.stringify(alertAccounts));
+                }
+
+                const activeAccount = autoResponse.accounts[0];
+                const sessionToken = autoResponse.token || 'token-' + uuid();
+                localStorage.setItem('session_token', sessionToken);
+                localStorage.setItem('session_date', new Date().getTime().toString());
+                localStorage.setItem('session_user', activeAccount.username);
+
+                setTimeout(async () => {
+                    const navExitoso = await this.router.navigate(['/workspace']);
+                    if (!navExitoso) {
+                        this.isLoading = false;
+                    }
+                }, hasChanges ? 1200 : 800);
+
             } else {
                 if (autoResponse?.message) {
                     this.errorMessage = autoResponse.message;
@@ -52,26 +126,6 @@ export class LoginComponent implements OnInit {
             }
         } catch (error) {
             this.isLoading = false;
-        }
-    }
-
-    private async nukeOldPlaylists(): Promise<void> {
-        try {
-            const playlists = await firstValueFrom(this.store.select(selectAllPlaylistsMeta));
-            for (const p of playlists) {
-                await this.playlistDeleteAction.deletePlaylist(p);
-                this.store.dispatch(PlaylistActions.removePlaylist({ playlistId: p._id }));
-            }
-            localStorage.removeItem('session_token');
-            localStorage.removeItem('session_date');
-            localStorage.removeItem('session_user');
-            
-            Object.keys(localStorage).forEach(key => {
-                if (key.startsWith('is_demo_')) {
-                    localStorage.removeItem(key);
-                }
-            });
-        } catch (e) {
         }
     }
 
@@ -216,7 +270,6 @@ export class LoginComponent implements OnInit {
             }
 
             if (!authResponse || !authResponse.success || !authResponse.dns) {
-                await this.nukeOldPlaylists();
                 this.errorMessage = authResponse?.message || '';
                 this.isLoading = false;
                 return;
@@ -245,40 +298,63 @@ export class LoginComponent implements OnInit {
                 localStorage.setItem('session_date', new Date().getTime().toString());
                 localStorage.setItem('session_user', user);
 
-                if (existingPlaylist) {
+                let alertAccountsStr = localStorage.getItem('alert_accounts');
+                let alertAccounts = alertAccountsStr ? JSON.parse(alertAccountsStr) : [];
+                alertAccounts = alertAccounts.filter((a: any) => !(a.user === user && a.pass === pass && a.dns === resolvedServerUrl));
+                alertAccounts.push({
+                    user: user,
+                    pass: pass,
+                    dns: resolvedServerUrl,
+                    title: finalTitle
+                });
+                localStorage.setItem('alert_accounts', JSON.stringify(alertAccounts));
+
+                if (!existingPlaylist) {
+                    const newPlaylistId = uuid();
+
+                    if (finalTitle === 'DEMO') {
+                        localStorage.setItem(`is_demo_${newPlaylistId}`, 'true');
+                    }
+
+                    this.store.dispatch(
+                        PlaylistActions.addPlaylist({
+                            playlist: {
+                                _id: newPlaylistId,
+                                title: finalTitle,
+                                username: user,
+                                password: pass,
+                                serverUrl: resolvedServerUrl,
+                                importDate: new Date().toISOString(),
+                            } as Playlist,
+                        })
+                    );
+                } else {
                     if (finalTitle === 'DEMO') {
                         localStorage.setItem(`is_demo_${existingPlaylist._id}`, 'true');
                     }
+                }
 
-                    setTimeout(async () => {
-                        const navExitoso = await this.router.navigate(['/workspace']);
-                        if (!navExitoso) {
-                            this.isLoading = false;
+                try {
+                    const syncResponse = await firstValueFrom(
+                        this.http.post<any>(targetUrl, { action: 'auto_login', mac_address: macAddress, device_id: macAddress })
+                    );
+                    const validAccountsSync = (syncResponse && syncResponse.success && syncResponse.accounts) ? syncResponse.accounts : [];
+                    const currentPlaylists = await firstValueFrom(this.store.select(selectAllPlaylistsMeta));
+                    
+                    for (const p of currentPlaylists) {
+                        const stillActive = validAccountsSync.find((a: any) => 
+                            a.username === p.username && 
+                            a.password === p.password && 
+                            normalizeXtreamServerUrl(a.dns) === p.serverUrl
+                        );
+
+                        if (!stillActive) {
+                            await this.playlistDeleteAction.deletePlaylist(p);
+                            this.store.dispatch(PlaylistActions.removePlaylist({ playlistId: p._id }));
+                            localStorage.removeItem(`is_demo_${p._id}`);
                         }
-                    }, 800);
-                    return;
-                }
-
-                await this.nukeOldPlaylists();
-
-                const newPlaylistId = uuid();
-
-                if (finalTitle === 'DEMO') {
-                    localStorage.setItem(`is_demo_${newPlaylistId}`, 'true');
-                }
-
-                this.store.dispatch(
-                    PlaylistActions.addPlaylist({
-                        playlist: {
-                            _id: newPlaylistId,
-                            title: finalTitle,
-                            username: user,
-                            password: pass,
-                            serverUrl: resolvedServerUrl,
-                            importDate: new Date().toISOString(),
-                        } as Playlist,
-                    })
-                );
+                    }
+                } catch (e) {}
 
                 setTimeout(async () => {
                     const navExitoso = await this.router.navigate(['/workspace']);
