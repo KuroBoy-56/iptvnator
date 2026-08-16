@@ -93,21 +93,15 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     readonly isLoadingDetails = this.xtreamStore.isLoadingDetails;
     readonly detailsError = this.xtreamStore.detailsError;
     readonly currentPlaylistId = signal('');
-    readonly xtreamDownloadContext =
-        signal<SeasonContainerXtreamDownloadContext | null>(null);
-    /** `playlistId:categoryId:serialId` of the last initialized view */
+    readonly xtreamDownloadContext = signal<SeasonContainerXtreamDownloadContext | null>(null);
+    
     private readonly lastInitKey = signal<string | null>(null);
     private readonly backdropBackfillKey = signal<string | null>(null);
 
-    /**
-     * Reactive route params: the component is reused when navigating
-     * between two series details (e.g. via the Similar rail).
-     */
     private readonly routeParams = toSignal(this.route.params, {
         initialValue: this.route.snapshot.params,
     });
 
-    // Episode playback state, re-exposed for the template.
     readonly inlinePlayback = this.playback.inlinePlayback;
     readonly episodePlaybackPositions = this.playback.episodePlaybackPositions;
     readonly openingEpisodeId = this.playback.openingEpisodeId;
@@ -116,10 +110,8 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     readonly inlineEpisodeMetadata = this.playback.inlineEpisodeMetadata;
     readonly inlineSeriesNavigation = this.playback.inlineSeriesNavigation;
 
-    /** Season currently selected in the season container. */
     private readonly selectedSeasonKey = signal<string | null>(null);
 
-    /** Season overviews from get_series_info, keyed by season key. */
     readonly seasonDescriptions = computed<Record<string, string>>(() => {
         const descriptions: Record<string, string> = {};
         for (const season of this.selectedItem()?.seasons ?? []) {
@@ -130,7 +122,6 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         return descriptions;
     });
 
-    /** TMDB recommendations matched against the loaded series catalog */
     readonly similarItems = computed<SimilarCatalogItem[]>(() => {
         const item = this.selectedItem();
         const recommendations = item?.info?.tmdb_recommendations;
@@ -144,7 +135,6 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         );
     });
 
-    /** Recommendations found in the user's OTHER portals (Electron only) */
     private readonly crossPortalItems = signal<CrossPortalSimilarItem[]>([]);
     readonly similarInPortals = computed<CrossPortalSimilarItem[]>(() => {
         const localTitles = new Set(
@@ -155,6 +145,12 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         return this.crossPortalItems().filter(
             (item) => !localTitles.has(normalizeTitleKeys(item.title).exact)
         );
+    });
+
+    readonly isDemoAccount = computed(() => {
+        const playlistId = this.currentPlaylistId();
+        if (!playlistId) return false;
+        return localStorage.getItem(`is_demo_${playlistId}`) === 'true';
     });
 
     private readonly loadCrossPortalSimilar = effect(() => {
@@ -187,12 +183,6 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     constructor() {
         this.playback.bind({ selectedItem: this.selectedItem });
 
-        // TMDB season enrichment, keyed on (tmdb_id, selected season). With
-        // season tabs the first seasonSelected fires as soon as seasons load —
-        // usually BEFORE the async show-level TMDB match has written
-        // info.tmdb_id, and enrichSelectedSerialSeason no-ops without it. So
-        // the call must re-run when the match arrives, not only on selection.
-        // The store-side enrichment is idempotent per (serial, season).
         effect(() => {
             const tmdbId = this.selectedItem()?.info?.tmdb_id;
             const seasonKey = this.selectedSeasonKey();
@@ -222,19 +212,18 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         effect(() => {
             const playlist = this.xtreamStore.currentPlaylist();
             this.currentPlaylistId.set(playlist?.id ?? '');
-            this.xtreamDownloadContext.set(
-                playlist
-                    ? {
-                          serverUrl: playlist.serverUrl,
-                          username: playlist.username,
-                          password: playlist.password,
-                      }
-                    : null
-            );
+            
+            if (playlist && !this.isDemoAccount()) {
+                this.xtreamDownloadContext.set({
+                    serverUrl: playlist.serverUrl,
+                    username: playlist.username,
+                    password: playlist.password,
+                });
+            } else {
+                this.xtreamDownloadContext.set(null);
+            }
         });
 
-        // Initializes on first render and RE-initializes when the route
-        // params change while the component is reused (Similar rail).
         effect(() => {
             const playlistId = this.xtreamStore.currentPlaylist()?.id;
             const { categoryId, serialId } = this.routeParams();
@@ -282,10 +271,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         });
     }
 
-    ngOnInit(): void {
-        // Initialization is handled by the params-driven effect in the
-        // constructor; the hook remains for interface compatibility.
-    }
+    ngOnInit(): void {}
 
     ngOnDestroy(): void {
         this.playback.closeInlinePlayer();
@@ -316,8 +302,6 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     }
 
     onSeasonSelected(seasonKey: string): void {
-        // The enrichment call itself runs from the constructor effect keyed
-        // on (tmdb_id, selectedSeasonKey) — see the race note there.
         this.selectedSeasonKey.set(seasonKey);
     }
 

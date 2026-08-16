@@ -42,9 +42,12 @@ export class LoginComponent implements OnInit {
                 )
             );
 
-            const validAccounts = (autoResponse && autoResponse.success && autoResponse.accounts) ? autoResponse.accounts : [];
+            let validAccounts: any[] = [];
+            if (autoResponse && autoResponse.success && autoResponse.accounts) {
+                validAccounts = autoResponse.accounts;
+            }
+
             const playlists = await firstValueFrom(this.store.select(selectAllPlaylistsMeta));
-            
             for (const p of playlists) {
                 const stillActive = validAccounts.find((a: any) => 
                     a.username === p.username && 
@@ -309,17 +312,16 @@ export class LoginComponent implements OnInit {
                 });
                 localStorage.setItem('alert_accounts', JSON.stringify(alertAccounts));
 
+                let targetId = existingPlaylist ? existingPlaylist._id : uuid();
+
                 if (!existingPlaylist) {
-                    const newPlaylistId = uuid();
-
                     if (finalTitle === 'DEMO') {
-                        localStorage.setItem(`is_demo_${newPlaylistId}`, 'true');
+                        localStorage.setItem(`is_demo_${targetId}`, 'true');
                     }
-
                     this.store.dispatch(
                         PlaylistActions.addPlaylist({
                             playlist: {
-                                _id: newPlaylistId,
+                                _id: targetId,
                                 title: finalTitle,
                                 username: user,
                                 password: pass,
@@ -330,7 +332,7 @@ export class LoginComponent implements OnInit {
                     );
                 } else {
                     if (finalTitle === 'DEMO') {
-                        localStorage.setItem(`is_demo_${existingPlaylist._id}`, 'true');
+                        localStorage.setItem(`is_demo_${targetId}`, 'true');
                     }
                 }
 
@@ -338,17 +340,22 @@ export class LoginComponent implements OnInit {
                     const syncResponse = await firstValueFrom(
                         this.http.post<any>(targetUrl, { action: 'auto_login', mac_address: macAddress, device_id: macAddress })
                     );
-                    const validAccountsSync = (syncResponse && syncResponse.success && syncResponse.accounts) ? syncResponse.accounts : [];
-                    const currentPlaylists = await firstValueFrom(this.store.select(selectAllPlaylistsMeta));
                     
+                    let validAccountsSync: any[] = [];
+                    if (syncResponse && syncResponse.success && syncResponse.accounts) {
+                        validAccountsSync = syncResponse.accounts;
+                    }
+
+                    const currentPlaylists = await firstValueFrom(this.store.select(selectAllPlaylistsMeta));
                     for (const p of currentPlaylists) {
+                        const isJustLoggedIn = (p._id === targetId);
                         const stillActive = validAccountsSync.find((a: any) => 
                             a.username === p.username && 
                             a.password === p.password && 
                             normalizeXtreamServerUrl(a.dns) === p.serverUrl
                         );
 
-                        if (!stillActive) {
+                        if (!stillActive && !isJustLoggedIn) {
                             await this.playlistDeleteAction.deletePlaylist(p);
                             this.store.dispatch(PlaylistActions.removePlaylist({ playlistId: p._id }));
                             localStorage.removeItem(`is_demo_${p._id}`);

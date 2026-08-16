@@ -27,25 +27,6 @@ import {
 import type { PlaybackFallbackRequest } from '../playback-diagnostics/playback-diagnostics.util';
 import { PortalInlinePlayerComponent } from '../portal-inline-player/portal-inline-player.component';
 
-/**
- * Unified VOD details component for both Xtream and Stalker portals.
- *
- * Uses discriminated union (VodDetailsItem) for type-safe handling.
- * All actions are emitted as outputs - parent components handle
- * store-specific operations (play, favorites, downloads).
- *
- * @example
- * ```html
- * <app-vod-details
- *   [item]="vodItem"
- *   [isFavorite]="isFavorite()"
- *   [playbackPosition]="position()"
- *   (playClicked)="onPlay($event)"
- *   (resumeClicked)="onResume($event)"
- *   (favoriteToggled)="onToggleFavorite($event)"
- * />
- * ```
- */
 @Component({
     selector: 'app-vod-details',
     templateUrl: './vod-details.component.html',
@@ -62,69 +43,29 @@ import { PortalInlinePlayerComponent } from '../portal-inline-player/portal-inli
     ],
 })
 export class VodDetailsComponent {
-    // ============ Inputs ============
-
-    /** VOD item with discriminated union type */
     readonly item = input.required<VodDetailsItem>();
-
-    /** Whether this item is in favorites (managed by parent) */
     readonly isFavorite = input<boolean>(false);
-
-    /** Playback position in seconds for resume feature (managed by parent) */
     readonly playbackPosition = input<number | null>(null);
-
-    /** Inline playback payload for embedded players (managed by parent) */
     readonly inlinePlayback = input<ResolvedPortalPlayback | null>(null);
-
-    /** Active external playback session for launch state */
     readonly externalPlayback = input<ExternalPlayerSession | null>(null);
 
-    // ============ Outputs ============
-
-    /** Emitted when play button is clicked */
     readonly playClicked = output<VodDetailsItem>();
-
-    /** Emitted when resume button is clicked (includes position) */
     readonly resumeClicked = output<{ item: VodDetailsItem; positionSeconds: number }>();
-
-    /** Emitted when favorite toggle is clicked */
     readonly favoriteToggled = output<{ item: VodDetailsItem; isFavorite: boolean }>();
-
-    /** Emitted when back button is clicked */
     readonly backClicked = output<void>();
-
-    /** Emitted when download is requested (parent handles URL construction) */
     readonly downloadRequested = output<VodDetailsItem>();
-
-    /** Emitted when inline playback position changes */
-    readonly inlineTimeUpdated = output<{
-        currentTime: number;
-        duration: number;
-    }>();
-
-    /** Emitted when the inline player should be closed */
+    readonly inlineTimeUpdated = output<{ currentTime: number; duration: number; }>();
     readonly inlinePlaybackClosed = output<void>();
-
-    /** Emitted when the stream url is copied */
     readonly streamUrlCopied = output<void>();
-
-    /** Emitted when the inline player requests MPV/VLC fallback */
-    readonly inlineExternalFallbackRequested =
-        output<PlaybackFallbackRequest>();
-
-    // ============ Services ============
+    readonly inlineExternalFallbackRequested = output<PlaybackFallbackRequest>();
 
     private readonly downloadsService = inject(DownloadsService);
     private readonly crossPortalSimilar = inject(CrossPortalSimilarService);
     private readonly externalPlaybackActions = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly router = inject(Router);
 
-    // ============ Computed State ============
-
-    /** Whether running in Electron (downloads available) */
     readonly isElectron = computed(() => this.downloadsService.isAvailable());
 
-    /** Normalized metadata for display */
     readonly normalizedMeta = computed(() => {
         return normalizeVodDetails(this.item());
     });
@@ -133,11 +74,12 @@ export class VodDetailsComponent {
         youtubeEmbedUrl(this.normalizedMeta().youtubeTrailer)
     );
 
-    /**
-     * TMDB recommendations found in the user's OTHER portals (batched DB
-     * match, Electron only). Loaded async — the section appears when
-     * resolved; staleness-guarded against item changes in flight.
-     */
+    readonly isDemoAccount = computed(() => {
+        const currentItem = this.item();
+        if (!currentItem || !currentItem.playlistId) return false;
+        return localStorage.getItem(`is_demo_${currentItem.playlistId}`) === 'true';
+    });
+
     readonly similarInPortals = signal<CrossPortalSimilarItem[]>([]);
 
     private readonly loadSimilarInPortals = effect(() => {
@@ -168,13 +110,11 @@ export class VodDetailsComponent {
         void this.router.navigate(this.crossPortalSimilar.buildLink(item));
     }
 
-    /** Whether there's a playback position to resume from */
     readonly hasPlaybackPosition = computed(() => {
         const pos = this.playbackPosition();
         return pos !== null && pos > 0;
     });
 
-    /** Formatted playback position (e.g., "12:34" or "1:23:45") */
     readonly formattedPosition = computed(() => {
         const pos = this.playbackPosition();
         if (!pos || pos <= 0) return '';
@@ -189,19 +129,15 @@ export class VodDetailsComponent {
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     });
 
-    /** Whether VOD is already downloaded */
     readonly isDownloaded = computed(() => {
         const item = this.item();
-        // Access signal to create reactive dependency
         this.downloadsService.downloads();
         const vodId = getVodNumericId(item);
         return this.downloadsService.isDownloaded(vodId, item.playlistId, 'vod');
     });
 
-    /** Whether VOD is currently downloading */
     readonly isDownloading = computed(() => {
         const item = this.item();
-        // Access signal to create reactive dependency
         this.downloadsService.downloads();
         const vodId = getVodNumericId(item);
         return this.downloadsService.isDownloading(vodId, item.playlistId, 'vod');
@@ -278,9 +214,6 @@ export class VodDetailsComponent {
         return this.isExternalStopAction() ? 'stop' : 'idle';
     });
 
-    // ============ Actions ============
-
-    /** Handle play button click */
     onPlay(): void {
         this.playClicked.emit(this.item());
     }
@@ -299,7 +232,6 @@ export class VodDetailsComponent {
         this.onPlay();
     }
 
-    /** Handle resume button click */
     onResume(): void {
         const pos = this.playbackPosition();
         if (pos && pos > 0) {
@@ -310,7 +242,6 @@ export class VodDetailsComponent {
         }
     }
 
-    /** Handle favorite toggle - emits the desired new state */
     toggleFavorite(): void {
         this.favoriteToggled.emit({
             item: this.item(),
@@ -318,7 +249,6 @@ export class VodDetailsComponent {
         });
     }
 
-    /** Handle back navigation - emit event for parent to handle */
     openActor(member: TmdbEnrichedCastMember): void {
         if (!member.tmdbPersonId) {
             return;
@@ -338,8 +268,8 @@ export class VodDetailsComponent {
         this.backClicked.emit();
     }
 
-    /** Handle download request */
     onDownload(): void {
+        if (this.isDemoAccount()) return;
         this.downloadRequested.emit(this.item());
     }
 
@@ -370,8 +300,8 @@ export class VodDetailsComponent {
         );
     }
 
-    /** Play from local downloaded file */
     async playFromLocal(): Promise<void> {
+        if (this.isDemoAccount()) return;
         const item = this.item();
         const vodId = getVodNumericId(item);
 

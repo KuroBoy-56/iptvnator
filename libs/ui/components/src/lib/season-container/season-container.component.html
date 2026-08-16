@@ -76,7 +76,6 @@
             </div>
         } @else {
             @if (viewMode() === 'grid') {
-                <!-- Episodes Grid View -->
                 <div class="episodes-grid">
                     @for (episode of selectedSeasonEpisodes(); track $index) {
                         @let episodeInfo = getEpisodeInfo(episode);
@@ -187,7 +186,7 @@
                                             >
                                                 <mat-icon>downloading</mat-icon>
                                             </button>
-                                        } @else {
+                                        } @else if (xtreamDownloadContext()) {
                                             <button
                                                 mat-icon-button
                                                 class="download-btn"
@@ -270,7 +269,6 @@
                     }
                 </div>
             } @else {
-                <!-- Episodes List View -->
                 <div class="episodes-list">
                     @for (episode of selectedSeasonEpisodes(); track $index) {
                         @let episodeInfo = getEpisodeInfo(episode);
@@ -425,7 +423,7 @@
                                         >
                                             <mat-icon>downloading</mat-icon>
                                         </button>
-                                    } @else {
+                                    } @else if (xtreamDownloadContext()) {
                                         <button
                                             mat-icon-button
                                             class="action-btn"

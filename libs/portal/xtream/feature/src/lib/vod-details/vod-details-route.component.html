@@ -173,7 +173,7 @@
                     {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
                 </button>
             }
-            @if (isElectron()) {
+            @if (isElectron() && !isDemoAccount()) {
                 @if (isDownloaded()) {
                     <button
                         class="download-btn download-btn--completed"
