@@ -75,9 +75,12 @@ export class WorkspaceShellComponent implements OnInit {
 
             try {
                 const res = await fetch(alertaUrl);
-                const html = await res.text();
+                let html = await res.text();
 
                 if (html && html.includes('tarjeta-alerta')) {
+                    const baseUrl = this.getBaseImageUrl();
+                    html = html.replace(/src=(['"])\.\.\/(img\/alertas\/[^'"]+)(['"])/g, "src=$1" + baseUrl + "$2$3");
+
                     if (html.includes('¡Bienvenido!')) {
                         if (!welcomeHtml) welcomeHtml = html;
                     } else {
@@ -96,6 +99,16 @@ export class WorkspaceShellComponent implements OnInit {
 
     private getAlertaUrl(): string {
         const encrypted = [3, 1, 6, 31, 24, 79, 93, 64, 12, 20, 0, 10, 29, 12, 28, 31, 10, 27, 23, 3, 24, 91, 30, 14, 31, 24, 2, 23, 69, 22, 29, 2, 68, 28, 16, 0, 95, 30, 2, 29, 4, 90, 19, 31, 2, 90, 19, 3, 14, 7, 6, 14, 69, 5, 26, 31];
+        const key = "kuro";
+        let decrypted = "";
+        for (let i = 0; i < encrypted.length; i++) {
+            decrypted += String.fromCharCode(encrypted[i] ^ key.charCodeAt(i % key.length));
+        }
+        return decrypted;
+    }
+
+    private getBaseImageUrl(): string {
+        const encrypted = [3, 1, 6, 31, 24, 79, 93, 64, 12, 20, 0, 10, 29, 12, 28, 31, 10, 27, 23, 3, 24, 91, 30, 14, 31, 24, 2, 23, 69, 22, 29, 2, 68, 28, 16, 0, 95, 30, 2, 29, 4, 90];
         const key = "kuro";
         let decrypted = "";
         for (let i = 0; i < encrypted.length; i++) {
