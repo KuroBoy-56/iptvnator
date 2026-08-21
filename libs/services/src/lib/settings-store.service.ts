@@ -112,23 +112,18 @@ export const SettingsStore = signalStore(
                     patchState(store, {
                         ...DEFAULT_SETTINGS,
                         ...storedSettings,
-                        player: VideoPlayer.VideoJs,
-                        streamFormat: 'm3u8' as unknown as StreamFormat,
+                        // BUGS REMOVIDOS: Aquí estaban "quemados" el player y el streamFormat.
                         dashboardRails: normalizeDashboardRailsSettings(
                             storedSettings.dashboardRails
                         ),
                     });
                     void this.sanitizeEmbeddedMpvSelection().catch((error) => {
-                        console.warn(
-                            'Failed to verify embedded MPV support while loading settings.',
-                            error
-                        );
+                        console.warn('Failed to verify embedded MPV support', error);
                     });
                 } else {
                     patchState(store, {
-                        ...DEFAULT_SETTINGS,
-                        player: VideoPlayer.VideoJs,
-                        streamFormat: 'm3u8' as unknown as StreamFormat
+                        ...DEFAULT_SETTINGS
+                        // BUGS REMOVIDOS: Aquí también estaban quemados en el fallback.
                     });
                 }
             } catch (error) {
@@ -240,39 +235,8 @@ export const SettingsStore = signalStore(
         },
 
         async sanitizeEmbeddedMpvSelection() {
-            if (store.player() !== VideoPlayer.EmbeddedMpv) {
-                return;
-            }
-
-            if (
-                typeof window === 'undefined' ||
-                !window.electron?.getEmbeddedMpvSupport
-            ) {
-                await this.updateSettings({
-                    player: DEFAULT_SETTINGS.player,
-                });
-                return;
-            }
-
-            try {
-                const support = await window.electron.getEmbeddedMpvSupport();
-                if (!support.supported) {
-                    await this.updateSettings({
-                        player: DEFAULT_SETTINGS.player,
-                    });
-                    return;
-                }
-
-                scheduleEmbeddedMpvPrepare();
-            } catch (error) {
-                console.warn(
-                    'Failed to verify embedded MPV support; reverting to the default inline player.',
-                    error
-                );
-                await this.updateSettings({
-                    player: DEFAULT_SETTINGS.player,
-                });
-            }
+            // Desactivamos el reseteo automático de seguridad que te devolvía a video.js
+            return;
         },
     })),
     withHooks({

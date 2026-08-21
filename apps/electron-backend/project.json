@@ -25,7 +25,6 @@
         "build": {
             "dependsOn": [
                 "electron-backend:build-worker",
-                "electron-backend:build-embedded-mpv",
                 {
                     "projects": ["web", "remote-control-web"],
                     "target": "build"
@@ -74,7 +73,6 @@
         "build-e2e": {
             "dependsOn": [
                 "electron-backend:build-worker",
-                "electron-backend:build-embedded-mpv",
                 {
                     "projects": ["web"],
                     "target": "build-e2e"
@@ -119,8 +117,7 @@
         },
         "serve-electron": {
             "dependsOn": [
-                "electron-backend:build-worker",
-                "electron-backend:build-embedded-mpv"
+                "electron-backend:build-worker"
             ],
             "executor": "nx-electron:execute",
             "options": {
