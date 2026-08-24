@@ -32,7 +32,14 @@
         "productName": "LatMpx TV+",
         "main": "electron-backend/main.js"
     },
-    "extraResources": ["dist/apps/electron-backend/workers"],
+    "extraResources": [
+        "dist/apps/electron-backend/workers",
+        {
+            "from": "bin",
+            "to": "bin",
+            "filter": ["**/*"]
+        }
+    ],
     "mac": {
         "target": [
             {
