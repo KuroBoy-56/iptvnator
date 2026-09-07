@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
 import mpegts from 'mpegts.js';
-import { DataService } from '@iptvnator/services';
+import { DataService, FirebaseSyncService } from '@iptvnator/services';
 import { Channel, createDevLogger } from '@iptvnator/shared/interfaces';
 import {
     InlinePlaybackPlayer,
@@ -30,9 +30,6 @@ import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-pl
 
 const debugHtmlPlayer = createDevLogger('HtmlVideoPlayer');
 
-/**
- * This component contains the implementation of HTML5 based video player
- */
 @Component({
     selector: 'app-html-video-player',
     templateUrl: './html-video-player.component.html',
@@ -41,7 +38,6 @@ const debugHtmlPlayer = createDevLogger('HtmlVideoPlayer');
     standalone: true,
 })
 export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
-    /** Channel to play  */
     @Input() channel!: Channel;
     @Input() volume = 1;
     @Input() startTime = 0;
@@ -56,17 +52,15 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     @Output() nextEpisodeRequested = new EventEmitter<void>();
 
     private readonly dataService = inject(DataService);
+    private readonly firebaseSync = inject(FirebaseSyncService);
 
-    /** Video player DOM element */
     @ViewChild('videoPlayer', { static: true })
     videoPlayer!: ElementRef<HTMLVideoElement>;
 
-    /** HLS object */
     hls!: Hls;
-    /** mpegts.js player for raw MPEG-TS streams */
     private mpegtsPlayer: mpegts.Player | null = null;
+    private lastSaveTime = 0;
 
-    /** Captions/subtitles indicator */
     @Input() showCaptions!: boolean;
 
     private readonly handleNativePlaybackError = () => {
@@ -90,17 +84,37 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         this.onVolumeChange();
     };
 
-    private readonly handleLoadedMetadata = (): void => {
-        if (this.startTime > 0) {
+    private readonly handleLoadedMetadata = async (): Promise<void> => {
+        const pbInfo = (window as any).currentPlaybackInfo;
+        if (pbInfo && pbInfo.type !== 'live') {
+            const savedPosition = await this.firebaseSync.getProgress(pbInfo.userId, pbInfo);
+            if (savedPosition > 5) {
+                this.videoPlayer.nativeElement.currentTime = savedPosition;
+            } else if (this.startTime > 0) {
+                this.videoPlayer.nativeElement.currentTime = this.startTime;
+            }
+        } else if (this.startTime > 0) {
             this.videoPlayer.nativeElement.currentTime = this.startTime;
         }
     };
 
     private readonly handleTimeUpdate = (): void => {
+        const currentTime = this.videoPlayer.nativeElement.currentTime;
+        const currentDuration = this.videoPlayer.nativeElement.duration;
+        
         this.timeUpdate.emit({
-            currentTime: this.videoPlayer.nativeElement.currentTime,
-            duration: this.videoPlayer.nativeElement.duration,
+            currentTime: currentTime,
+            duration: currentDuration,
         });
+
+        if (currentTime > 5 && Math.abs(currentTime - this.lastSaveTime) > 5) {
+            this.lastSaveTime = currentTime;
+            const pbInfo = (window as any).currentPlaybackInfo;
+            
+            if (pbInfo && pbInfo.type !== 'live') {
+                this.firebaseSync.saveProgress(pbInfo.userId, pbInfo, currentTime, currentDuration);
+            }
+        }
     };
 
     private readonly handlePlaybackEnded = (): void => {
@@ -114,7 +128,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         );
 
         this.videoPlayer.nativeElement.addEventListener(
-            'loadedmetadata',
+            'loadeddata',
             this.handleLoadedMetadata
         );
 
@@ -141,10 +155,6 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         );
     }
 
-    /**
-     * Listen for component input changes
-     * @param changes component changes
-     */
     ngOnChanges(changes: SimpleChanges): void {
         if (changes['channel'] && changes['channel'].currentValue) {
             this.playChannel(changes['channel'].currentValue);
@@ -159,10 +169,6 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         }
     }
 
-    /**
-     * Starts to play the given channel
-     * @param channel given channel object
-     */
     playChannel(channel: Channel): void {
         if (this.mpegtsPlayer) {
             this.mpegtsPlayer.pause();
@@ -178,7 +184,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             const url = channel.url + (channel.epgParams ?? '');
             const extension = getPlaybackMediaExtensionFromUrl(channel.url);
 
-            void window.electron
+            void (window as any).electron
                 ?.setUserAgent(
                     channel.http?.['user-agent'],
                     channel.http?.referrer,
@@ -269,9 +275,6 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         element.load();
     }
 
-    /**
-     * Disables text based captions based on the global settings
-     */
     disableCaptions(): void {
         for (
             let i = 0;
@@ -282,22 +285,17 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         }
     }
 
-    /**
-     * Handles promise based play operation
-     */
     handlePlayOperation(): void {
         const playPromise = this.videoPlayer.nativeElement.play();
 
         if (playPromise !== undefined) {
             playPromise
                 .then(() => {
-                    // Automatic playback started!
                     if (!this.showCaptions) {
                         this.disableCaptions();
                     }
                 })
                 .catch(() => {
-                    // Do nothing
                 });
         }
     }
@@ -356,25 +354,19 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         });
     }
 
-    /**
-     * Save volume when user changes it
-     */
     onVolumeChange(): void {
         const currentVolume = this.videoPlayer.nativeElement.volume;
         debugHtmlPlayer('Volume changed to:', currentVolume);
         localStorage.setItem('volume', currentVolume.toString());
     }
 
-    /**
-     * Destroy hls instance on component destroy and clean up event listener
-     */
     ngOnDestroy(): void {
         this.videoPlayer.nativeElement.removeEventListener(
             'volumechange',
             this.handleVolumeChange
         );
         this.videoPlayer.nativeElement.removeEventListener(
-            'loadedmetadata',
+            'loadeddata',
             this.handleLoadedMetadata
         );
         this.videoPlayer.nativeElement.removeEventListener(

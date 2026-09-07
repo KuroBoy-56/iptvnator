@@ -6,6 +6,7 @@ import {
     DatabaseService,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    FirebaseSyncService,
 } from '@iptvnator/services';
 import {
     Channel,
@@ -35,6 +36,33 @@ import {
     XtreamContentItem,
 } from '@iptvnator/portal/xtream/data-access';
 
+function parseFbDate(ts: any): string {
+    if (!ts) return new Date().toISOString();
+    const num = Number(ts);
+    if (isNaN(num) || num <= 0) return new Date().toISOString();
+    try {
+        return new Date(num > 9999999999 ? num : num * 1000).toISOString();
+    } catch(e) {
+        return new Date().toISOString();
+    }
+}
+
+async function safeFetchJson(url: string, options: any = {}, timeoutMs = 3000): Promise<any> {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(id);
+        if (!response.ok) return null;
+        return await response.json();
+    } catch (err) {
+        clearTimeout(id);
+        return null;
+    }
+}
+
+const globalUnifiedRecentCache = new Map<string, any>();
+
 type PlaylistWithChannels = Omit<Playlist, 'playlist'> & {
     readonly playlist?: { readonly items?: Channel[] };
 };
@@ -46,6 +74,104 @@ export class UnifiedRecentDataService {
     private readonly playlistsService = inject(PlaylistsService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
+    private readonly firebaseSync = inject(FirebaseSyncService, { optional: true });
+
+    private async enrichUnifiedItems(items: UnifiedCollectionItem[]): Promise<UnifiedCollectionItem[]> {
+        const win = window as any;
+        const ipc = win.electron?.ipcRenderer;
+        
+        let allMeta: PlaylistMeta[] = [];
+        try {
+            allMeta = await this.getAllMeta();
+        } catch(e) {}
+
+        return await Promise.all(items.map(async (item) => {
+            if (item.sourceType === 'xtream' && item.xtreamId != null && item.playlistId) {
+                const itemType = (item as any).contentType || (item as any).type || 'vod';
+                const cacheKey = `${item.playlistId}:${item.xtreamId}:${itemType}`;
+                const cached = globalUnifiedRecentCache.get(cacheKey);
+
+                if (cached) {
+                    if (cached.name) item.name = cached.name;
+                    if (cached.posterUrl) {
+                        item.posterUrl = cached.posterUrl;
+                        item.logo = cached.posterUrl;
+                    }
+                    return item;
+                }
+
+                let titleStr = String(item.name || '');
+                let isGeneric = !item.name || titleStr === 'Contenido' || titleStr === 'Favorito' || titleStr === 'null' || titleStr.includes('Película') || titleStr.includes('Serie') || titleStr.includes('Canal');
+                let noPoster = !item.posterUrl && !item.logo;
+                
+                if (isGeneric || noPoster) {
+                    const pl = allMeta.find((p: any) => p._id === item.playlistId) as any;
+                    const cType: 'vod' | 'series' | 'live' = (itemType === 'live' || itemType === 'itv') ? 'live' : ((itemType === 'series' || itemType === 'episode') ? 'series' : 'vod');
+
+                    if (cType === 'live') {
+                        let liveChannelsMap = win.__liveChannelsCache?.[item.playlistId];
+                        if (liveChannelsMap) {
+                            const liveInfo = liveChannelsMap.get(String(item.xtreamId));
+                            if (liveInfo) {
+                                item.name = liveInfo.name;
+                                item.posterUrl = liveInfo.logo;
+                                item.logo = liveInfo.logo;
+                                isGeneric = false;
+                                noPoster = false;
+                            }
+                        }
+                    } else {
+                        if (ipc) {
+                            try {
+                                const content = await ipc.invoke('DB_GET_CONTENT_BY_XTREAM_ID', {
+                                    xtreamId: Number(item.xtreamId),
+                                    playlistId: item.playlistId,
+                                    contentType: cType
+                                });
+                                const realContent = Array.isArray(content) ? content[0] : content;
+                                if (realContent) {
+                                    if (isGeneric && realContent.title) {
+                                        item.name = realContent.title;
+                                        isGeneric = false;
+                                    }
+                                    if (noPoster && (realContent.poster_url || realContent.backdrop_url || realContent.logo)) {
+                                        item.posterUrl = realContent.poster_url || realContent.backdrop_url || realContent.logo;
+                                        item.logo = item.posterUrl;
+                                        noPoster = false;
+                                    }
+                                }
+                            } catch(e) {}
+                        }
+
+                        if ((isGeneric || noPoster) && pl && pl.serverUrl) {
+                            try {
+                                const baseUrl = pl.serverUrl.trim().replace(/\/+$/, '');
+                                const action = cType === 'series' ? 'get_series_info&series_id=' : 'get_vod_info&vod_id=';
+                                const url = `${baseUrl}/player_api.php?username=${pl.username}&password=${pl.password}&action=${action}${item.xtreamId}`;
+                                const resp = await safeFetchJson(url);
+                                if (resp) {
+                                    if (cType === 'series' && resp.info) {
+                                        if (isGeneric) item.name = resp.info.name;
+                                        if (noPoster) item.posterUrl = resp.info.cover || resp.info.backdrop_path?.[0] || item.posterUrl;
+                                    } else if (resp.movie_data || resp.info) {
+                                        if (isGeneric) item.name = resp.movie_data?.name || resp.info?.name || resp.info?.movie_name;
+                                        if (noPoster) item.posterUrl = resp.movie_data?.poster || resp.info?.movie_image || resp.info?.cover || item.posterUrl;
+                                    }
+                                    item.logo = item.posterUrl;
+                                    isGeneric = false;
+                                }
+                            } catch(e) {}
+                        }
+                    }
+
+                    if (item.name && !isGeneric) {
+                        globalUnifiedRecentCache.set(cacheKey, { name: item.name, posterUrl: item.posterUrl });
+                    }
+                }
+            }
+            return item;
+        }));
+    }
 
     async getRecentItems(
         scope: CollectionScope,
@@ -100,12 +226,6 @@ export class UnifiedRecentDataService {
         this.dispatchPlaylistRecentUpdate(item.playlistId, updatedPlaylist);
     }
 
-    /**
-     * Bulk remove. Xtream items are batched into a single IPC call. m3u/stalker
-     * items live in the playlist row's `recentlyViewed` JSON column, so we
-     * group them by `playlistId` and do one read-filter-write per playlist —
-     * a per-item Promise.all would race and clobber sibling deletions.
-     */
     async removeRecentItemsBatch(
         items: UnifiedCollectionItem[]
     ): Promise<void> {
@@ -370,70 +490,193 @@ export class UnifiedRecentDataService {
             return results;
         }
 
+        const itemsMap = new Map<string, UnifiedCollectionItem>();
+
         try {
             const rows = await this.dbService.getGlobalRecentlyViewed();
-            return (rows || []).map((row) => ({
-                uid: buildXtreamCollectionUid(
+            (rows || []).forEach((row) => {
+                const contentType = xtreamContentType(row.type);
+                const uid = buildXtreamCollectionUid(
                     row.playlist_id,
-                    xtreamContentType(row.type),
+                    contentType,
                     row.xtream_id
-                ),
-                name: row.title,
-                contentType: xtreamContentType(row.type),
-                sourceType: 'xtream' as const,
-                playlistId: row.playlist_id,
-                playlistName: row.playlist_name ?? 'Xtream',
-                logo: row.type === 'live' ? (row.poster_url ?? null) : null,
-                posterUrl:
-                    row.type !== 'live' ? (row.poster_url ?? null) : null,
-                xtreamId: row.xtream_id,
-                categoryId: row.category_id,
-                tvgId: row.type === 'live' ? String(row.xtream_id) : undefined,
-                contentId: row.id,
-                viewedAt: normalizeStalkerDate(row.viewed_at),
-            }));
-        } catch {
-            return [];
+                );
+                itemsMap.set(uid, {
+                    uid,
+                    name: row.title,
+                    contentType: contentType as any,
+                    sourceType: 'xtream' as const,
+                    playlistId: row.playlist_id,
+                    playlistName: row.playlist_name ?? 'Xtream',
+                    logo: row.type === 'live' ? (row.poster_url ?? null) : null,
+                    posterUrl: row.type !== 'live' ? (row.poster_url ?? null) : null,
+                    xtreamId: row.xtream_id,
+                    categoryId: row.category_id,
+                    tvgId: row.type === 'live' ? String(row.xtream_id) : undefined,
+                    contentId: row.id,
+                    viewedAt: normalizeStalkerDate(row.viewed_at),
+                });
+            });
+        } catch {}
+
+        if (this.firebaseSync) {
+            try {
+                const allMeta = await this.getAllMeta();
+                const xtreamPlaylists = allMeta.filter((p: any) => !!p.serverUrl);
+
+                for (const pl of xtreamPlaylists) {
+                    const plAny = pl as any;
+                    const userIdObj = { username: plAny.username, password: plAny.password, server: plAny.serverUrl };
+                    const cloudProgress = await (this.firebaseSync as any).getAllProgress(userIdObj);
+
+                    if (cloudProgress) {
+                        for (const fbType of ['Movie', 'Series']) {
+                            if (!cloudProgress[fbType]) continue;
+
+                            for (const catId of Object.keys(cloudProgress[fbType])) {
+                                const items = fbType === 'Series' ? cloudProgress[fbType][catId] : { [catId]: cloudProgress[fbType][catId] };
+                                for (const itemId of Object.keys(items)) {
+                                    const data = items[itemId];
+                                    if (!data || (!data.timeline && !data.showInContinueWatchingList)) continue;
+
+                                    const xtreamId = Number(itemId);
+                                    const contentType = (fbType === 'Movie' ? 'vod' : 'series') as any;
+                                    const uid = buildXtreamCollectionUid(pl._id, contentType, xtreamId);
+                                    const timestampStr = parseFbDate(data.timestamp);
+
+                                    const existing = itemsMap.get(uid);
+                                    if (existing) {
+                                        if (new Date(timestampStr).getTime() > new Date(existing.viewedAt ?? 0).getTime()) {
+                                            existing.viewedAt = timestampStr;
+                                        }
+                                        continue;
+                                    }
+
+                                    let realTitle = '';
+                                    let realPoster = undefined;
+                                    let finalCategoryId = '0';
+
+                                    itemsMap.set(uid, {
+                                        uid,
+                                        name: realTitle,
+                                        contentType,
+                                        sourceType: 'xtream' as const,
+                                        playlistId: pl._id,
+                                        playlistName: pl.title || 'Xtream',
+                                        logo: realPoster ?? null,
+                                        posterUrl: realPoster ?? null,
+                                        xtreamId: xtreamId,
+                                        categoryId: String(finalCategoryId),
+                                        tvgId: undefined,
+                                        contentId: xtreamId,
+                                        viewedAt: timestampStr,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch(e) {}
         }
+
+        const finalArray = Array.from(itemsMap.values());
+        return await this.enrichUnifiedItems(finalArray);
     }
 
     private async getXtreamPlaylistRecent(
         playlistId: string
     ): Promise<UnifiedCollectionItem[]> {
-        try {
-            const meta = await this.getPlaylistMeta(playlistId);
-            if (!this.hasPortalActivityStorage) {
-                const rows =
-                    await this.xtreamDataSource.getRecentItems(playlistId);
-                return rows.map((row) =>
-                    this.mapXtreamContentItem(row, playlistId, meta?.title)
-                );
-            }
+        const itemsMap = new Map<string, UnifiedCollectionItem>();
+        const meta = await this.getPlaylistMeta(playlistId);
 
-            const rows = await this.dbService.getRecentItems(playlistId);
-            return (rows || []).map((row) => ({
-                uid: buildXtreamCollectionUid(
-                    playlistId,
-                    xtreamContentType(row.type),
-                    row.xtream_id
-                ),
-                name: row.title,
-                contentType: xtreamContentType(row.type),
-                sourceType: 'xtream' as const,
-                playlistId,
-                playlistName: meta?.title || 'Xtream',
-                logo: row.type === 'live' ? (row.poster_url ?? null) : null,
-                posterUrl:
-                    row.type !== 'live' ? (row.poster_url ?? null) : null,
-                xtreamId: row.xtream_id,
-                categoryId: row.category_id,
-                tvgId: row.type === 'live' ? String(row.xtream_id) : undefined,
-                contentId: row.id,
-                viewedAt: normalizeStalkerDate(row.viewed_at),
-            }));
-        } catch {
-            return [];
+        try {
+            if (!this.hasPortalActivityStorage) {
+                const rows = await this.xtreamDataSource.getRecentItems(playlistId);
+                rows.forEach((row) => {
+                    const item = this.mapXtreamContentItem(row, playlistId, meta?.title);
+                    itemsMap.set(item.uid, item);
+                });
+            } else {
+                const rows = await this.dbService.getRecentItems(playlistId);
+                (rows || []).forEach((row) => {
+                    const contentType = xtreamContentType(row.type);
+                    const uid = buildXtreamCollectionUid(playlistId, contentType, row.xtream_id);
+                    itemsMap.set(uid, {
+                        uid,
+                        name: row.title,
+                        contentType: contentType as any,
+                        sourceType: 'xtream' as const,
+                        playlistId,
+                        playlistName: meta?.title || 'Xtream',
+                        logo: row.type === 'live' ? (row.poster_url ?? null) : null,
+                        posterUrl: row.type !== 'live' ? (row.poster_url ?? null) : null,
+                        xtreamId: row.xtream_id,
+                        categoryId: row.category_id,
+                        tvgId: row.type === 'live' ? String(row.xtream_id) : undefined,
+                        contentId: row.id,
+                        viewedAt: normalizeStalkerDate(row.viewed_at),
+                    });
+                });
+            }
+        } catch {}
+
+        const metaAny = meta as any;
+        if (this.firebaseSync && metaAny?.serverUrl) {
+            try {
+                const userIdObj = { username: metaAny.username, password: metaAny.password, server: metaAny.serverUrl };
+                const cloudProgress = await (this.firebaseSync as any).getAllProgress(userIdObj);
+
+                if (cloudProgress) {
+                    for (const fbType of ['Movie', 'Series']) {
+                        if (!cloudProgress[fbType]) continue;
+
+                        for (const catId of Object.keys(cloudProgress[fbType])) {
+                            const items = fbType === 'Series' ? cloudProgress[fbType][catId] : { [catId]: cloudProgress[fbType][catId] };
+                            for (const itemId of Object.keys(items)) {
+                                const data = items[itemId];
+                                if (!data || (!data.timeline && !data.showInContinueWatchingList)) continue;
+
+                                const xtreamId = Number(itemId);
+                                const contentType = (fbType === 'Movie' ? 'vod' : 'series') as any;
+                                const uid = buildXtreamCollectionUid(playlistId, contentType, xtreamId);
+                                const timestampStr = parseFbDate(data.timestamp);
+
+                                const existing = itemsMap.get(uid);
+                                if (existing) {
+                                    if (new Date(timestampStr).getTime() > new Date(existing.viewedAt ?? 0).getTime()) {
+                                        existing.viewedAt = timestampStr;
+                                    }
+                                    continue;
+                                }
+
+                                let realTitle = '';
+                                let realPoster = undefined;
+                                let finalCategoryId = '0';
+
+                                itemsMap.set(uid, {
+                                    uid,
+                                    name: realTitle,
+                                    contentType,
+                                    sourceType: 'xtream' as const,
+                                    playlistId: playlistId,
+                                    playlistName: meta?.title || 'Xtream',
+                                    logo: realPoster ?? null,
+                                    posterUrl: realPoster ?? null,
+                                    xtreamId: xtreamId,
+                                    categoryId: String(finalCategoryId),
+                                    tvgId: undefined,
+                                    contentId: xtreamId,
+                                    viewedAt: timestampStr,
+                                });
+                            }
+                        }
+                    }
+                }
+            } catch(e) {}
         }
+
+        const finalArray = Array.from(itemsMap.values());
+        return await this.enrichUnifiedItems(finalArray);
     }
 
     private async resolveXtreamContentId(
@@ -494,7 +737,7 @@ export class UnifiedRecentDataService {
         const allMeta = await this.getAllMeta();
         const results: UnifiedCollectionItem[] = [];
 
-        for (const meta of allMeta.filter((playlist) =>
+        for (const meta of allMeta.filter((playlist: any) =>
             this.isM3uPlaylist(playlist)
         )) {
             results.push(...(await this.extractM3uRecent(meta)));
@@ -514,7 +757,7 @@ export class UnifiedRecentDataService {
         const allMeta = await this.getAllMeta();
         const results: UnifiedCollectionItem[] = [];
 
-        for (const meta of allMeta.filter((playlist) =>
+        for (const meta of allMeta.filter((playlist: any) =>
             Boolean(playlist.macAddress)
         )) {
             results.push(...(await this.extractStalkerRecent(meta)));
@@ -706,21 +949,15 @@ export class UnifiedRecentDataService {
         );
     }
 
-    private isM3uPlaylist(
-        playlist: Pick<PlaylistMeta, 'serverUrl' | 'macAddress'>
-    ): boolean {
+    private isM3uPlaylist(playlist: any): boolean {
         return !playlist.serverUrl && !playlist.macAddress;
     }
 
-    private isXtreamPlaylist(
-        playlist: Pick<PlaylistMeta, 'serverUrl' | 'macAddress'>
-    ): boolean {
+    private isXtreamPlaylist(playlist: any): boolean {
         return Boolean(playlist.serverUrl) && !playlist.macAddress;
     }
 
-    private isPlaylistBackedRecentPlaylist(
-        playlist: Pick<PlaylistMeta, 'serverUrl' | 'macAddress'>
-    ): boolean {
+    private isPlaylistBackedRecentPlaylist(playlist: any): boolean {
         return Boolean(playlist.macAddress) || this.isM3uPlaylist(playlist);
     }
 }

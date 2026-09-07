@@ -9,6 +9,7 @@ import {
     input,
     output,
     viewChild,
+    inject
 } from '@angular/core';
 import '@yangkghjh/videojs-aspect-ratio-panel';
 import mpegts from 'mpegts.js';
@@ -26,6 +27,7 @@ import {
 } from '../playback-diagnostics/playback-diagnostics.util';
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { FirebaseSyncService } from '@iptvnator/services';
 
 type VideoPlayerSource = {
     src: string;
@@ -124,6 +126,8 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
 
+    private firebaseSync = inject(FirebaseSyncService);
+
     private readonly clearPlaybackIssue = () => {
         this.playbackIssue.emit(null);
     };
@@ -147,7 +151,6 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             ? { ...this.options(), sources: [], autoplay: false }
             : { ...this.options(), autoplay: true };
 
-        // FORZAMOS LA OPCION DE AUDIO Y SUBTITULOS A VIDEOJS
         vjsOptions.controlBar = {
             ...(vjsOptions.controlBar || {}),
             audioTrackButton: true,
@@ -160,10 +163,19 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         this.player = videoJs(this.target().nativeElement, vjsOptions, () => {
             this.player.volume(this.volume());
 
-            this.player.on('loadedmetadata', () => {
-                if (this.startTime() > 0) {
+            this.player.on('loadedmetadata', async () => {
+                const pbInfo = (window as any).currentPlaybackInfo;
+                if (pbInfo && pbInfo.type !== 'live') {
+                    const savedPosition = await this.firebaseSync.getProgress(pbInfo.userId, pbInfo);
+                    if (savedPosition > 5) {
+                        this.player.currentTime(savedPosition);
+                    } else if (this.startTime() > 0) {
+                        this.player.currentTime(this.startTime());
+                    }
+                } else if (this.startTime() > 0) {
                     this.player.currentTime(this.startTime());
                 }
+
                 this.playbackIssue.emit(null);
                 this.setupAudioTrackMenu();
             });
@@ -187,11 +199,25 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 localStorage.setItem('volume', currentVolume.toString());
             });
 
+            let lastSaveTime = 0;
+
             this.player.on('timeupdate', () => {
+                const currentTime = this.player.currentTime() ?? 0;
+                const currentDuration = this.player.duration() ?? 0;
+                
                 this.timeUpdate.emit({
-                    currentTime: this.player.currentTime() ?? 0,
-                    duration: this.player.duration() ?? 0,
+                    currentTime: currentTime,
+                    duration: currentDuration,
                 });
+
+                if (currentTime > 5 && Math.abs(currentTime - lastSaveTime) > 5) {
+                    lastSaveTime = currentTime;
+                    const pbInfo = (window as any).currentPlaybackInfo;
+                    
+                    if (pbInfo && pbInfo.type !== 'live') {
+                        this.firebaseSync.saveProgress(pbInfo.userId, pbInfo, currentTime, currentDuration);
+                    }
+                }
             });
 
             if (isMpegTs && source) {
@@ -240,6 +266,9 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         }
         if (changes['volume']?.currentValue !== undefined && this.player) {
             this.player.volume(changes['volume'].currentValue);
+        }
+        if (changes['startTime']?.currentValue !== undefined && this.player) {
+            this.player.currentTime(changes['startTime'].currentValue);
         }
     }
 

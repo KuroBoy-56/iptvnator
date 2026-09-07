@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal, untracked, NgZone } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { SafePipe } from '@iptvnator/pipes';
@@ -23,6 +23,7 @@ import {
     CrossPortalSimilarItem,
     CrossPortalSimilarService,
     DownloadsService,
+    FirebaseSyncService
 } from '@iptvnator/services';
 import type { PlaybackFallbackRequest } from '../playback-diagnostics/playback-diagnostics.util';
 import { PortalInlinePlayerComponent } from '../portal-inline-player/portal-inline-player.component';
@@ -63,6 +64,11 @@ export class VodDetailsComponent {
     private readonly crossPortalSimilar = inject(CrossPortalSimilarService);
     private readonly externalPlaybackActions = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly router = inject(Router);
+    private readonly firebaseSync = inject(FirebaseSyncService);
+    private readonly ngZone = inject(NgZone);
+
+    readonly firebasePosition = signal<number | null>(null);
+    readonly effectivePlaybackPosition = computed(() => this.firebasePosition() ?? this.playbackPosition());
 
     readonly isElectron = computed(() => this.downloadsService.isAvailable());
 
@@ -106,17 +112,51 @@ export class VodDetailsComponent {
         });
     });
 
+    constructor() {
+        effect((onCleanup) => {
+            const item = this.item();
+            if (!item) return;
+
+            const itemAny = item as any;
+
+            const username = localStorage.getItem('session_user') || '';
+            const password = localStorage.getItem('session_pass') || '';
+            const server = localStorage.getItem('session_server') || '';
+
+            const userIdObj = { username, password, server };
+            const pbInfo = {
+                type: 'movie',
+                id: getVodNumericId(item),
+                title: itemAny.name || itemAny.title || 'Película',
+                poster: itemAny.posterUrl || itemAny.logo || itemAny.stream_icon || itemAny.cover || '',
+                categoryId: itemAny.categoryId || itemAny.category_id || "0",
+                playlistId: item.playlistId
+            };
+
+            const fetchProgress = async () => {
+                const pos = await this.firebaseSync.getProgress(userIdObj, pbInfo);
+                if (pos > 5) {
+                    this.firebasePosition.set(pos);
+                }
+            };
+
+            fetchProgress();
+            const intervalId = setInterval(fetchProgress, 5000);
+            onCleanup(() => clearInterval(intervalId));
+        });
+    }
+
     openSimilarInPortals(item: CrossPortalSimilarItem): void {
         void this.router.navigate(this.crossPortalSimilar.buildLink(item));
     }
 
     readonly hasPlaybackPosition = computed(() => {
-        const pos = this.playbackPosition();
+        const pos = this.effectivePlaybackPosition();
         return pos !== null && pos > 0;
     });
 
     readonly formattedPosition = computed(() => {
-        const pos = this.playbackPosition();
+        const pos = this.effectivePlaybackPosition();
         if (!pos || pos <= 0) return '';
 
         const hours = Math.floor(pos / 3600);
@@ -233,7 +273,7 @@ export class VodDetailsComponent {
     }
 
     onResume(): void {
-        const pos = this.playbackPosition();
+        const pos = this.effectivePlaybackPosition();
         if (pos && pos > 0) {
             this.resumeClicked.emit({
                 item: this.item(),

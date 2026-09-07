@@ -15,7 +15,7 @@ import {
     getSeriesQuickStartAction,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
+import { PlaybackPositionRuntimeBridgeService, SettingsStore, FirebaseSyncService } from '@iptvnator/services';
 import {
     PlaybackPositionData,
     PlayerContentInfo,
@@ -40,58 +40,35 @@ interface SerialDetailsPlaybackBindings {
     readonly selectedItem: Signal<XtreamSerieDetailsView | null>;
 }
 
-/**
- * Component-provided service that owns the episode playback concern of the
- * serial details view: inline playback state, per-episode playback
- * positions, external-player session tracking, and playback orchestration.
- */
 @Injectable()
 export class SerialDetailsPlaybackService {
     private readonly route = inject(ActivatedRoute);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
-    private readonly playbackPositionBridge = inject(
-        PlaybackPositionRuntimeBridgeService
-    );
+    private readonly playbackPositionBridge = inject(PlaybackPositionRuntimeBridgeService);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
+    private readonly settingsStore = inject(SettingsStore);
+    private readonly firebaseSync = inject(FirebaseSyncService, { optional: true });
 
-    private readonly bindings = signal<SerialDetailsPlaybackBindings | null>(
-        null
-    );
-    private readonly currentPlaylistId = computed(
-        () => this.xtreamStore.currentPlaylist()?.id ?? ''
-    );
+    private readonly bindings = signal<SerialDetailsPlaybackBindings | null>(null);
+    private readonly currentPlaylistId = computed(() => this.xtreamStore.currentPlaylist()?.id ?? '');
     private lastSaveTime = 0;
 
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
-    readonly episodePlaybackPositions = signal<
-        Map<number, PlaybackPositionData>
-    >(new Map());
+    readonly episodePlaybackPositions = signal<Map<number, PlaybackPositionData>>(new Map());
     readonly openingEpisodeId = signal<number | null>(null);
     readonly activeEpisodeId = signal<number | null>(null);
 
     readonly quickStartAction = computed(() => {
         const item = this.selectedItem();
-        if (!item) {
-            return null;
-        }
-
-        return getSeriesQuickStartAction({
-            seasons: item.episodes ?? {},
-            playbackPositions: this.episodePlaybackPositions(),
-        });
+        if (!item) return null;
+        return getSeriesQuickStartAction({ seasons: item.episodes ?? {}, playbackPositions: this.episodePlaybackPositions() });
     });
-    readonly inlineEpisodeState =
-        computed<SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null>(() =>
-            this.getInlineEpisodeState()
-        );
-    readonly inlineEpisodeMetadata = computed(() =>
-        getSeriesEpisodeMetadata(this.inlineEpisodeState())
-    );
-    readonly inlineSeriesNavigation = computed(() =>
-        getSeriesPlaybackNavigation(this.inlineEpisodeState())
-    );
+
+    readonly inlineEpisodeState = computed<SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null>(() => this.getInlineEpisodeState());
+    readonly inlineEpisodeMetadata = computed(() => getSeriesEpisodeMetadata(this.inlineEpisodeState()));
+    readonly inlineSeriesNavigation = computed(() => getSeriesPlaybackNavigation(this.inlineEpisodeState()));
 
     constructor() {
         effect(() => {
@@ -99,15 +76,7 @@ export class SerialDetailsPlaybackService {
             const selectedItem = this.selectedItem();
             const playlistId = this.currentPlaylistId();
 
-            if (
-                !session?.contentInfo ||
-                !selectedItem?.series_id ||
-                !playlistId ||
-                session.contentInfo.contentType !== 'episode' ||
-                session.contentInfo.playlistId !== playlistId ||
-                session.contentInfo.seriesXtreamId !==
-                    Number(selectedItem.series_id)
-            ) {
+            if (!session?.contentInfo || !selectedItem?.series_id || !playlistId || session.contentInfo.contentType !== 'episode' || session.contentInfo.playlistId !== playlistId || session.contentInfo.seriesXtreamId !== Number(selectedItem.series_id)) {
                 this.openingEpisodeId.set(null);
                 this.activeEpisodeId.set(null);
                 return;
@@ -129,35 +98,19 @@ export class SerialDetailsPlaybackService {
             this.activeEpisodeId.set(null);
         });
 
-        const unsubscribePositionUpdates =
-            this.playbackPositionBridge.onPlaybackPositionUpdate(
-                (data: PlaybackPositionData) => {
-                    const selectedItem = this.selectedItem();
+        const unsubscribePositionUpdates = this.playbackPositionBridge.onPlaybackPositionUpdate((data: PlaybackPositionData) => {
+            const selectedItem = this.selectedItem();
+            if (data.contentType !== 'episode' || data.playlistId !== this.currentPlaylistId() || data.seriesXtreamId !== Number(selectedItem?.series_id ?? 0)) return;
+            this.updateEpisodePlaybackPosition(data);
+        }) ?? null;
 
-                    if (
-                        data.contentType !== 'episode' ||
-                        data.playlistId !== this.currentPlaylistId() ||
-                        data.seriesXtreamId !==
-                            Number(selectedItem?.series_id ?? 0)
-                    ) {
-                        return;
-                    }
-
-                    this.updateEpisodePlaybackPosition(data);
-                }
-            ) ?? null;
-
-        inject(DestroyRef).onDestroy(() => {
-            unsubscribePositionUpdates?.();
-        });
+        inject(DestroyRef).onDestroy(() => { unsubscribePositionUpdates?.(); });
     }
 
-    /** Connects the service to the owning component's reactive state. */
     bind(bindings: SerialDetailsPlaybackBindings): void {
         this.bindings.set(bindings);
     }
 
-    /** Clears all playback state when switching to another series. */
     resetForNewSeries(): void {
         this.closeInlinePlayer();
         this.episodePlaybackPositions.set(new Map());
@@ -168,67 +121,39 @@ export class SerialDetailsPlaybackService {
     playEpisode(episode: XtreamSerieEpisode): void {
         const playlist = this.xtreamStore.currentPlaylist();
         const selectedItem = this.selectedItem();
-        if (!playlist || !selectedItem) {
-            return;
-        }
+        if (!playlist || !selectedItem) return;
 
-        this.addToRecentlyViewed(this.route.snapshot.params.serialId);
+        this.addToRecentlyViewed(this.route.snapshot.params['serialId']);
 
         const streamUrl = this.xtreamStore.constructEpisodeStreamUrl(episode);
-        const contentInfo: PlayerContentInfo = {
-            playlistId: playlist.id,
-            contentXtreamId: Number(episode.id),
-            contentType: 'episode',
-            seriesXtreamId: Number(selectedItem.series_id),
-            seasonNumber: Number(episode.season),
-            episodeNumber: Number(episode.episode_num),
-        };
+        const contentInfo: PlayerContentInfo = { playlistId: playlist.id, contentXtreamId: Number(episode.id), contentType: 'episode', seriesXtreamId: Number(selectedItem.series_id), seasonNumber: Number(episode.season), episodeNumber: Number(episode.episode_num) };
+        const position = this.episodePlaybackPositions().get(Number(episode.id));
 
-        const position = this.episodePlaybackPositions().get(
-            Number(episode.id)
-        );
-
-        const playback: ResolvedPortalPlayback = {
-            streamUrl,
-            title: episode.title,
-            thumbnail: selectedItem.info.cover,
-            startTime: position?.positionSeconds,
-            contentInfo,
-        };
-
+        const playback: ResolvedPortalPlayback = { streamUrl, title: episode.title, thumbnail: selectedItem.info.cover, startTime: position?.positionSeconds, contentInfo };
         this.startPlayback(playback);
     }
 
     playQuickStartEpisode(): void {
         const action = this.quickStartAction();
-        if (!action || action.disabled) {
-            return;
-        }
-
+        if (!action || action.disabled) return;
         this.playEpisode(action.episode);
     }
 
     playPreviousEpisode(): void {
         const previous = this.inlineEpisodeState()?.previous;
-        if (!previous) {
-            return;
-        }
+        if (!previous) return;
         this.playEpisode(previous);
     }
 
     playNextEpisode(): void {
         const next = this.inlineEpisodeState()?.next;
-        if (!next) {
-            return;
-        }
+        if (!next) return;
         this.playEpisode(next);
     }
 
     handleInlinePlaybackEnded(): void {
         const navigation = this.inlineSeriesNavigation();
-        if (!navigation?.autoplayEnabled || !navigation.canNext) {
-            return;
-        }
+        if (!navigation?.autoplayEnabled || !navigation.canNext) return;
         this.playNextEpisode();
     }
 
@@ -237,10 +162,7 @@ export class SerialDetailsPlaybackService {
         this.lastSaveTime = 0;
     }
 
-    handleInlineTimeUpdate(event: {
-        currentTime: number;
-        duration: number;
-    }): void {
+    handleInlineTimeUpdate(event: { currentTime: number; duration: number }): void {
         const playback = this.inlinePlayback();
         if (!playback?.contentInfo) return;
 
@@ -248,63 +170,66 @@ export class SerialDetailsPlaybackService {
         if (now - this.lastSaveTime <= 15000) return;
 
         this.lastSaveTime = now;
-        const position: PlaybackPositionData = {
-            ...playback.contentInfo,
-            positionSeconds: Math.floor(event.currentTime),
-            durationSeconds: Math.floor(event.duration),
-        };
-        void this.playbackPositions.savePlaybackPosition(
-            playback.contentInfo.playlistId,
-            position
-        );
+        const position: PlaybackPositionData = { ...playback.contentInfo, positionSeconds: Math.floor(event.currentTime), durationSeconds: Math.floor(event.duration) };
+        void this.playbackPositions.savePlaybackPosition(playback.contentInfo.playlistId, position);
         this.updateEpisodePlaybackPosition(position);
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
-        void this.portalPlayer.openExternalPlayback(
-            request.playback,
-            request.player
-        );
+        void this.portalPlayer.openExternalPlayback(request.playback, request.player);
     }
 
-    async handlePlaybackToggleRequested(
-        request: SeasonContainerPlaybackToggleRequest
-    ): Promise<void> {
+    async handlePlaybackToggleRequested(request: SeasonContainerPlaybackToggleRequest): Promise<void> {
         const playlistId = this.currentPlaylistId();
-        if (!playlistId) {
-            return;
-        }
+        if (!playlistId) return;
 
         if (request.nextPosition) {
-            await this.playbackPositions.savePlaybackPosition(
-                playlistId,
-                request.nextPosition
-            );
+            await this.playbackPositions.savePlaybackPosition(playlistId, request.nextPosition);
             this.updateEpisodePlaybackPosition(request.nextPosition);
             return;
         }
 
-        await this.playbackPositions.clearPlaybackPosition(
-            playlistId,
-            request.contentXtreamId,
-            'episode'
-        );
+        await this.playbackPositions.clearPlaybackPosition(playlistId, request.contentXtreamId, 'episode');
         this.removeEpisodePlaybackPosition(request.contentXtreamId);
     }
 
-    async loadSeriesPlaybackPositions(
-        playlistId: string,
-        seriesXtreamId: number
-    ): Promise<void> {
-        const positions =
-            await this.playbackPositions.getSeriesPlaybackPositions(
-                playlistId,
-                seriesXtreamId
-            );
+    async loadSeriesPlaybackPositions(playlistId: string, seriesXtreamId: number): Promise<void> {
+        const positions = await this.playbackPositions.getSeriesPlaybackPositions(playlistId, seriesXtreamId);
         const positionsMap = new Map<number, PlaybackPositionData>();
-        positions.forEach((position) => {
-            positionsMap.set(position.contentXtreamId, position);
-        });
+        positions.forEach((position) => { positionsMap.set(position.contentXtreamId, position); });
+
+        try {
+            const playlist = this.xtreamStore.currentPlaylist();
+            if (playlist && this.firebaseSync) {
+                const userIdObj = { username: playlist.username, password: playlist.password, server: playlist.serverUrl };
+                const progress = await (this.firebaseSync as any).getAllProgress(userIdObj);
+                
+                if (progress && progress['Series'] && progress['Series'][seriesXtreamId]) {
+                    const episodes = progress['Series'][seriesXtreamId];
+                    for (const epId of Object.keys(episodes)) {
+                        const data = episodes[epId];
+                        
+                        if (data && (data.timeline > 0 || data.timestamp || data.showInContinueWatchingList)) {
+                            const existing = positionsMap.get(Number(epId));
+                            
+                            // LA JUGADA MAESTRA: Si Firebase no envía timeline, mantenemos el que VLC guardó localmente.
+                            const finalTimeline = data.timeline > 0 ? data.timeline : (existing?.positionSeconds || 0);
+                            const finalDuration = data.duration > 0 ? data.duration : (existing?.durationSeconds || (finalTimeline ? finalTimeline * 1.25 : 0));
+
+                            positionsMap.set(Number(epId), {
+                                contentXtreamId: Number(epId),
+                                contentType: 'episode',
+                                seriesXtreamId: seriesXtreamId,
+                                positionSeconds: finalTimeline,
+                                durationSeconds: finalDuration,
+                                updatedAt: new Date((data.timestamp || 0) * 1000).toISOString()
+                            });
+                        }
+                    }
+                }
+            }
+        } catch(e) {}
+
         this.episodePlaybackPositions.set(positionsMap);
     }
 
@@ -312,17 +237,13 @@ export class SerialDetailsPlaybackService {
         return this.bindings()?.selectedItem() ?? null;
     }
 
-    private addToRecentlyViewed(xtreamId: number): void {
-        this.xtreamStore.addRecentItem({
-            xtreamId,
-            contentType: 'series',
-            playlist: this.xtreamStore.currentPlaylist,
-            backdropUrl: this.selectedItem()?.info?.backdrop_path?.[0],
-        });
+    private addToRecentlyViewed(xtreamId: string | number): void {
+        this.xtreamStore.addRecentItem({ xtreamId: Number(xtreamId), contentType: 'series', playlist: this.xtreamStore.currentPlaylist, backdropUrl: this.selectedItem()?.info?.backdrop_path?.[0] });
     }
 
     private startPlayback(playback: ResolvedPortalPlayback): void {
         this.lastSaveTime = 0;
+        
         if (this.portalPlayer.isEmbeddedPlayer()) {
             this.inlinePlayback.set(playback);
             return;
@@ -337,25 +258,11 @@ export class SerialDetailsPlaybackService {
         const episodesBySeason = this.selectedItem()?.episodes;
         const currentEpisodeId = playback?.contentInfo?.contentXtreamId;
 
-        if (
-            !episodesBySeason ||
-            playback?.contentInfo?.contentType !== 'episode' ||
-            currentEpisodeId === undefined
-        ) {
-            return null;
-        }
-
-        return resolveSeriesPlaybackEpisodeState({
-            episodesBySeason,
-            currentEpisodeId,
-            fallbackSeasonNumber: playback.contentInfo.seasonNumber,
-            fallbackEpisodeNumber: playback.contentInfo.episodeNumber,
-        });
+        if (!episodesBySeason || playback?.contentInfo?.contentType !== 'episode' || currentEpisodeId === undefined) return null;
+        return resolveSeriesPlaybackEpisodeState({ episodesBySeason, currentEpisodeId, fallbackSeasonNumber: playback.contentInfo.seasonNumber, fallbackEpisodeNumber: playback.contentInfo.episodeNumber });
     }
 
-    private updateEpisodePlaybackPosition(
-        position: PlaybackPositionData
-    ): void {
+    private updateEpisodePlaybackPosition(position: PlaybackPositionData): void {
         const updated = new Map(this.episodePlaybackPositions());
         updated.set(position.contentXtreamId, position);
         this.episodePlaybackPositions.set(updated);

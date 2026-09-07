@@ -336,6 +336,29 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
                 backdropUrl,
             });
         });
+
+        effect((onCleanup) => {
+            const playlist = this.xtreamStore.currentPlaylist();
+            const playlistId = playlist?.username || playlist?.id || this.currentPlaylistId();
+            const title = this.selectedVodInfo()?.name || this.selectedItem()?.movie_data?.name;
+            
+            if (playlistId && title) {
+                const electron = (window as any).electron;
+                if (electron?.ipcRenderer) {
+                    const fetchProgress = () => {
+                        electron.ipcRenderer.once('JSON_PROGRESS_RESPONSE_UI', (e: any, data: any) => {
+                            if (data && data.title === title && data.position > 5) {
+                                this.handleInlineTimeUpdate({ currentTime: data.position, duration: data.position * 1.25 });
+                            }
+                        });
+                        electron.ipcRenderer.send('GET_JSON_PROGRESS', { playlistId, title, isUiRequest: true });
+                    };
+                    fetchProgress();
+                    const interval = setInterval(fetchProgress, 5000);
+                    onCleanup(() => clearInterval(interval));
+                }
+            }
+        });
     }
 
     ngOnInit(): void {

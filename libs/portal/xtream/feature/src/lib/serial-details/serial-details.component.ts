@@ -8,6 +8,7 @@ import {
     OnInit,
     signal,
     untracked,
+    NgZone
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIcon } from '@angular/material/icon';
@@ -86,6 +87,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     private readonly playback = inject(SerialDetailsPlaybackService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
+    private readonly ngZone = inject(NgZone);
 
     readonly selectedItem = signal<XtreamSerieDetailsView | null>(null);
     readonly selectedContentType = this.xtreamStore.selectedContentType;
@@ -269,6 +271,29 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
                 backdropUrl,
             });
         });
+
+        effect((onCleanup) => {
+            const win = window as any;
+            let ipcListener: any;
+            
+            if (win.electron?.ipcRenderer) {
+                ipcListener = async (_event: any, data: any) => {
+                    const activeEpisodeId = this.activeEpisodeId();
+                    if (data && data.pbInfo && String(data.pbInfo.id) === String(activeEpisodeId) && data.position > 5) {
+                        this.ngZone.run(() => {
+                            this.handleInlineTimeUpdate({ currentTime: data.position, duration: data.duration || data.position * 1.25 });
+                        });
+                    }
+                };
+                win.electron.ipcRenderer.on('MPV_PROGRESS_UPDATE', ipcListener);
+            }
+
+            onCleanup(() => {
+                if (win.electron?.ipcRenderer && ipcListener) {
+                    win.electron.ipcRenderer.removeListener('MPV_PROGRESS_UPDATE', ipcListener);
+                }
+            });
+        });
     }
 
     ngOnInit(): void {}
@@ -353,7 +378,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         }
 
         this.xtreamStore.toggleFavorite(
-            this.route.snapshot.params.serialId,
+            this.route.snapshot.params['serialId'],
             playlist.id,
             'series',
             this.selectedItem()?.info?.backdrop_path?.[0]

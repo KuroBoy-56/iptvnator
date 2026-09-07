@@ -1,5 +1,6 @@
-import { computed, Injectable, signal } from '@angular/core';
+import { computed, Injectable, signal, inject, NgZone } from '@angular/core';
 import { ExternalPlayerSession, PlayerContentInfo } from '@iptvnator/shared/interfaces';
+import { FirebaseSyncService } from '@iptvnator/services';
 
 @Injectable({
     providedIn: 'root',
@@ -7,6 +8,9 @@ import { ExternalPlayerSession, PlayerContentInfo } from '@iptvnator/shared/inte
 export class ExternalPlaybackService {
     readonly activeSession = signal<ExternalPlayerSession | null>(null);
     private readonly dismissedSessionId = signal<string | null>(null);
+
+    private readonly firebaseSync = inject(FirebaseSyncService);
+    private readonly ngZone = inject(NgZone);
 
     readonly visibleSession = computed(() => {
         const session = this.activeSession();
@@ -26,9 +30,49 @@ export class ExternalPlaybackService {
     });
 
     constructor() {
-        window.electron?.onExternalPlayerSessionUpdate?.((session) => {
-            this.handleSessionUpdate(session);
-        });
+        const win = window as any;
+        
+        if (win.electron?.onExternalPlayerSessionUpdate) {
+            win.electron.onExternalPlayerSessionUpdate((session: ExternalPlayerSession) => {
+                this.handleSessionUpdate(session);
+            });
+        }
+
+        if (win.electron?.ipcRenderer) {
+            win.electron.ipcRenderer.on('MPV_PROGRESS_UPDATE', async (_event: any, data: any) => {
+                if (!data || !data.pbInfo || data.position <= 5) return;
+                
+                const pbInfo = data.pbInfo;
+                const isVod = pbInfo.type === 'movie';
+                
+                try {
+                    await win.electron.ipcRenderer.invoke('DB_SAVE_PLAYBACK_POSITION', {
+                        playlistId: pbInfo.playlistId,
+                        data: {
+                            contentXtreamId: Number(pbInfo.id),
+                            contentType: isVod ? 'vod' : 'episode',
+                            seriesXtreamId: isVod ? undefined : Number(pbInfo.categoryId),
+                            positionSeconds: Math.floor(data.position),
+                            durationSeconds: Math.floor(data.duration || data.position * 1.25)
+                        }
+                    });
+                } catch(e) {}
+
+                try {
+                    const username = localStorage.getItem('session_user') || '';
+                    const password = localStorage.getItem('session_pass') || '';
+                    const server = localStorage.getItem('session_server') || '';
+                    const userIdObj = { username, password, server };
+                    
+                    await this.firebaseSync.saveProgress(
+                        userIdObj, 
+                        pbInfo, 
+                        data.position, 
+                        data.duration
+                    );
+                } catch(e) {}
+            });
+        }
     }
 
     dismissActiveSession(): void {
@@ -51,7 +95,8 @@ export class ExternalPlaybackService {
             return;
         }
 
-        if (!session.canClose || !window.electron?.closeExternalPlayerSession) {
+        const electron = (window as any).electron;
+        if (!session.canClose || !electron?.closeExternalPlayerSession) {
             this.dismissedSessionId.set(session.id);
             return;
         }
@@ -60,7 +105,7 @@ export class ExternalPlaybackService {
         this.dismissedSessionId.set(session.id);
 
         try {
-            const updatedSession = await window.electron.closeExternalPlayerSession(
+            const updatedSession = await electron.closeExternalPlayerSession(
                 session.id
             );
             if (updatedSession) {
@@ -107,7 +152,9 @@ export class ExternalPlaybackService {
         const current = this.activeSession();
 
         if (!current || current.id === session.id || session.status === 'launching') {
-            this.activeSession.set(session);
+            this.ngZone.run(() => {
+                this.activeSession.set(session);
+            });
         }
 
         if (session.status === 'launching') {

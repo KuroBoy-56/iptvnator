@@ -9,7 +9,7 @@
                     data-testid="inline-player-back"
                     [attr.aria-label]="'BACK' | translate"
                     [matTooltip]="'BACK' | translate"
-                    (click)="onBack()"
+                    (click)="isMpvActive() ? closeMpv() : onBack()"
                 >
                     <mat-icon>arrow_back</mat-icon>
                 </button>
@@ -30,7 +30,7 @@
                     <button
                         mat-stroked-button
                         type="button"
-                        (click)="onClose()"
+                        (click)="isMpvActive() ? closeMpv() : onClose()"
                     >
                         <mat-icon>close</mat-icon>
                         {{ 'PORTALS.CLOSE_PLAYER' | translate }}
@@ -40,20 +40,45 @@
         </header>
 
         <div class="player-shell__viewport">
-            <app-web-player-view
-                [streamUrl]="streamUrl()"
-                [title]="title()"
-                [playback]="playback()"
-                [startTime]="startTime()"
-                [seriesNavigation]="seriesNavigation()"
-                (timeUpdate)="onTimeUpdate($event)"
-                (playbackEnded)="onPlaybackEnded()"
-                (previousEpisodeRequested)="onPreviousEpisodeRequested()"
-                (nextEpisodeRequested)="onNextEpisodeRequested()"
-                (externalFallbackRequested)="
-                    onExternalFallbackRequested($event)
-                "
-            />
+            @if (isMpvActive()) {
+                <div style="display: flex; align-items: center; justify-content: center; background-color: #050505; height: 100%; width: 100%; padding: 20px;">
+                    <div style="text-align: center; max-width: 600px;">
+                        <mat-icon style="font-size: 80px; width: 80px; height: 80px; color: #4dabf7; opacity: 0.9;">movie_creation</mat-icon>
+                        <h2 style="color: #ffffff; margin-top: 20px; font-weight: 500; font-size: 26px;">Reproduciendo en MPV</h2>
+                        
+                        <p style="color: #adb5bd; font-size: 18px; margin-top: 8px;">{{ title() }}</p>
+                        @if (episodeMetadataText(); as episodeText) {
+                            <p style="color: #adb5bd; font-size: 16px; margin-top: 4px;">{{ episodeText }}</p>
+                        }
+                        
+                        <!-- EL MENSAJE EXACTO SOLICITADO -->
+                        <div style="background-color: rgba(229, 9, 20, 0.1); border-left: 4px solid #e50914; padding: 15px; margin-top: 25px; text-align: left; border-radius: 0 8px 8px 0;">
+                            <p style="color: #ced4da; font-size: 14px; margin: 0; line-height: 1.6;">
+                                <strong>Aviso:</strong> Como se está reproduciendo en MPV (un reproductor externo), el progreso no se registrará directamente en la aplicación. Solamente se registra progreso para los reproductores integrados en la aplicación.
+                            </p>
+                        </div>
+
+                        <button mat-flat-button style="margin-top: 30px; background-color: #e50914; color: white; padding: 0 30px; border-radius: 20px; font-size: 16px; height: 40px; line-height: 40px; border: none; cursor: pointer;" (click)="closeMpv()">
+                            <mat-icon style="margin-right: 5px; vertical-align: middle;">stop</mat-icon> Detener y Volver
+                        </button>
+                    </div>
+                </div>
+            } @else {
+                <app-web-player-view
+                    [streamUrl]="streamUrl()"
+                    [title]="title()"
+                    [playback]="playback()"
+                    [startTime]="startTime()"
+                    [seriesNavigation]="seriesNavigation()"
+                    (timeUpdate)="onTimeUpdate($event)"
+                    (playbackEnded)="onPlaybackEnded()"
+                    (previousEpisodeRequested)="onPreviousEpisodeRequested()"
+                    (nextEpisodeRequested)="onNextEpisodeRequested()"
+                    (externalFallbackRequested)="
+                        onExternalFallbackRequested($event)
+                    "
+                />
+            }
         </div>
     </section>
 }

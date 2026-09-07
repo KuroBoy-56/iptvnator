@@ -914,6 +914,7 @@ parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
 
     try {
         const result = await executeRequest(message);
+        
         postMessage({
             type: 'response',
             requestId: message.requestId,

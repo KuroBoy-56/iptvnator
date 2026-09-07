@@ -28,6 +28,27 @@
       </div>
     </div>
 
+    <!-- INYECCIÓN: BOTÓN DNS / VPN -->
+    <div style="text-align: center; margin-bottom: 20px;">
+        <button type="button" (click)="toggleDns()" 
+                [ngStyle]="{
+                    'background-color': currentDns !== 'off' ? '#28a745' : '#343a40', 
+                    'color': 'white', 
+                    'border': 'none', 
+                    'padding': '10px 20px', 
+                    'border-radius': '8px', 
+                    'cursor': 'pointer', 
+                    'font-weight': 'bold',
+                    'transition': 'background-color 0.3s',
+                    'width': '100%'
+                }">
+            {{ getDnsLabel() }}
+        </button>
+        <p style="font-size: 12px; color: #adb5bd; margin-top: 8px; margin-bottom: 0;">
+            * Activa esta opción si tu proveedor de internet bloquea la conexión.
+        </p>
+    </div>
+
     <div class="action-buttons">
       <button class="btn-primary" [disabled]="isLoading" (click)="login(user.value, pass.value)">
         {{ isLoading ? 'Conectando...' : 'Entrar' }}

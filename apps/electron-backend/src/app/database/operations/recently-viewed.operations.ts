@@ -3,6 +3,9 @@ import * as schema from '@iptvnator/shared/database/schema';
 import type { AppDatabase } from '../database.types';
 import { persistContentBackdropIfMissing } from './content-backdrop.operations';
 
+// ELIMINADA la conexión redundante a Firebase.
+// Ahora el backend solo se encarga de SQLite de forma veloz y segura.
+
 export async function getRecentlyViewed(db: AppDatabase) {
     return db
         .select({
@@ -105,6 +108,8 @@ export async function addRecentItem(
     }
 
     await persistContentBackdropIfMissing(db, contentId, options?.backdropUrl);
+
+    // ELIMINADA la llamada a Firebase para evitar que Node y Angular peleen por la misma carpeta.
 
     return { success: true };
 }

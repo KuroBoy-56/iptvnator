@@ -17,3 +17,4 @@ export * from './lib/sort.service';
 export * from './lib/tmdb';
 export * from './lib/xtream-pending-restore.service';
 export * from '../../../apps/web/src/app/auth.guard';
+export * from './lib/firebase-sync.service';

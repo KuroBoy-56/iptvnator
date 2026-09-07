@@ -1,6 +1,6 @@
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { ComponentPortal } from '@angular/cdk/portal';
-import { AsyncPipe, CommonModule } from '@angular/common';
+import { AsyncPipe, CommonModule, Location } from '@angular/common';
 import {
     Component,
     HostListener,
@@ -49,6 +49,7 @@ import {
     selectChannels,
     selectChannelsLoading,
     selectCurrentEpgProgram,
+    selectAllPlaylistsMeta
 } from '@iptvnator/m3u-state';
 import {
     firstValueFrom,
@@ -91,6 +92,7 @@ import {
     PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    PlaybackPositionService
 } from '@iptvnator/services';
 import {
     Channel,
@@ -106,6 +108,7 @@ import {
     STORE_KEY,
     Settings,
     VideoPlayer,
+    normalizeXtreamServerUrl
 } from '@iptvnator/shared/interfaces';
 import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions';
 
@@ -150,111 +153,67 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly store = inject(Store);
     private readonly epgService = inject(EpgService);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
-    private readonly workspaceHeaderContext = inject(
-        WorkspaceHeaderContextService
-    );
+    private readonly playbackPositionService = inject(PlaybackPositionService);
+    private readonly workspaceHeaderContext = inject(WorkspaceHeaderContextService);
+    private readonly location = inject(Location);
     private readonly debugLog = createDevLogger('VideoPlayerComponent');
 
     readonly activeChannel = this.store.selectSignal(selectActive);
-    readonly activePlaybackUrl = this.store.selectSignal(
-        selectActivePlaybackUrl
-    );
-    readonly activeEpgProgram = this.store.selectSignal(
-        selectActiveEpgProgram
-    );
-    readonly activeEpgProgramOrNull = computed(
-        () => this.activeEpgProgram() ?? null
-    );
+    readonly activePlaybackUrl = this.store.selectSignal(selectActivePlaybackUrl);
+    readonly activeEpgProgram = this.store.selectSignal(selectActiveEpgProgram);
+    readonly activeEpgProgramOrNull = computed(() => this.activeEpgProgram() ?? null);
     readonly activePlaylistId = this.playlistContext.resolvedPlaylistId;
     readonly channels = this.store.selectSignal(selectChannels);
     readonly channelsLoading = this.store.selectSignal(selectChannelsLoading);
-    readonly archivePlaybackAvailable = computed(() =>
-        isM3uCatchupPlaybackSupported(this.activeChannel())
-    );
+    readonly archivePlaybackAvailable = computed(() => isM3uCatchupPlaybackSupported(this.activeChannel()));
     
     readonly epgPrograms = toSignal(this.epgService.currentEpgPrograms$, {
         initialValue: [] as EpgProgram[],
     });
     
-    readonly epgArchiveDays = computed(() =>
-        getM3uArchiveDays(this.activeChannel())
-    );
-    readonly timelineChannelName = computed(
-        () => this.activeChannel()?.name ?? ''
-    );
+    readonly epgArchiveDays = computed(() => getM3uArchiveDays(this.activeChannel()));
+    readonly timelineChannelName = computed(() => this.activeChannel()?.name ?? '');
     
     private readonly epgChannelLogo = toSignal(
         toObservable(this.activeChannel).pipe(
             switchMap((channel) => {
-                const key = channel
-                    ? resolveChannelEpgLookupKey(channel)
-                    : '';
-                if (!key) {
-                    return of('');
-                }
-                return this.epgService
-                    .getChannelMetadataForChannels([key])
-                    .pipe(
-                        map(
-                            (metadata) =>
-                                metadata.get(key)?.iconUrl?.trim() || ''
-                        ),
-                        catchError(() => of(''))
-                    );
+                const key = channel ? resolveChannelEpgLookupKey(channel) : '';
+                if (!key) return of('');
+                return this.epgService.getChannelMetadataForChannels([key]).pipe(
+                    map((metadata) => metadata.get(key)?.iconUrl?.trim() || ''),
+                    catchError(() => of(''))
+                );
             })
         ),
         { initialValue: '' }
     );
-    readonly timelineChannelLogo = computed(
-        () => this.activeChannel()?.tvg?.logo?.trim() || this.epgChannelLogo()
-    );
+    readonly timelineChannelLogo = computed(() => this.activeChannel()?.tvg?.logo?.trim() || this.epgChannelLogo());
     private readonly epgNowMs = signal(Date.now());
     readonly playbackChannel = computed<Channel | null>(() => {
         const activeChannel = this.activeChannel();
-        if (!activeChannel) {
-            return null;
-        }
-
+        if (!activeChannel) return null;
         const playbackUrl = this.activePlaybackUrl();
-        if (!playbackUrl) {
-            return activeChannel;
-        }
-
-        return {
-            ...activeChannel,
-            url: playbackUrl,
-            epgParams: '',
-        } as Channel;
+        if (!playbackUrl) return activeChannel;
+        return { ...activeChannel, url: playbackUrl, epgParams: '' } as Channel;
     });
 
     readonly embeddedPlayback = computed<ResolvedPortalPlayback | null>(() => {
         const activeChannel = this.activeChannel();
         const playbackTarget = this.playbackChannel();
 
-        if (!activeChannel || !playbackTarget) {
-            return null;
-        }
+        if (!activeChannel || !playbackTarget) return null;
 
         const http: Partial<Channel['http']> = playbackTarget.http ?? {};
         const headers: Record<string, string> = {};
-        if (http['user-agent']) {
-            headers['User-Agent'] = http['user-agent'];
-        }
-        if (http.referrer) {
-            headers['Referer'] = http.referrer;
-        }
-        if (http.origin) {
-            headers['Origin'] = http.origin;
-        }
+        if (http['user-agent']) headers['User-Agent'] = http['user-agent'];
+        if (http.referrer) headers['Referer'] = http.referrer;
+        if (http.origin) headers['Origin'] = http.origin;
 
         const rawUrl = `${playbackTarget.url}${playbackTarget.epgParams ?? ''}`;
 
         return {
             streamUrl: rawUrl,
-            title:
-                activeChannel.name?.trim() ||
-                activeChannel.tvg?.name ||
-                playbackTarget.url,
+            title: activeChannel.name?.trim() || activeChannel.tvg?.name || playbackTarget.url,
             thumbnail: activeChannel.tvg?.logo ?? null,
             isLive: !this.activePlaybackUrl(),
             headers: Object.keys(headers).length > 0 ? headers : undefined,
@@ -264,60 +223,28 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         };
     });
 
-    readonly sidebarStorageKey = computed(() =>
-        this.activeView() === 'groups'
-            ? M3U_GROUPS_SIDEBAR_STORAGE_KEY
-            : M3U_SIDEBAR_STORAGE_KEY
-    );
+    readonly sidebarStorageKey = computed(() => this.activeView() === 'groups' ? M3U_GROUPS_SIDEBAR_STORAGE_KEY : M3U_SIDEBAR_STORAGE_KEY);
     readonly sidebarWidth = signal(M3U_SIDEBAR_DEFAULT_WIDTH);
     readonly sidebarMinWidth = M3U_SIDEBAR_MIN_WIDTH;
     readonly sidebarMaxWidth = M3U_SIDEBAR_MAX_WIDTH;
-    readonly liveEpgPanelState = signal<LiveEpgPanelState>(
-        restoreLiveEpgPanelState()
-    );
+    readonly liveEpgPanelState = signal<LiveEpgPanelState>(restoreLiveEpgPanelState());
     readonly selectedLiveEpgDate = signal(getTodayEpgDateKey());
     
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
-    readonly isLiveEpgPanelCollapsed = computed(
-        () => this.liveEpgPanelState() === 'collapsed'
-    );
-    readonly liveSidebarState = signal<LiveSidebarState>(
-        restoreLiveSidebarState()
-    );
-    readonly isSidebarCollapsed = computed(
-        () => this.liveSidebarState() === 'collapsed'
-    );
+    readonly isLiveEpgPanelCollapsed = computed(() => this.liveEpgPanelState() === 'collapsed');
+    readonly liveSidebarState = signal<LiveSidebarState>(restoreLiveSidebarState());
+    readonly isSidebarCollapsed = computed(() => this.liveSidebarState() === 'collapsed');
 
-    readonly channels$: Observable<Channel[]> = this.store.select(
-        selectChannels
-    ) as Observable<Channel[]>;
+    readonly channels$: Observable<Channel[]> = this.store.select(selectChannels) as Observable<Channel[]>;
 
     readonly epgProgram = this.store.selectSignal(selectCurrentEpgProgram);
-    readonly liveEpgPanelSummary = computed(() =>
-        this.toLiveEpgPanelSummary(
-            this.activeEpgProgramOrNull() ?? this.epgProgram()
-        )
-    );
-    readonly liveEpgPanelSummaryLabelKey = computed(() =>
-        this.activeEpgProgramOrNull()
-            ? 'EPG.ARCHIVE_PLAYBACK'
-            : 'EPG.CURRENT_PROGRAM'
-    );
-    readonly showReturnToLive = computed(
-        () => this.activeEpgProgramOrNull() !== null
-    );
+    readonly liveEpgPanelSummary = computed(() => this.toLiveEpgPanelSummary(this.activeEpgProgramOrNull() ?? this.epgProgram()));
+    readonly liveEpgPanelSummaryLabelKey = computed(() => this.activeEpgProgramOrNull() ? 'EPG.ARCHIVE_PLAYBACK' : 'EPG.CURRENT_PROGRAM');
+    readonly showReturnToLive = computed(() => this.activeEpgProgramOrNull() !== null);
 
-    readonly activeView = toSignal(
-        this.activatedRoute.params.pipe(
-            map((params) => params['view'] || 'all')
-        ),
-        { initialValue: 'all' }
-    );
+    readonly activeView = toSignal(this.activatedRoute.params.pipe(map((params) => params['view'] || 'all')), { initialValue: 'all' });
 
-    playerSettings: Partial<Settings> = {
-        player: VideoPlayer.VideoJs,
-        showCaptions: false,
-    };
+    playerSettings: Partial<Settings> = { player: VideoPlayer.VideoJs, showCaptions: false };
 
     readonly isDesktop = this.runtime.isElectron;
     readonly supportsEpg = this.runtime.supportsEpg;
@@ -329,15 +256,22 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private statusSubscription?: Subscription;
     private lastKnownVolume = 1;
     private lastRecordedRecentKey = '';
-    private lastExternalSessionStateKey = this.getExternalSessionStateKey(
-        this.externalPlayback.activeSession()
-    );
+    private lastExternalSessionStateKey = this.getExternalSessionStateKey(this.externalPlayback.activeSession());
 
     channelNumberInput = '';
     showChannelNumberOverlay = false;
     private channelNumberTimeout?: number;
 
     readonly volume = signal(1);
+
+    private currentUserIdObj: any = null;
+    private currentPbInfo: any = null;
+
+    readonly isMpvActive = computed(() => {
+        const channel = this.activeChannel();
+        const player = this.settingsStore.player();
+        return !!channel && player === VideoPlayer.MPV;
+    });
 
     constructor() {
         const savedVolume = localStorage.getItem('volume');
@@ -352,11 +286,78 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             };
         });
 
+        effect(() => {
+            const channel = this.activeChannel();
+            const player = this.playerSettings.player;
+            
+            if (channel && player === VideoPlayer.MPV) {
+                const streamUrl = this.activePlaybackUrl() || channel.url;
+                const chanAny = channel as any;
+                const streamTitle = channel.name?.trim() || channel.tvg?.name || chanAny.title || 'Video Desconocido';
+                const poster = channel.tvg?.logo || '';
+                
+                let type = 'live';
+                let itemId = String(channel.id || '');
+                let categoryId = String(chanAny.category_id || '');
+
+                if (chanAny.stream_id) {
+                    type = 'movie';
+                    itemId = String(chanAny.stream_id);
+                } else if (chanAny.series_id) {
+                    type = 'series';
+                    itemId = String(chanAny.series_id);
+                }
+
+                this.store.select(selectAllPlaylistsMeta).pipe(take(1)).subscribe(playlists => {
+                    const activePl = playlists.find(p => p._id === this.activePlaylistId());
+                    const activeUser = activePl?.username || localStorage.getItem('session_user') || 'default_user';
+                    const serverUrl = activePl?.serverUrl || localStorage.getItem('session_server') || ''; 
+                    const userPass = activePl?.password || localStorage.getItem('session_pass') || ''; 
+
+                    let finalStreamUrl = streamUrl;
+                    if (serverUrl && activeUser && userPass && itemId && (!finalStreamUrl || finalStreamUrl.trim() === '')) {
+                        const cleanServer = normalizeXtreamServerUrl(serverUrl).trim();
+                        if (type === 'live') {
+                            finalStreamUrl = `${cleanServer}/live/${activeUser}/${userPass}/${itemId}.ts`;
+                        } else if (type === 'movie') {
+                            finalStreamUrl = `${cleanServer}/movie/${activeUser}/${userPass}/${itemId}.mp4`;
+                        } else if (type === 'series') {
+                            finalStreamUrl = `${cleanServer}/series/${activeUser}/${userPass}/${itemId}.mp4`;
+                        }
+                    }
+
+                    this.currentUserIdObj = { username: activeUser, password: userPass, server: serverUrl };
+
+                    this.currentPbInfo = {
+                        title: streamTitle,
+                        url: finalStreamUrl,
+                        poster: poster,
+                        type: type,
+                        id: itemId,
+                        categoryId: categoryId,
+                        episodeName: streamTitle,
+                        season: "1",
+                        playlistId: this.activePlaylistId() || 'default_playlist'
+                    };
+
+                    const electron = (window as any).electron || (window as any).require?.('electron');
+                    if (electron && electron.ipcRenderer) {
+                        electron.ipcRenderer.invoke('OPEN_MPV_PLAYER', { 
+                            url: finalStreamUrl, 
+                            title: streamTitle,
+                            poster: poster,
+                            type: type,
+                            id: itemId,
+                            categoryId: categoryId,
+                            initialPosition: 0
+                        });
+                    }
+                });
+            }
+        }, { allowSignalWrites: true });
+
         effect((onCleanup) => {
-            const intervalId = window.setInterval(
-                () => this.epgNowMs.set(Date.now()),
-                30_000
-            );
+            const intervalId = window.setInterval(() => this.epgNowMs.set(Date.now()), 30_000);
             onCleanup(() => clearInterval(intervalId));
         });
 
@@ -364,43 +365,31 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             const channel = this.activeChannel();
             const nowMs = this.epgNowMs();
 
-            if (!channel || channel.radio === 'true' || !this.supportsEpg) {
-                return;
-            }
+            if (!channel || channel.radio === 'true' || !this.supportsEpg) return;
 
             const programs = this.epgPrograms();
-            this.store.dispatch(
-                EpgActions.setEpgAvailableFlag({ value: programs.length > 0 })
-            );
+            this.store.dispatch(EpgActions.setEpgAvailableFlag({ value: programs.length > 0 }));
 
             const currentProgram = findCurrentEpgProgram(programs, nowMs);
             if (currentProgram) {
-                this.store.dispatch(
-                    EpgActions.setCurrentEpgProgram({ program: currentProgram })
-                );
+                this.store.dispatch(EpgActions.setCurrentEpgProgram({ program: currentProgram }));
             } else if (!this.activePlaybackUrl()) {
                 this.store.dispatch(EpgActions.resetActiveEpgProgram());
             }
         });
 
         effect(() => {
-            this.sidebarWidth.set(
-                this.loadSidebarWidth(this.sidebarStorageKey())
-            );
+            this.sidebarWidth.set(this.loadSidebarWidth(this.sidebarStorageKey()));
         });
 
         effect(() => {
             const playlistId = this.activePlaylistId();
             const activeChannel = this.activeChannel();
 
-            if (!playlistId || !activeChannel?.url) {
-                return;
-            }
+            if (!playlistId || !activeChannel?.url) return;
 
             const nextKey = `${playlistId}::${activeChannel.url}`;
-            if (this.lastRecordedRecentKey === nextKey) {
-                return;
-            }
+            if (this.lastRecordedRecentKey === nextKey) return;
 
             this.lastRecordedRecentKey = nextKey;
             void this.persistRecentlyViewedChannel(playlistId, activeChannel);
@@ -410,46 +399,24 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             const currentView = this.activeView();
             const channels = this.channels();
             const activeChannel = this.activeChannel();
-            const state =
-                this.router.currentNavigation()?.extras?.state ??
-                window.history.state;
-            const recentTargetUrl =
-                typeof state?.openRecentChannelUrl === 'string'
-                    ? state.openRecentChannelUrl.trim()
-                    : '';
-            const globalSearchTargetUrl =
-                typeof state?.openM3uChannelUrl === 'string'
-                    ? state.openM3uChannelUrl.trim()
-                    : '';
+            const state = this.router.currentNavigation()?.extras?.state ?? window.history.state;
+            const recentTargetUrl = typeof state?.openRecentChannelUrl === 'string' ? state.openRecentChannelUrl.trim() : '';
+            const globalSearchTargetUrl = typeof state?.openM3uChannelUrl === 'string' ? state.openM3uChannelUrl.trim() : '';
             const targetUrl = globalSearchTargetUrl || recentTargetUrl;
-            const canOpenGlobalSearchTarget =
-                !!globalSearchTargetUrl && currentView === 'all';
-            const canOpenRecentTarget =
-                !!recentTargetUrl && currentView === 'recent';
+            const canOpenGlobalSearchTarget = !!globalSearchTargetUrl && currentView === 'all';
+            const canOpenRecentTarget = !!recentTargetUrl && currentView === 'recent';
 
-            if (
-                (!canOpenGlobalSearchTarget && !canOpenRecentTarget) ||
-                !targetUrl ||
-                channels.length === 0
-            ) {
-                return;
-            }
+            if ((!canOpenGlobalSearchTarget && !canOpenRecentTarget) || !targetUrl || channels.length === 0) return;
 
             if (activeChannel?.url === targetUrl) {
                 this.clearConsumedChannelOpenState();
                 return;
             }
 
-            const matchedChannel = channels.find(
-                (channel) => channel.url === targetUrl
-            );
-            if (!matchedChannel) {
-                return;
-            }
+            const matchedChannel = channels.find((channel) => channel.url === targetUrl);
+            if (!matchedChannel) return;
 
-            this.store.dispatch(
-                ChannelActions.setActiveChannel({ channel: matchedChannel })
-            );
+            this.store.dispatch(ChannelActions.setActiveChannel({ channel: matchedChannel }));
             this.clearConsumedChannelOpenState();
         });
 
@@ -459,19 +426,11 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             const activeChannel = this.activeChannel();
             const sessionStateKey = this.getExternalSessionStateKey(session);
 
-            if (sessionStateKey === this.lastExternalSessionStateKey) {
-                return;
-            }
+            if (sessionStateKey === this.lastExternalSessionStateKey) return;
 
             this.lastExternalSessionStateKey = sessionStateKey;
 
-            if (
-                !activeChannel ||
-                !this.isExternalPlayer(player) ||
-                !this.isTerminalExternalSession(session)
-            ) {
-                return;
-            }
+            if (!activeChannel || !this.isExternalPlayer(player) || !this.isTerminalExternalSession(session)) return;
 
             this.store.dispatch(ChannelActions.resetActiveChannel());
         });
@@ -482,23 +441,57 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         this.getPlaylistUrlAsParam();
         this.registerHeaderShortcut();
 
+        const electron = (window as any).electron || (window as any).require?.('electron');
+        if (electron && electron.ipcRenderer) {
+            try { electron.ipcRenderer.removeAllListeners('MPV_PROGRESS_UPDATE'); } catch(e) {}
+            electron.ipcRenderer.on('MPV_PROGRESS_UPDATE', (event: any, data: any) => {
+                
+                // NOTA: Se eliminó el "saveProgress" directo a Firebase de aquí.
+                // Ahora SOLO guarda en la base de datos local SQLite y deja que 
+                // app.component.ts (con su hash correcto) se encargue de subirlo.
+                
+                if (this.currentUserIdObj && this.currentPbInfo && this.currentPbInfo.type !== 'live') {
+                    const pos = Math.floor(data.position || 0);
+                    const dur = Math.floor(data.duration || 0);
+                    
+                    const positionData: any = {
+                        contentXtreamId: Number(this.currentPbInfo.id),
+                        contentType: this.currentPbInfo.type === 'series' ? 'episode' : 'vod',
+                        positionSeconds: pos,
+                        durationSeconds: dur,
+                        playlistId: this.currentPbInfo.playlistId,
+                        updatedAt: new Date().toISOString(),
+                        title: this.currentPbInfo.title,
+                        poster: this.currentPbInfo.poster
+                    };
+
+                    if (this.currentPbInfo.type === 'series') {
+                        positionData.seriesXtreamId = Number(this.currentPbInfo.categoryId);
+                    }
+
+                    this.playbackPositionService.savePlaybackPosition(positionData.playlistId, positionData);
+                }
+
+                if (data.closed) {
+                    this.store.dispatch(ChannelActions.resetActiveChannel());
+                    this.location.back();
+                }
+            });
+        }
+
         const remoteControl = this.remoteControlBridge;
         if (remoteControl?.onChannelChange) {
-            const unsubscribe = remoteControl.onChannelChange(
-                (data: { direction: 'up' | 'down' }) => {
-                    this.handleRemoteChannelChange(data.direction);
-                }
-            );
+            const unsubscribe = remoteControl.onChannelChange((data: { direction: 'up' | 'down' }) => {
+                this.handleRemoteChannelChange(data.direction);
+            });
             if (typeof unsubscribe === 'function') {
                 this.unsubscribeRemoteChannelChange = unsubscribe;
             }
         }
         if (remoteControl?.onRemoteControlCommand) {
-            const unsubscribe = remoteControl.onRemoteControlCommand(
-                (command) => {
-                    this.handleRemoteControlCommand(command);
-                }
-            );
+            const unsubscribe = remoteControl.onRemoteControlCommand((command: any) => {
+                this.handleRemoteControlCommand(command);
+            });
             if (typeof unsubscribe === 'function') {
                 this.unsubscribeRemoteCommand = unsubscribe;
             }
@@ -510,17 +503,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             this.store.select(selectCurrentEpgProgram).pipe(startWith(null)),
         ]).subscribe(([channels, activeChannel, epgProgram]) => {
             const remoteControl = this.remoteControlBridge;
-            if (!remoteControl?.updateRemoteControlStatus || !activeChannel) {
-                return;
-            }
+            if (!remoteControl?.updateRemoteControlStatus || !activeChannel) return;
 
-            const currentEpgProgram = epgProgram as
-                | EpgProgram
-                | null
-                | undefined;
-            const currentIndex = channels.findIndex(
-                (channel) => channel.url === activeChannel.url
-            );
+            const currentEpgProgram = epgProgram as EpgProgram | null | undefined;
+            const currentIndex = channels.findIndex((channel) => channel.url === activeChannel.url);
 
             remoteControl.updateRemoteControlStatus({
                 portal: 'm3u',
@@ -537,42 +523,29 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         });
     }
 
-    handleRemoteChannelChange(direction: 'up' | 'down'): void {
-        this.debugLog('Remote control channel change:', direction);
+    closeMpv(): void {
+        const electron = (window as any).electron || (window as any).require?.('electron');
+        if (electron && electron.ipcRenderer) {
+            try { electron.ipcRenderer.send('STOP_MPV_PLAYER'); } catch(e) {}
+        }
+        this.store.dispatch(ChannelActions.resetActiveChannel());
+        this.location.back();
+    }
 
+    handleRemoteChannelChange(direction: 'up' | 'down'): void {
         combineLatest([this.channels$, this.store.select(selectActive)])
             .pipe(
-                filter(([channels, activeChannel]) => {
-                    return channels.length > 0 && !!activeChannel;
-                }),
+                filter(([channels, activeChannel]) => channels.length > 0 && !!activeChannel),
                 take(1),
-                map(([channels, activeChannel]) => {
-                    return {
-                        channels,
-                        activeChannel: activeChannel as Channel,
-                    };
-                })
+                map(([channels, activeChannel]) => ({ channels, activeChannel: activeChannel as Channel }))
             )
             .subscribe({
                 next: ({ channels, activeChannel }) => {
-                    const nextChannel = getAdjacentChannelItem(
-                        channels,
-                        activeChannel.url,
-                        direction,
-                        (channel) => channel.url
-                    );
-
-                    if (!nextChannel) {
-                        return;
-                    }
-
-                    this.store.dispatch(
-                        createM3uChannelPlaybackRequest(nextChannel)
-                    );
+                    const nextChannel = getAdjacentChannelItem(channels, activeChannel.url, direction, (channel) => channel.url);
+                    if (!nextChannel) return;
+                    this.store.dispatch(createM3uChannelPlaybackRequest(nextChannel));
                 },
-                error: (err) => {
-                    console.error('Error changing channel:', err);
-                },
+                error: () => {},
             });
     }
 
@@ -583,21 +556,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         this.statusSubscription?.unsubscribe();
     }
 
-    onSidebarWidthChange(width: number): void {
-        this.sidebarWidth.set(this.clampSidebarWidth(width));
-    }
-
-    onSidebarResizeEnd(width: number): void {
-        this.persistSidebarWidth(this.sidebarStorageKey(), width);
-    }
-
-    onGroupedSidebarWidthRequested(width: number): void {
-        this.sidebarWidth.set(this.clampSidebarWidth(width));
-    }
-
-    onGroupedSidebarWidthRequestEnded(width: number): void {
-        this.persistSidebarWidth(this.sidebarStorageKey(), width);
-    }
+    onSidebarWidthChange(width: number): void { this.sidebarWidth.set(this.clampSidebarWidth(width)); }
+    onSidebarResizeEnd(width: number): void { this.persistSidebarWidth(this.sidebarStorageKey(), width); }
+    onGroupedSidebarWidthRequested(width: number): void { this.sidebarWidth.set(this.clampSidebarWidth(width)); }
+    onGroupedSidebarWidthRequestEnded(width: number): void { this.persistSidebarWidth(this.sidebarStorageKey(), width); }
 
     onLiveEpgPanelCollapsedChange(collapsed: boolean): void {
         const state: LiveEpgPanelState = collapsed ? 'collapsed' : 'expanded';
@@ -606,46 +568,31 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     }
 
     toggleSidebar(): void {
-        const next: LiveSidebarState = this.isSidebarCollapsed()
-            ? 'expanded'
-            : 'collapsed';
+        const next: LiveSidebarState = this.isSidebarCollapsed() ? 'expanded' : 'collapsed';
         this.liveSidebarState.set(next);
         persistLiveSidebarState(next);
     }
 
     onLiveEpgDateNavigation(direction: EpgDateNavigationDirection): void {
-        this.selectedLiveEpgDate.set(
-            shiftEpgDateKey(this.selectedLiveEpgDate(), direction)
-        );
+        this.selectedLiveEpgDate.set(shiftEpgDateKey(this.selectedLiveEpgDate(), direction));
     }
 
-    onLiveEpgSelectedDateChange(selectedDate: string): void {
-        this.selectedLiveEpgDate.set(selectedDate);
-    }
-
-    returnToLivePlayback(): void {
-        this.store.dispatch(EpgActions.returnToLivePlayback());
-    }
+    onLiveEpgSelectedDateChange(selectedDate: string): void { this.selectedLiveEpgDate.set(selectedDate); }
+    returnToLivePlayback(): void { this.store.dispatch(EpgActions.returnToLivePlayback()); }
 
     onTimelineProgramActivated(event: EpgProgramActivationEvent): void {
         if (event.type === 'live') {
             this.returnToLivePlayback();
             return;
         }
-        this.store.dispatch(
-            EpgActions.setActiveEpgProgram({ program: event.program })
-        );
+        this.store.dispatch(EpgActions.setActiveEpgProgram({ program: event.program }));
     }
 
     getPlaylistUrlAsParam() {
         const URL_REGEX = /^(http|https|file):\/\/[^ "]+$/;
         const playlistUrl = this.activatedRoute.snapshot.queryParams['url'];
-
         if (playlistUrl && playlistUrl.match(URL_REGEX)) {
-            this.dataService.sendIpcEvent(PLAYLIST_PARSE_BY_URL, {
-                url: playlistUrl,
-                isTemporary: true,
-            });
+            this.dataService.sendIpcEvent(PLAYLIST_PARSE_BY_URL, { url: playlistUrl, isTemporary: true });
         }
     }
 
@@ -653,8 +600,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         this.storage.get(STORE_KEY.Settings).subscribe((settings: unknown) => {
             if (settings && Object.keys(settings as Settings).length > 0) {
                 this.playerSettings = {
-                    player:
-                        (settings as Settings).player || VideoPlayer.VideoJs,
+                    player: (settings as Settings).player || VideoPlayer.VideoJs,
                     showCaptions: (settings as Settings).showCaptions || false,
                 };
             }
@@ -662,20 +608,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     }
 
     private loadSidebarWidth(storageKey: string): number {
-        const fallbackKey =
-            storageKey === M3U_GROUPS_SIDEBAR_STORAGE_KEY
-                ? M3U_SIDEBAR_STORAGE_KEY
-                : '';
-        const storedWidth = Number.parseInt(
-            localStorage.getItem(storageKey) ??
-                (fallbackKey ? localStorage.getItem(fallbackKey) : '') ??
-                '',
-            10
-        );
-
-        return this.clampSidebarWidth(
-            Number.isNaN(storedWidth) ? M3U_SIDEBAR_DEFAULT_WIDTH : storedWidth
-        );
+        const fallbackKey = storageKey === M3U_GROUPS_SIDEBAR_STORAGE_KEY ? M3U_SIDEBAR_STORAGE_KEY : '';
+        const storedWidth = Number.parseInt(localStorage.getItem(storageKey) ?? (fallbackKey ? localStorage.getItem(fallbackKey) : '') ?? '', 10);
+        return this.clampSidebarWidth(Number.isNaN(storedWidth) ? M3U_SIDEBAR_DEFAULT_WIDTH : storedWidth);
     }
 
     private persistSidebarWidth(storageKey: string, width: number): void {
@@ -684,17 +619,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         localStorage.setItem(storageKey, clampedWidth.toString());
     }
 
-    private clampSidebarWidth(width: number): number {
-        return Math.max(
-            M3U_SIDEBAR_MIN_WIDTH,
-            Math.min(M3U_SIDEBAR_MAX_WIDTH, width)
-        );
-    }
+    private clampSidebarWidth(width: number): number { return Math.max(M3U_SIDEBAR_MIN_WIDTH, Math.min(M3U_SIDEBAR_MAX_WIDTH, width)); }
 
-    private async persistRecentlyViewedChannel(
-        playlistId: string,
-        channel: Channel
-    ): Promise<void> {
+    private async persistRecentlyViewedChannel(playlistId: string, channel: Channel): Promise<void> {
         const recentlyViewedItem: M3uRecentlyViewedItem = {
             source: 'm3u',
             id: channel.url,
@@ -709,109 +636,51 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             added_at: new Date().toISOString(),
         };
 
-        const updatedPlaylist = await firstValueFrom(
-            this.playlistsService.addM3uRecentlyViewed(
-                playlistId,
-                recentlyViewedItem
-            )
-        );
+        const updatedPlaylist = await firstValueFrom(this.playlistsService.addM3uRecentlyViewed(playlistId, recentlyViewedItem));
 
-        this.store.dispatch(
-            PlaylistActions.updatePlaylistMeta({
-                playlist: {
-                    _id: playlistId,
-                    recentlyViewed: updatedPlaylist?.recentlyViewed ?? [],
-                } as PlaylistMeta,
-            })
-        );
+        this.store.dispatch(PlaylistActions.updatePlaylistMeta({
+            playlist: { _id: playlistId, recentlyViewed: updatedPlaylist?.recentlyViewed ?? [] } as PlaylistMeta,
+        }));
     }
 
     private clearConsumedChannelOpenState(): void {
-        const historyState = (window.history.state ?? {}) as Record<
-            string,
-            unknown
-        >;
-        if (
-            !historyState['openRecentChannelUrl'] &&
-            !historyState['openM3uChannelUrl']
-        ) {
-            return;
-        }
-
+        const historyState = (window.history.state ?? {}) as Record<string, unknown>;
+        if (!historyState['openRecentChannelUrl'] && !historyState['openM3uChannelUrl']) return;
         try {
             const nextState = { ...historyState };
             delete nextState['openRecentChannelUrl'];
             delete nextState['openM3uChannelUrl'];
             window.history.replaceState(nextState, document.title);
-        } catch {
-        }
+        } catch {}
     }
 
     openMultiEpgView(): void {
-        if (!this.supportsEpg) {
-            return;
-        }
+        if (!this.supportsEpg) return;
 
-        const positionStrategy = this.overlay
-            .position()
-            .global()
-            .centerHorizontally()
-            .centerVertically();
+        const positionStrategy = this.overlay.position().global().centerHorizontally().centerVertically();
+        this.overlayRef = this.overlay.create({ hasBackdrop: true, positionStrategy, width: '100%', height: '100%' });
 
-        this.overlayRef = this.overlay.create({
-            hasBackdrop: true,
-            positionStrategy,
-            width: '100%',
-            height: '100%',
-        });
-
-        const injector = Injector.create({
-            providers: [
-                {
-                    provide: COMPONENT_OVERLAY_REF,
-                    useValue: this.overlayRef,
-                },
-            ],
-        });
-
-        const portal = new ComponentPortal(
-            MultiEpgContainerComponent,
-            null,
-            injector
-        );
+        const injector = Injector.create({ providers: [{ provide: COMPONENT_OVERLAY_REF, useValue: this.overlayRef }] });
+        const portal = new ComponentPortal(MultiEpgContainerComponent, null, injector);
 
         const componentRef = this.overlayRef.attach(portal);
-        componentRef.instance.playlistChannels = this.store.select(
-            selectChannels
-        ) as Observable<Channel[]>;
+        componentRef.instance.playlistChannels = this.store.select(selectChannels) as Observable<Channel[]>;
 
         const currentChannel = this.activeChannel();
-        if (currentChannel) {
-            componentRef.instance.activeChannelId =
-                currentChannel.tvg?.id || null;
-        }
+        if (currentChannel) (componentRef.instance as any).activeChannelId = currentChannel.tvg?.id || null;
 
-        this.overlayRef.backdropClick().subscribe(() => {
-            this.overlayRef.dispose();
-        });
+        this.overlayRef.backdropClick().subscribe(() => this.overlayRef.dispose());
     }
 
     @HostListener('document:keydown', ['$event'])
     handleKeyPress(event: KeyboardEvent): void {
-        if (isTypingInInput(event)) {
-            return;
-        }
-        if (
-            (event.metaKey || event.ctrlKey) &&
-            event.key.toLowerCase() === 'b'
-        ) {
+        if (isTypingInInput(event)) return;
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'b') {
             event.preventDefault();
             this.toggleSidebar();
             return;
         }
-        if (event.metaKey || event.ctrlKey || event.altKey) {
-            return;
-        }
+        if (event.metaKey || event.ctrlKey || event.altKey) return;
         if (event.key >= '0' && event.key <= '9') {
             event.preventDefault();
             this.handleChannelNumberInput(event.key);
@@ -819,13 +688,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     }
 
     handleChannelNumberInput(digit: string): void {
-        if (this.channelNumberTimeout) {
-            clearTimeout(this.channelNumberTimeout);
-        }
-
+        if (this.channelNumberTimeout) clearTimeout(this.channelNumberTimeout);
         this.channelNumberInput += digit;
         this.showChannelNumberOverlay = true;
-
         this.channelNumberTimeout = window.setTimeout(() => {
             this.switchToChannelByNumber(parseInt(this.channelNumberInput, 10));
             this.clearChannelNumberInput();
@@ -833,20 +698,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     }
 
     switchToChannelByNumber(channelNumber: number): void {
-        this.channels$
-            .pipe(
-                take(1),
-                map((channels) =>
-                    getChannelItemByNumber(channels, channelNumber)
-                )
-            )
-            .subscribe((channel) => {
-                if (channel) {
-                    this.store.dispatch(
-                        createM3uChannelPlaybackRequest(channel)
-                    );
-                }
-            });
+        this.channels$.pipe(take(1), map((channels) => getChannelItemByNumber(channels, channelNumber))).subscribe((channel) => {
+            if (channel) this.store.dispatch(createM3uChannelPlaybackRequest(channel));
+        });
     }
 
     clearChannelNumberInput(): void {
@@ -858,135 +712,62 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         }
     }
 
-    private handleRemoteControlCommand(command: {
-        type:
-            | 'channel-select-number'
-            | 'volume-up'
-            | 'volume-down'
-            | 'volume-toggle-mute';
-        number?: number;
-    }): void {
+    private handleRemoteControlCommand(command: { type: 'channel-select-number' | 'volume-up' | 'volume-down' | 'volume-toggle-mute'; number?: number; }): void {
         if (command.type === 'channel-select-number' && command.number) {
             this.switchToChannelByNumber(command.number);
             return;
         }
-
-        if (command.type === 'volume-up') {
-            this.setVolume(this.volume() + 0.1);
-        } else if (command.type === 'volume-down') {
-            this.setVolume(this.volume() - 0.1);
-        } else if (command.type === 'volume-toggle-mute') {
-            if (this.volume() === 0) {
-                this.setVolume(this.lastKnownVolume || 1);
-            } else {
-                this.lastKnownVolume = this.volume();
-                this.setVolume(0);
-            }
+        if (command.type === 'volume-up') this.setVolume(this.volume() + 0.1);
+        else if (command.type === 'volume-down') this.setVolume(this.volume() - 0.1);
+        else if (command.type === 'volume-toggle-mute') {
+            if (this.volume() === 0) this.setVolume(this.lastKnownVolume || 1);
+            else { this.lastKnownVolume = this.volume(); this.setVolume(0); }
         }
     }
 
     private setVolume(next: number): void {
         const clamped = Math.max(0, Math.min(1, Number(next.toFixed(2))));
         this.volume.set(clamped);
-        if (clamped > 0) {
-            this.lastKnownVolume = clamped;
-        }
+        if (clamped > 0) this.lastKnownVolume = clamped;
         localStorage.setItem('volume', String(clamped));
-
         const remoteControl = this.remoteControlBridge;
         if (remoteControl?.updateRemoteControlStatus) {
-            remoteControl.updateRemoteControlStatus({
-                portal: 'm3u',
-                isLiveView: true,
-                supportsVolume: true,
-                volume: this.volume(),
-                muted: this.volume() === 0,
-            });
+            remoteControl.updateRemoteControlStatus({ portal: 'm3u', isLiveView: true, supportsVolume: true, volume: this.volume(), muted: this.volume() === 0 });
         }
     }
 
-    onInlineVolumeChange(volume: number): void {
-        this.setVolume(volume);
-    }
-
-    private get remoteControlBridge(): Window['electron'] | undefined {
-        return this.runtime.supportsRemoteControl ? window.electron : undefined;
-    }
-
+    onInlineVolumeChange(volume: number): void { this.setVolume(volume); }
+    private get remoteControlBridge(): any | undefined { return this.runtime.supportsRemoteControl ? (window as any).electron : undefined; }
     shouldShowInlinePlayer(channel: Channel | null | undefined): boolean {
-        if (!channel) {
-            return false;
-        }
-
+        if (!channel) return false;
         return !this.isExternalPlayer(this.playerSettings.player);
     }
-
-    handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
-        return;
+    handleExternalFallbackRequest(request: PlaybackFallbackRequest): void { return; }
+    private toLiveEpgPanelSummary(program: EpgProgram | null | undefined): LiveEpgPanelSummary | null {
+        if (!program) return null;
+        return { title: program.title, start: program.start, stop: program.stop };
     }
-
-    private toLiveEpgPanelSummary(
-        program: EpgProgram | null | undefined
-    ): LiveEpgPanelSummary | null {
-        if (!program) {
-            return null;
-        }
-
-        return {
-            title: program.title,
-            start: program.start,
-            stop: program.stop,
-        };
-    }
-
-    private getExternalSessionStateKey(
-        session: ExternalPlayerSession | null | undefined
-    ): string | null {
-        if (!session) {
-            return null;
-        }
-
+    private getExternalSessionStateKey(session: ExternalPlayerSession | null | undefined): string | null {
+        if (!session) return null;
         return `${session.id}:${session.status}`;
     }
-
-    private isExternalPlayer(
-        player: VideoPlayer | null | undefined
-    ): player is VideoPlayer.MPV | VideoPlayer.VLC {
+    private isExternalPlayer(player: VideoPlayer | null | undefined): player is VideoPlayer.MPV | VideoPlayer.VLC {
         return player === VideoPlayer.MPV || player === VideoPlayer.VLC;
     }
-
-    private isTerminalExternalSession(
-        session: ExternalPlayerSession | null | undefined
-    ): boolean {
+    private isTerminalExternalSession(session: ExternalPlayerSession | null | undefined): boolean {
         return session?.status === 'closed' || session?.status === 'error';
     }
-
     private registerHeaderShortcut(): void {
-        if (!this.isWorkspaceLayout || !this.supportsEpg) {
-            return;
-        }
-
+        if (!this.isWorkspaceLayout || !this.supportsEpg) return;
         this.workspaceHeaderContext.setAction({
-            id: M3U_MULTI_EPG_HEADER_ACTION_ID,
-            icon: 'view_list',
-            tooltipKey: 'TOP_MENU.OPEN_MULTI_EPG',
-            ariaLabelKey: 'TOP_MENU.OPEN_MULTI_EPG',
-            palette: {
-                labelKey: 'TOP_MENU.OPEN_MULTI_EPG',
-                descriptionKey:
-                    'WORKSPACE.SHELL.COMMANDS.OPEN_MULTI_EPG_DESCRIPTION',
-                keywords: ['epg', 'guide', 'schedule'],
-                priority: 10,
-            },
+            id: M3U_MULTI_EPG_HEADER_ACTION_ID, icon: 'view_list', tooltipKey: 'TOP_MENU.OPEN_MULTI_EPG', ariaLabelKey: 'TOP_MENU.OPEN_MULTI_EPG',
+            palette: { labelKey: 'TOP_MENU.OPEN_MULTI_EPG', descriptionKey: 'WORKSPACE.SHELL.COMMANDS.OPEN_MULTI_EPG_DESCRIPTION', keywords: ['epg', 'guide', 'schedule'], priority: 10 },
             run: () => this.openMultiEpgView(),
         });
     }
 }
 
-function findCurrentEpgProgram(
-    programs: EpgProgram[],
-    nowMs: number
-): EpgProgram | undefined {
+function findCurrentEpgProgram(programs: EpgProgram[], nowMs: number): EpgProgram | undefined {
     return programs.find((program) => {
         const start = epgTimeMs(program.start, program.startTimestamp);
         const stop = epgTimeMs(program.stop, program.stopTimestamp);
@@ -995,8 +776,6 @@ function findCurrentEpgProgram(
 }
 
 function epgTimeMs(isoValue: string, timestamp?: number | null): number {
-    if (Number.isFinite(timestamp) && Number(timestamp) > 0) {
-        return Number(timestamp) * 1000;
-    }
+    if (Number.isFinite(timestamp) && Number(timestamp) > 0) return Number(timestamp) * 1000;
     return Date.parse(isoValue);
 }

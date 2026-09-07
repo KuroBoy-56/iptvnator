@@ -24,11 +24,12 @@ export class PlayerService {
     isEmbeddedPlayer(
         player = this.settingsStore.player() ?? VideoPlayer.VideoJs
     ): boolean {
+        const p = String(player).toLowerCase();
         return (
-            player === VideoPlayer.VideoJs ||
-            player === VideoPlayer.Html5Player ||
-            player === VideoPlayer.ArtPlayer ||
-            player === VideoPlayer.EmbeddedMpv
+            p.includes('videojs') ||
+            p.includes('html5') ||
+            p.includes('artplayer')
+            // ELIMINADO EL ENGAÑO DE MPV: Ya no se considera interno.
         );
     }
 
@@ -66,18 +67,21 @@ export class PlayerService {
         playback: ResolvedPortalPlayback,
         hideExternalInfoDialog = true
     ): Promise<ExternalPlayerSession | void> {
-        const player = this.settingsStore.player() ?? VideoPlayer.VideoJs;
+        const player = String(this.settingsStore.player() ?? '').toLowerCase();
 
-        if (player === VideoPlayer.MPV) {
-            if (!hideExternalInfoDialog) {
-                this.dialog.open(ExternalPlayerInfoDialogComponent);
-            }
-            return await this.openExternalPlayback(playback, 'mpv');
-        } else if (player === VideoPlayer.VLC) {
+        if (player.includes('vlc')) {
             if (!hideExternalInfoDialog) {
                 this.dialog.open(ExternalPlayerInfoDialogComponent);
             }
             return await this.openExternalPlayback(playback, 'vlc');
+        }
+
+        // AHORA MPV ES TRATADO OFICIALMENTE COMO REPRODUCTOR EXTERNO IGUAL QUE VLC
+        if (player.includes('mpv') || player === '3') {
+            if (!hideExternalInfoDialog) {
+                this.dialog.open(ExternalPlayerInfoDialogComponent);
+            }
+            return await this.openExternalPlayback(playback, 'mpv');
         }
 
         return;
@@ -87,8 +91,7 @@ export class PlayerService {
         playback: ResolvedPortalPlayback,
         player: ExternalPlayerName
     ): Promise<ExternalPlayerSession | void> {
-        const ipcEvent =
-            player === 'mpv' ? OPEN_MPV_PLAYER : OPEN_VLC_PLAYER;
+        const ipcEvent = player === 'mpv' ? OPEN_MPV_PLAYER : OPEN_VLC_PLAYER;
 
         return await this.dataService.sendIpcEvent<ExternalPlayerSession>(
             ipcEvent,
@@ -96,7 +99,7 @@ export class PlayerService {
                 url: playback.streamUrl,
                 title: playback.title,
                 thumbnail: playback.thumbnail,
-                'user-agent': playback.userAgent,
+                userAgent: playback.userAgent, // CORREGIDO PARA QUE LLEGUE CORRECTAMENTE
                 referer: playback.referer,
                 origin: playback.origin,
                 headers: playback.headers,

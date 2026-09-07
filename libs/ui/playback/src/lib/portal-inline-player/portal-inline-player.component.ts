@@ -5,6 +5,8 @@ import {
     computed,
     input,
     output,
+    inject,
+    effect
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -12,7 +14,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import {
     PlayerContentInfo,
-    ResolvedPortalPlayback,
+    ResolvedPortalPlayback
 } from '@iptvnator/shared/interfaces';
 import type { PlaybackFallbackRequest } from '../playback-diagnostics/playback-diagnostics.util';
 import { WebPlayerViewComponent } from '../web-player-view/web-player-view.component';
@@ -20,6 +22,8 @@ import type {
     SeriesEpisodeMetadata,
     SeriesPlaybackNavigation,
 } from './series-playback-navigation';
+import { SettingsStore } from '@iptvnator/services';
+import { PORTAL_EXTERNAL_PLAYBACK, PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
 
 @Component({
     selector: 'app-portal-inline-player',
@@ -52,57 +56,71 @@ export class PortalInlinePlayerComponent {
     readonly hasPlayback = computed(() => !!this.playback()?.streamUrl);
     readonly episodeMetadataText = computed(() => {
         const metadata = this.episodeMetadata();
-        if (!metadata) {
-            return '';
-        }
-
-        return metadata.title
-            ? `${metadata.label} - ${metadata.title}`
-            : metadata.label;
+        if (!metadata) return '';
+        return metadata.title ? `${metadata.label} - ${metadata.title}` : metadata.label;
     });
 
     readonly closed = output<void>();
-    /** Back arrow in the now-playing bar: route-level back, not just close. */
     readonly backClicked = output<void>();
-    readonly timeUpdate = output<{
-        currentTime: number;
-        duration: number;
-    }>();
+    readonly timeUpdate = output<{ currentTime: number; duration: number; }>();
     readonly streamUrlCopied = output<void>();
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
 
-    onClose(): void {
-        this.closed.emit();
+    private readonly settingsStore = inject(SettingsStore);
+    private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
+    private readonly portalPlayer = inject(PORTAL_PLAYER);
+
+    // Atrapa a MPV limpiamente
+    readonly isMpvActive = computed(() => {
+        if (!this.hasPlayback()) return false;
+        const player = String(this.settingsStore.player() ?? '').toLowerCase();
+        return player.includes('mpv') || player === '3';
+    });
+    
+    private isLaunched = false;
+
+    constructor() {
+        // Lanza MPV
+        effect(() => {
+            const pb = this.playback();
+            const mpvActive = this.isMpvActive();
+
+            if (mpvActive && pb && !this.isLaunched) {
+                this.isLaunched = true;
+                this.portalPlayer.openExternalPlayback(pb, 'mpv' as any);
+            }
+        });
+
+        // Cierra la pantalla si MPV se cierra
+        effect(() => {
+            const session = this.externalPlayback.activeSession();
+            if (this.isMpvActive() && this.isLaunched) {
+                if (!session || session.status === 'closed' || session.status === 'error') {
+                    this.isLaunched = false;
+                    this.onClose();
+                }
+            }
+        });
     }
 
-    onBack(): void {
-        this.backClicked.emit();
+    closeMpv() {
+        const session = this.externalPlayback.activeSession();
+        if (session && session.status !== 'closed' && session.status !== 'error') {
+            this.externalPlayback.closeSession(session);
+        }
+        this.isLaunched = false;
+        this.onClose();
     }
 
-    onTimeUpdate(event: { currentTime: number; duration: number }): void {
-        this.timeUpdate.emit(event);
-    }
-
-    onCopied(): void {
-        this.streamUrlCopied.emit();
-    }
-
-    onExternalFallbackRequested(request: PlaybackFallbackRequest): void {
-        this.externalFallbackRequested.emit(request);
-    }
-
-    onPlaybackEnded(): void {
-        this.playbackEnded.emit();
-    }
-
-    onPreviousEpisodeRequested(): void {
-        this.previousEpisodeRequested.emit();
-    }
-
-    onNextEpisodeRequested(): void {
-        this.nextEpisodeRequested.emit();
-    }
+    onClose(): void { this.closed.emit(); }
+    onBack(): void { this.backClicked.emit(); }
+    onTimeUpdate(event: { currentTime: number; duration: number }): void { this.timeUpdate.emit(event); }
+    onCopied(): void { this.streamUrlCopied.emit(); }
+    onExternalFallbackRequested(request: PlaybackFallbackRequest): void { this.externalFallbackRequested.emit(request); }
+    onPlaybackEnded(): void { this.playbackEnded.emit(); }
+    onPreviousEpisodeRequested(): void { this.previousEpisodeRequested.emit(); }
+    onNextEpisodeRequested(): void { this.nextEpisodeRequested.emit(); }
 }

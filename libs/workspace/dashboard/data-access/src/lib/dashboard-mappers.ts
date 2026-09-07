@@ -16,8 +16,6 @@ import {
     normalizeStalkerDate,
 } from '@iptvnator/shared/interfaces';
 
-// ────── Type / label helpers ──────
-
 export function normalizeActivityType(value: string): PortalActivityType {
     return value === 'live' || value === 'series' ? value : 'movie';
 }
@@ -27,8 +25,6 @@ export function getActivityTypeLabelKey(type: PortalActivityType): string {
     if (type === 'series') return 'WORKSPACE.DASHBOARD.TYPE_SERIES';
     return 'WORKSPACE.DASHBOARD.TYPE_MOVIE';
 }
-
-// ────── Xtream DB → ViewModel ──────
 
 export function mapDbFavoriteToItem(
     item: DbGlobalFavoriteItem
@@ -80,8 +76,6 @@ export function mapDbRecentlyAddedToItem(
         source: 'xtream',
     };
 }
-
-// ────── Stalker playlist → ViewModel ──────
 
 export function buildStalkerRecentItems(
     playlists: PlaylistMeta[],
@@ -155,8 +149,6 @@ export function buildStalkerFavoriteItems(
             return acc;
         }, []);
 }
-
-// ────── Timestamp helpers ──────
 
 export function toDateTimestamp(value: unknown): number {
     if (typeof value === 'number') {

@@ -4,7 +4,8 @@
  */
 
 import axios, { AxiosRequestConfig } from 'axios';
-import { ipcMain } from 'electron';
+import { ipcMain, dialog } from 'electron'; 
+import * as https from 'https';
 import {
     PortalDebugEvent,
     XTREAM_CANCEL_SESSION,
@@ -67,8 +68,16 @@ function formatXtreamError(
 }
 
 function buildXtreamApiUrl(url: string, params: Record<string, string>): URL {
-    const baseUrl = normalizeXtreamServerUrl(url);
-    const apiUrl = new URL(`${baseUrl}/player_api.php`);
+    let apiUrl: URL;
+    
+    // 🚀 EL TRUCO PARA TU PHP: Si la URL es tu archivo PHP, no le metemos el player_api.php basura.
+    if (url.includes('.php')) {
+        apiUrl = new URL(url);
+    } else {
+        const baseUrl = normalizeXtreamServerUrl(url);
+        apiUrl = new URL(`${baseUrl}/player_api.php`);
+    }
+
     Object.entries(params).forEach(([key, value]) => {
         apiUrl.searchParams.append(
             key,
@@ -100,8 +109,6 @@ ipcMain.handle(
         try {
             const { url, params, requestId, sessionId } = payload;
 
-            // Build URL with query parameters
-            // Xtream API endpoint is always at /player_api.php
             const apiUrl = buildXtreamApiUrl(url, params);
             requestUrlForLog = apiUrl.toString();
 
@@ -114,18 +121,18 @@ ipcMain.handle(
                 });
             }
 
-            // Configure axios request
             const config: AxiosRequestConfig = {
                 method: 'GET',
                 url: apiUrl.toString(),
                 headers: {
-                    'User-Agent':
-                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'User-Agent': 'IPTVSmartersPro',
                     Accept: 'application/json',
+                    Connection: 'keep-alive'
                 },
-                timeout: 30000, // 30 seconds timeout for Xtream API
-                validateStatus: (status) => status < 500, // Don't throw on 4xx errors
+                timeout: 60000, 
+                validateStatus: (status) => status < 500,
                 signal: controller.signal,
+                httpsAgent: new https.Agent({ rejectUnauthorized: false }) 
             };
 
             const response = await requestWithValidatedRedirects<unknown>(
@@ -134,7 +141,6 @@ ipcMain.handle(
                 { allowPrivateNetworks: true }
             );
 
-            // Check if response is successful
             if (response.status >= 400) {
                 throw {
                     message: `HTTP Error: ${response.statusText}`,
@@ -163,12 +169,28 @@ ipcMain.handle(
                 emitPortalDebugEvent(debugEvent);
             }
 
-            // Xtream API returns JSON data
             return {
                 payload: response.data,
                 action: params.action,
             };
         } catch (error) {
+            
+            try {
+                let detalles = `Mensaje de error: ${error instanceof Error ? error.message : JSON.stringify(error)}\n\n`;
+                if (axios.isAxiosError(error)) {
+                    detalles += `Código Axios: ${error.code}\n`;
+                    detalles += `Status HTTP: ${error.response?.status || 'Ninguno'}\n`;
+                    detalles += `URL de la petición: ${error.config?.url || payload.url}\n`;
+                    
+                    let serverResp = error.response?.data;
+                    if (typeof serverResp === 'object') {
+                        serverResp = JSON.stringify(serverResp).substring(0, 200); 
+                    }
+                    detalles += `Respuesta del Servidor: ${serverResp || 'Vacia'}`;
+                }
+                dialog.showErrorBox('🕵️ CAZADOR DE ERRORES LATMPX', `La descarga falló en el ejecutable por esto:\n\n${detalles}`);
+            } catch(e) {}
+
             const requestId = payload.requestId;
             if (requestId) {
                 const apiUrl = (() => {
@@ -194,11 +216,10 @@ ipcMain.handle(
                         method: 'GET',
                         url: apiUrl,
                         headers: {
-                            'User-Agent':
-                                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                            'User-Agent': 'IPTVSmartersPro',
                             Accept: 'application/json',
                         },
-                        timeout: 30000,
+                        timeout: 60000,
                         params: payload.params,
                     },
                     error,
@@ -217,7 +238,6 @@ ipcMain.handle(
                 );
             }
 
-            // Format error response
             if (axios.isAxiosError(error)) {
                 if (error.code === 'ERR_CANCELED') {
                     throw {
@@ -304,13 +324,13 @@ ipcMain.handle(
             method,
             url: payload.url,
             headers: {
-                'User-Agent':
-                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'User-Agent': 'IPTVSmartersPro',
                 ...(method === 'GET' ? { Range: 'bytes=0-4095' } : {}),
             },
-            timeout: 10000,
+            timeout: 15000,
             responseType: method === 'GET' ? 'stream' : undefined,
             validateStatus: () => true,
+            httpsAgent: new https.Agent({ rejectUnauthorized: false })
         };
 
         try {

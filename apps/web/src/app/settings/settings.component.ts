@@ -145,13 +145,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
     );
 
     @Input() isDialog = this.dialogData?.isDialog ?? false;
-    /** List with available languages as enum */
     readonly languageEnum = Language;
-
-    /** List with allowed formats as enum */
     readonly streamFormatEnum = StreamFormat;
 
-    /** Flag that indicates whether the app runs in electron environment */
     readonly isDesktop = this.runtime.isElectron;
     readonly supportsDesktopFileSave = this.runtime.supportsDesktopFileSave;
     readonly supportsEpg =
@@ -171,36 +167,67 @@ export class SettingsComponent implements OnInit, OnDestroy {
     private readonly settingsCtx = inject(SettingsContextService);
     readonly activeSection = this.settingsCtx.activeSection;
 
-    readonly osPlayers = computed(() => [
-        ...(this.supportsEmbeddedMpv()
-            ? [
-                  {
-                      id: VideoPlayer.EmbeddedMpv,
-                      labelKey: 'SETTINGS.PLAYER_EMBEDDED_MPV',
-                  },
-              ]
-            : []),
-        ...(this.supportsManagedExternalPlayers
-            ? SETTINGS_OS_PLAYER_OPTIONS
-            : []),
-    ]);
+    // --- VARIABLES Y MÉTODOS DEL BOTÓN VPN (DNS DoH) ---
+    currentDns: string = 'off';
 
-    /** Player options */
+    toggleDns() {
+        if (this.currentDns === 'off') {
+            this.currentDns = 'cloudflare';
+        } else if (this.currentDns === 'cloudflare') {
+            this.currentDns = 'google';
+        } else {
+            this.currentDns = 'off';
+        }
+        localStorage.setItem('secure_dns', this.currentDns);
+        this.applyDns(this.currentDns);
+    }
+
+    applyDns(provider: string) {
+        try {
+            const win = window as any;
+            if (win.electron && win.electron.ipcRenderer) {
+                win.electron.ipcRenderer.send('SET_SECURE_DNS', provider);
+            }
+        } catch (e) {}
+    }
+
+    getDnsLabel(): string {
+        if (this.currentDns === 'cloudflare') return '🛡️ DNS: Cloudflare (Activo)';
+        if (this.currentDns === 'google') return '🛡️ DNS: Google (Activo)';
+        return '🌐 DNS Privado: Apagado';
+    }
+
+    readonly osPlayers = computed(() => {
+        // Detectamos si alguna de las listas cargadas tiene la palabra "demo" (sin importar mayúsculas/minúsculas)
+        const isDemo = this.playlists().some(p => p.title?.toLowerCase().includes('demo'));
+
+        const options = [];
+        if (this.supportsEmbeddedMpv()) {
+            options.push({
+                id: VideoPlayer.EmbeddedMpv,
+                labelKey: 'SETTINGS.PLAYER_EMBEDDED_MPV',
+            });
+        }
+        if (this.supportsManagedExternalPlayers) {
+            const externalOpts = SETTINGS_OS_PLAYER_OPTIONS.filter(opt => {
+                if (opt.id === VideoPlayer.VLC && isDemo) {
+                    return false;
+                }
+                return true;
+            });
+            options.push(...externalOpts);
+        }
+        return options;
+    });
+
     readonly players = computed(() => [
         ...SETTINGS_EMBEDDED_PLAYER_OPTIONS,
         ...this.osPlayers(),
     ]);
 
-    /** Current version of the app */
     version = '';
-
-    /** Update message to show */
     updateMessage = '';
-    readonly appUpdateStatus = signal<ElectronBridgeAppUpdateStatus | null>(
-        null
-    );
-
-    /** EPG availability flag */
+    readonly appUpdateStatus = signal<ElectronBridgeAppUpdateStatus | null>(null);
     epgAvailable$ = this.store.select(selectIsEpgAvailable);
     readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);
 
@@ -209,19 +236,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
     readonly startupBehaviorOptions = SETTINGS_STARTUP_BEHAVIOR_OPTIONS;
     readonly epgViewModeOptions = SETTINGS_EPG_VIEW_MODE_OPTIONS;
 
-    /** Settings form object */
     settingsForm = createSettingsForm(this.formBuilder, this.supportsEpg);
-
-    /** Form array with epg sources */
     epgUrl = this.settingsForm.get('epgUrl') as FormArray;
-
-    /** Local IP addresses for remote control URL display */
     localIpAddresses = signal<string[]>([]);
-
-    /** Currently visible QR code IP (null = none visible) */
     visibleQrCodeIp = signal<string | null>(null);
-    readonly isRemovingAllPlaylists =
-        this.playlistResetFacade.isRemovingAllPlaylists;
+    readonly isRemovingAllPlaylists = this.playlistResetFacade.isRemovingAllPlaylists;
     readonly isClearingEpgData = signal(false);
     readonly isExportingData = this.backupFacade.isExportingData;
     readonly removeAllProgress = this.playlistResetFacade.removeAllProgress;
@@ -256,12 +275,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
         return this.sectionNavItems.filter((section) => section.visible);
     }
 
-    /**
-     * Reads the config object from the browsers
-     * storage (indexed db)
-     */
     async ngOnInit(): Promise<void> {
-        // Wait for settings to load before setting the form
+        this.currentDns = localStorage.getItem('secure_dns') || 'off';
+        this.applyDns(this.currentDns);
+
         await this.settingsStore.loadSettings();
         this.setSettings();
         this.bindDashboardControlsEnabledState();
@@ -373,7 +390,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
         if (!this.isDesktop || !window.electron?.checkForAppUpdate) {
             return;
         }
-
         this.appUpdateStatus.set(await window.electron.checkForAppUpdate());
     }
 
@@ -381,7 +397,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
         if (!this.isDesktop || !window.electron?.downloadAppUpdate) {
             return;
         }
-
         this.appUpdateStatus.set(await window.electron.downloadAppUpdate());
     }
 
@@ -389,17 +404,14 @@ export class SettingsComponent implements OnInit, OnDestroy {
         if (!this.isDesktop || !window.electron?.installAppUpdate) {
             return;
         }
-
         this.appUpdateStatus.set(await window.electron.installAppUpdate());
     }
 
     openManualAppUpdate(): void {
         const manualDownloadUrl = this.appUpdateStatus()?.manualDownloadUrl;
-
         if (!manualDownloadUrl) {
             return;
         }
-
         window.open(manualDownloadUrl, '_blank', 'noreferrer');
     }
 
@@ -428,9 +440,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
         });
     }
 
-    /**
-     * Fetches local IP addresses for remote control URL display
-     */
     async fetchLocalIpAddresses(): Promise<void> {
         if (
             this.supportsRemoteControl &&
@@ -441,9 +450,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
         }
     }
 
-    /**
-     * Toggle QR code visibility for a given IP address
-     */
     toggleQrCode(ip: string): void {
         if (this.visibleQrCodeIp() === ip) {
             this.visibleQrCodeIp.set(null);
@@ -452,9 +458,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
         }
     }
 
-    /**
-     * Sets saved settings from the indexed db store
-     */
     setSettings() {
         const currentSettings = this.settingsStore.getSettings();
         this.settingsForm.patchValue(currentSettings);
@@ -541,19 +544,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
         this.settingsForm.markAsDirty();
     }
 
-    /**
-     * Sets the epg urls to the form array
-     * @param epgUrls urls of the EPG sources
-     */
     setEpgUrls(epgUrls: string[] | string): void {
         applyEpgUrlsToFormArray(this.epgUrl, epgUrls);
     }
 
-    /**
-     * Checks whether the latest version of the application
-     * is used and updates the version message in the
-     * settings UI
-     */
     checkAppVersion(): void {
         this.settingsService
             .getAppVersion()
@@ -561,11 +555,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
             .subscribe((version) => this.showVersionInformation(version));
     }
 
-    /**
-     * Updates the message in settings UI about the used
-     * version of the app
-     * @param currentVersion current version of the application
-     */
     showVersionInformation(currentVersion: string): void {
         const isOutdated = this.isCurrentVersionOutdated(currentVersion);
 
@@ -582,12 +571,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
         }
     }
 
-    /**
-     * Compares actual with latest version of the
-     * application
-     * @param latestVersion latest version
-     * @returns returns true if an update is available
-     */
     isCurrentVersionOutdated(latestVersion: string): boolean {
         this.version = this.dataService.getAppVersion();
         return this.settingsService.isVersionOutdated(
@@ -596,10 +579,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
         );
     }
 
-    /**
-     * Triggers on form submit and saves the config object to
-     * the indexed db store
-     */
     onSubmit(): void {
         const settings = this.createSettingsFromFormValue();
 
@@ -627,9 +606,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
         );
     }
 
-    /**
-     * Applies the changed settings to the app
-     */
     applyChangedSettings(): void {
         this.settingsForm.markAsPristine();
         if (this.supportsEpg) {
@@ -643,7 +619,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
                         typeof url === 'string' && url !== ''
                 );
                 if (validEpgUrls.length > 0) {
-                    // Fetch all EPG URLs at once
                     this.epgService.fetchEpg(validEpgUrls);
                 }
             }
@@ -659,9 +634,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
         );
     }
 
-    /**
-     * Navigates back to the applications homepage
-     */
     backToHome(): void {
         if (this.isDialog) {
             this.matDialog.closeAll();
@@ -670,12 +642,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
         }
     }
 
-    /**
-     * Force-fetch EPG for a single URL, bypassing the 12-hour freshness check.
-     * The plain fetchEpg would short-circuit on fresh data and click the
-     * refresh button would be a no-op — that's exactly not what the user
-     * intends when clicking "Refresh".
-     */
     refreshEpg(url: string): void {
         if (!this.epgBridge.supportsDataManagement || !url) {
             return;
@@ -686,11 +652,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
         );
     }
 
-    /**
-     * Force-fetch every configured EPG URL sequentially. Empty fields are
-     * skipped. Each URL flows through the normal progress panel so the user
-     * gets visible per-URL feedback.
-     */
     refreshAllEpg(): void {
         if (!this.epgBridge.supportsDataManagement) return;
         const urls = (this.epgUrl.value as string[])
@@ -700,28 +661,15 @@ export class SettingsComponent implements OnInit, OnDestroy {
         urls.forEach((url) => void this.epgBridge.forceFetchEpg(url, options));
     }
 
-    /**
-     * Initializes new entry in form array for EPG URL
-     */
     addEpgSource(): void {
         this.epgUrl.insert(this.epgUrl.length, createEpgUrlControl());
     }
 
-    /**
-     * Removes entry from form array for EPG URL
-     * @param index index of the item to remove
-     */
     removeEpgSource(index: number): void {
         this.epgUrl.removeAt(index);
         this.settingsForm.markAsDirty();
     }
 
-    /**
-     * Clears all EPG data from database and immediately re-fetches every
-     * configured URL so the user isn't left staring at an empty state.
-     * Tracks progress with `isClearingEpgData` so the UI can show a spinner
-     * and block double-clicks, and surfaces failures via a dedicated snackbar.
-     */
     clearEpgData(): void {
         this.dialogService.openConfirmDialog({
             title: this.translate.instant('SETTINGS.CLEAR_EPG_DIALOG.TITLE'),

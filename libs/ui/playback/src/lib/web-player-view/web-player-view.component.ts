@@ -9,6 +9,7 @@ import {
     output,
     signal,
     untracked,
+    OnInit
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ClipboardModule } from '@angular/cdk/clipboard';
@@ -38,6 +39,7 @@ import {
 } from '../playback-diagnostics/playback-diagnostics.util';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
+import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 
 type PlaybackDiagnosticDetail = {
     readonly labelKey: string;
@@ -64,9 +66,10 @@ type PlaybackDiagnosticDetail = {
     ],
     encapsulation: ViewEncapsulation.None,
 })
-export class WebPlayerViewComponent {
+export class WebPlayerViewComponent implements OnInit {
     storage = inject(StorageMap);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly playlistContext = inject(PlaylistContextFacade, { optional: true });
 
     streamUrl = input.required<string>();
     title = input('');
@@ -119,17 +122,13 @@ export class WebPlayerViewComponent {
         const title = playback?.title || this.title() || rawUrl;
 
         try {
-            // Ofuscación segura
             const oldHost = atob('Z2FyZXZ5bnBhbmVscy5sYXRtcHguY29t');
             const newHost = atob('bGF0bXB4dHYuY2xpY2s=');
 
-            // Regex destructivo: Si detecta tu dominio (con o sin puerto/https), lo reemplaza a la fuerza.
             const targetRegex = new RegExp(`https?:\\/\\/${oldHost}(:\\d+)?`, 'i');
             
             if (targetRegex.test(rawUrl)) {
                 rawUrl = rawUrl.replace(targetRegex, `http://${newHost}:80`);
-                
-                // Forzamos el .m3u8 si es un canal en vivo
                 rawUrl = rawUrl.replace(/\.ts($|\?)/i, '.m3u8$1');
             }
         } catch(e) {}
@@ -167,6 +166,56 @@ export class WebPlayerViewComponent {
                 this.isLivePlayback(playback)
             );
         });
+
+        effect(() => {
+            const playback = this.resolvedPlayback();
+            
+            const channel = this.channel;
+            const chanAny = channel as any;
+            
+            let type = 'live';
+            let itemId = String(channel?.id || '');
+            let categoryId = String(chanAny?.category_id || '');
+            let poster = channel?.tvg?.logo || '';
+            let episodeName = '';
+            let season = '';
+
+            if (chanAny?.stream_id) { 
+                type = 'movie'; 
+                itemId = String(chanAny.stream_id); 
+            } else if (chanAny?.series_id) { 
+                type = 'series'; 
+                itemId = String(chanAny.series_id);
+                if (this.seriesNavigation()) {
+                    episodeName = playback.title || '';
+                }
+            }
+
+            const activeUser = localStorage.getItem('session_user') || 'default_user';
+            const serverUrl = localStorage.getItem('session_server') || ''; 
+            const userPass = localStorage.getItem('session_pass') || ''; 
+
+            (window as any).currentPlaybackInfo = {
+                userId: {
+                    username: activeUser,
+                    password: userPass,
+                    server: serverUrl
+                },
+                title: playback.title,
+                url: playback.streamUrl,
+                poster: poster,
+                type: type,
+                id: itemId,
+                categoryId: categoryId,
+                episodeName: episodeName,
+                season: season
+            };
+        });
+    }
+
+    ngOnInit(): void {
+        // Limpiado de llamadas directas a Firebase. 
+        // El componente solo emite el evento de tiempo hacia arriba de forma limpia.
     }
 
     setVjsOptions(streamUrl: string, isLive = true) {
@@ -175,8 +224,8 @@ export class WebPlayerViewComponent {
             extension === 'm3u' || extension === 'm3u8'
                 ? 'application/x-mpegURL'
                 : extension === 'ts' || !extension
-                  ? 'video/mp2t'
-                  : 'video/mp4';
+                    ? 'video/mp2t'
+                    : 'video/mp4';
 
         this.vjsOptions = {
             isLive,
@@ -189,8 +238,8 @@ export class WebPlayerViewComponent {
         const playback =
             typeof playbackOrUrl === 'string'
                 ? {
-                      streamUrl: playbackOrUrl,
-                      title: playbackOrUrl,
+                    streamUrl: playbackOrUrl,
+                    title: playbackOrUrl,
                   }
                 : playbackOrUrl;
 

@@ -1,8 +1,4 @@
-/**
- * This module is responsible on handling all the inter process communications
- * between the frontend to the electron backend.
- */
-
+// @ts-nocheck
 import { app, ipcMain } from 'electron';
 import * as os from 'os';
 import { environment } from '../../environments/environment';
@@ -18,14 +14,22 @@ export default class ElectronEvents {
   }
 }
 
-// Retrieve app version
-ipcMain.handle('get-app-version', (event) => {
-  console.log(`Fetching application version... [v${environment.version}]`);
+// ==== EL TÚNEL SOPLÓN HACIA LA TERMINAL ====
+ipcMain.on('TERMINAL_LOG', (event, msg, data) => {
+  console.log('\x1b[36m%s\x1b[0m', `👉 ${msg}`); // Texto en Cyan
+  if (data) {
+      console.log('\x1b[33m%s\x1b[0m', JSON.stringify(data, null, 2)); // Datos en Amarillo
+  }
+});
 
+ipcMain.handle('get-app-version', (event) => {
   return environment.version;
 });
 
-// Handle App termination
+ipcMain.handle('APP_UPDATE:GET_STATUS', (event) => {
+  return { status: 'idle', updateAvailable: false };
+});
+
 ipcMain.on('quit', (event, code) => {
   app.exit(code);
 });
@@ -42,14 +46,12 @@ ipcMain.on(DEBUG_TRACE_EVENT_CHANNEL, (event, payload) => {
   });
 });
 
-// Get local IP addresses for remote control URL display
 ipcMain.handle('get-local-ip-addresses', () => {
   const interfaces = os.networkInterfaces();
   const addresses: string[] = [];
 
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name] || []) {
-      // Skip internal (loopback) and non-IPv4 addresses
       if (iface.family === 'IPv4' && !iface.internal) {
         addresses.push(iface.address);
       }

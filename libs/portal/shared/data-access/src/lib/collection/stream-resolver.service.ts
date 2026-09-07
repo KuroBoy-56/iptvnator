@@ -82,7 +82,7 @@ export class StreamResolverService {
 
         try {
             return (
-                (await window.electron?.dbGetAppPlaylist?.(playlistId)) ??
+                (await (window as any).electron?.dbGetAppPlaylist?.(playlistId)) ??
                 undefined
             );
         } catch {

@@ -14,14 +14,7 @@
         class="settings-layout"
         novalidate
     >
-        <!-- Page-level "Settings" h1 intentionally removed: the left rail
-             already labels the page "Settings" (sg-nav-title), and each
-             section below provides its own h3 + subtitle. Stacking another
-             h1 in the right pane reproduced the audit's "vertical ladder
-             of identical labels" complaint. -->
         @if (!isDialog) {
-            <!-- Reserved hook so the page test selector still resolves,
-                 even though there's no visible chrome here. -->
             <span
                 class="visually-hidden"
                 data-test-id="settings-page-header"
@@ -31,6 +24,29 @@
         }
 
         <div class="settings-content">
+            
+            <div style="background: rgba(0,0,0,0.1); padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
+                <h3 style="margin-top: 0; margin-bottom: 15px;">Protección de Conexión (VPN / DoH)</h3>
+                <button type="button" (click)="toggleDns()" 
+                        [ngStyle]="{
+                            'background-color': currentDns !== 'off' ? '#28a745' : '#343a40', 
+                            'color': 'white', 
+                            'border': 'none', 
+                            'padding': '12px 24px', 
+                            'border-radius': '8px', 
+                            'cursor': 'pointer', 
+                            'font-weight': 'bold',
+                            'transition': 'background-color 0.3s',
+                            'width': '100%',
+                            'max-width': '400px'
+                        }">
+                    {{ getDnsLabel() }}
+                </button>
+                <p style="font-size: 13px; color: #adb5bd; margin-top: 10px; margin-bottom: 0;">
+                    * Activa esta opción si tu proveedor de internet bloquea la carga de canales.
+                </p>
+            </div>
+
             <app-settings-general-section
                 [form]="settingsForm"
                 [activeSection]="activeSection()"

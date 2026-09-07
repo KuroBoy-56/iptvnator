@@ -7,6 +7,7 @@ import {
     DatabaseService,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    FirebaseSyncService,
 } from '@iptvnator/services';
 import {
     Channel,
@@ -35,6 +36,21 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 
 const GLOBAL_FAVORITES_ORDER_KEY = 'global-favorites-channel-order-v1';
+const globalUnifiedCache = new Map<string, any>();
+
+async function safeFetchJson(url: string, options: any = {}, timeoutMs = 3000): Promise<any> {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(id);
+        if (!response.ok) return null;
+        return await response.json();
+    } catch (err) {
+        clearTimeout(id);
+        return null;
+    }
+}
 
 type PlaylistWithChannels = Omit<Playlist, 'playlist'> & {
     readonly playlist?: { readonly items?: Channel[] };
@@ -53,6 +69,125 @@ export class UnifiedFavoritesDataService {
     private readonly translate = inject(TranslateService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
+    private readonly firebaseSync = inject(FirebaseSyncService, { optional: true });
+
+    private async enrichUnifiedItems(items: UnifiedCollectionItem[]): Promise<UnifiedCollectionItem[]> {
+        const win = window as any;
+        const ipc = win.electron?.ipcRenderer;
+
+        let allMeta: PlaylistMeta[] = [];
+        try {
+            allMeta = await this.getAllMeta();
+        } catch(e) {}
+
+        return await Promise.all(items.map(async (item) => {
+            if (item.sourceType === 'xtream' && item.xtreamId != null) {
+                const itemType = item.contentType || 'vod';
+                const cacheKey = `${item.playlistId}:${item.xtreamId}:${itemType}`;
+                const cached = globalUnifiedCache.get(cacheKey);
+
+                if (cached) {
+                    if (cached.name) item.name = cached.name;
+                    if (cached.posterUrl) {
+                        item.posterUrl = cached.posterUrl;
+                        item.logo = cached.posterUrl;
+                    }
+                    return item;
+                }
+
+                let titleStr = String(item.name || '');
+                let tLower = titleStr.toLowerCase();
+                let isGeneric = !item.name || tLower === 'contenido' || tLower === 'favorito' || tLower === 'null' || tLower.includes('película') || tLower.includes('pelicula') || tLower.includes('serie') || tLower.includes('canal');
+                let noPoster = !item.posterUrl && !item.logo;
+                
+                const pl = allMeta.find((p: any) => p._id === item.playlistId) as any;
+
+                if (itemType === 'live') {
+                    let liveChannelsMap = win.__liveChannelsCache?.[item.playlistId];
+                    
+                    // LÓGICA AGREGADA: Si la RAM no tiene la lista de canales, la descarga súper rápido
+                    if (!liveChannelsMap && pl && pl.serverUrl) {
+                        try {
+                            const baseUrl = pl.serverUrl.trim().replace(/\/+$/, '');
+                            const liveUrl = `${baseUrl}/player_api.php?username=${pl.username}&password=${pl.password}&action=get_live_streams`;
+                            const liveResp = await safeFetchJson(liveUrl);
+                            liveChannelsMap = new Map();
+                            if (Array.isArray(liveResp)) {
+                                for (const ch of liveResp) {
+                                    liveChannelsMap.set(String(ch.stream_id), { name: ch.name, logo: ch.stream_icon, category_id: ch.category_id });
+                                }
+                            }
+                            win.__liveChannelsCache = win.__liveChannelsCache || {};
+                            win.__liveChannelsCache[item.playlistId] = liveChannelsMap;
+                        } catch(e) {}
+                    }
+
+                    if (liveChannelsMap) {
+                        const liveInfo = liveChannelsMap.get(String(item.xtreamId));
+                        if (liveInfo) {
+                            item.name = liveInfo.name;
+                            item.posterUrl = liveInfo.logo;
+                            item.logo = liveInfo.logo;
+                            isGeneric = false;
+                            noPoster = false;
+                        }
+                    }
+                    if (item.name && !isGeneric) {
+                        globalUnifiedCache.set(cacheKey, { name: item.name, posterUrl: item.posterUrl });
+                    }
+                } 
+                else if (isGeneric || noPoster) {
+                    if (ipc) {
+                        try {
+                            const cType = itemType === 'series' ? 'series' : 'movie';
+                            const content = await ipc.invoke('DB_GET_CONTENT_BY_XTREAM_ID', {
+                                xtreamId: Number(item.xtreamId),
+                                playlistId: item.playlistId,
+                                contentType: cType
+                            });
+                            const realContent = Array.isArray(content) ? content[0] : content;
+                            if (realContent) {
+                                if (isGeneric && realContent.title) {
+                                    item.name = realContent.title;
+                                    isGeneric = false;
+                                }
+                                if (noPoster && (realContent.poster_url || realContent.backdrop_url || realContent.logo)) {
+                                    item.posterUrl = realContent.poster_url || realContent.backdrop_url || realContent.logo;
+                                    item.logo = item.posterUrl;
+                                    noPoster = false;
+                                }
+                            }
+                        } catch(e) {}
+                    }
+
+                    if ((isGeneric || noPoster) && pl && pl.serverUrl) {
+                        try {
+                            const baseUrl = pl.serverUrl.trim().replace(/\/+$/, '');
+                            const action = itemType === 'series' ? 'get_series_info&series_id=' : 'get_vod_info&vod_id=';
+                            const url = `${baseUrl}/player_api.php?username=${pl.username}&password=${pl.password}&action=${action}${item.xtreamId}`;
+                            const resp = await safeFetchJson(url);
+                            if (resp) {
+                                if (itemType === 'series' && resp.info) {
+                                    if (isGeneric) item.name = resp.info.name;
+                                    if (noPoster) item.posterUrl = resp.info.cover || resp.info.backdrop_path?.[0] || item.posterUrl;
+                                } else if (resp.movie_data || resp.info) {
+                                    if (isGeneric) item.name = resp.movie_data?.name || resp.info?.name || resp.info?.movie_name;
+                                    if (noPoster) item.posterUrl = resp.movie_data?.poster || resp.info?.movie_image || resp.info?.cover || item.posterUrl;
+                                }
+                                item.logo = item.posterUrl;
+                                isGeneric = false;
+                            }
+                        } catch(e) {}
+                    }
+
+                    if (item.name && !isGeneric) {
+                        globalUnifiedCache.set(cacheKey, { name: item.name, posterUrl: item.posterUrl });
+                    }
+                }
+            }
+            return item;
+        }));
+    }
 
     async getFavorites(
         scope: CollectionScope,
@@ -99,6 +234,19 @@ export class UnifiedFavoritesDataService {
                 if (item.contentId == null) {
                     return;
                 }
+
+                if (this.firebaseSync && item.xtreamId != null) {
+                    try {
+                        const meta = await this.getPlaylistMeta(item.playlistId);
+                        const metaAny = meta as any;
+                        if (metaAny?.serverUrl) {
+                            const fbType = item.contentType === 'movie' ? 'Movie' : item.contentType === 'series' ? 'Series' : 'LiveTv';
+                            const userIdObj = { username: metaAny.username, password: metaAny.password, server: metaAny.serverUrl };
+                            await (this.firebaseSync as any).removeFavorite(userIdObj, fbType, item.xtreamId);
+                        }
+                    } catch(e) {}
+                }
+
                 const electron = this.electronActivityBridge;
                 if (electron) {
                     await electron.dbRemoveFavorite(
@@ -164,6 +312,22 @@ export class UnifiedFavoritesDataService {
             return;
         }
 
+        if (this.firebaseSync && item.xtreamId != null) {
+            try {
+                const meta = await this.getPlaylistMeta(item.playlistId);
+                const metaAny = meta as any;
+                if (metaAny?.serverUrl) {
+                    const fbType = item.contentType === 'movie' ? 'Movie' : item.contentType === 'series' ? 'Series' : 'LiveTv';
+                    const userIdObj = { username: metaAny.username, password: metaAny.password, server: metaAny.serverUrl };
+                    const ts = Math.floor(Date.now() / 1000);
+                    await (this.firebaseSync as any).addFavorite(userIdObj, fbType, item.xtreamId, ts, {
+                        title: item.name,
+                        thumbnail: item.posterUrl || item.logo
+                    });
+                }
+            } catch(e) {}
+        }
+
         const electron = this.electronActivityBridge;
         if (!electron) {
             await this.xtreamDataSource.addFavorite(
@@ -221,6 +385,22 @@ export class UnifiedFavoritesDataService {
     async clearFavorites(items: UnifiedCollectionItem[]): Promise<void> {
         if (items.length === 0) {
             return;
+        }
+
+        if (this.firebaseSync) {
+            try {
+                for (const item of items) {
+                    if (item.sourceType === 'xtream' && item.xtreamId != null) {
+                        const meta = await this.getPlaylistMeta(item.playlistId);
+                        const metaAny = meta as any;
+                        if (metaAny?.serverUrl) {
+                            const fbType = item.contentType === 'movie' ? 'Movie' : item.contentType === 'series' ? 'Series' : 'LiveTv';
+                            const userIdObj = { username: metaAny.username, password: metaAny.password, server: metaAny.serverUrl };
+                            await (this.firebaseSync as any).removeFavorite(userIdObj, fbType, item.xtreamId);
+                        }
+                    }
+                }
+            } catch(e) {}
         }
 
         await Promise.all([
@@ -451,7 +631,7 @@ export class UnifiedFavoritesDataService {
         const allMeta = await this.getAllMeta();
         const results: UnifiedCollectionItem[] = [];
         for (const meta of allMeta.filter(
-            (p) => p._id && !p.serverUrl && !p.macAddress
+            (p: any) => p._id && !p.serverUrl && !p.macAddress
         )) {
             results.push(...(await this.extractM3uFavorites(meta)));
         }
@@ -523,23 +703,93 @@ export class UnifiedFavoritesDataService {
     }
 
     private async getXtreamAllFavorites(): Promise<UnifiedCollectionItem[]> {
+        const allMeta = await this.getAllMeta();
+        const results: UnifiedCollectionItem[] = [];
+        
+        if (this.firebaseSync) {
+            try {
+                const win = window as any;
+                const ipc = win.electron?.ipcRenderer;
+                const xtreamPlaylists = allMeta.filter((p: any) => !!p.serverUrl);
+                
+                for (const pl of xtreamPlaylists) {
+                    const plAny = pl as any;
+                    const userIdObj = { username: plAny.username, password: plAny.password, server: plAny.serverUrl };
+                    const cloudFavorites = await (this.firebaseSync as any).getAllFavorites(userIdObj);
+                    
+                    if (cloudFavorites) {
+                        for (const type of ['Movie', 'Series', 'LiveTv']) {
+                            if (!cloudFavorites[type]) continue;
+                            for (const itemId of Object.keys(cloudFavorites[type])) {
+                                const data = cloudFavorites[type][itemId];
+                                let thumb = undefined;
+                                let favTitle = undefined;
+                                let finalCategoryId = '0';
+                                
+                                if (typeof data === 'object' && data !== null) {
+                                    thumb = data.thumbnail && data.thumbnail !== 'null' ? data.thumbnail : undefined;
+                                    if (data.title && data.title !== 'null') favTitle = data.title;
+                                }
+                                
+                                const xtreamId = Number(itemId);
+                                const cType = type === 'Movie' ? 'movie' : type === 'Series' ? 'series' : 'live';
+
+                                if (cType === 'live') {
+                                    let liveChannelsMap = win.__liveChannelsCache?.[pl._id];
+                                    if (liveChannelsMap) {
+                                        const liveInfo = liveChannelsMap.get(String(xtreamId));
+                                        if (liveInfo) {
+                                            favTitle = liveInfo.name;
+                                            thumb = liveInfo.logo;
+                                        }
+                                    }
+                                }
+
+                                if (!favTitle || favTitle === 'Favorito' || favTitle === '' || favTitle === 'Contenido') {
+                                    if (type === 'LiveTv') favTitle = `Canal ${xtreamId}`;
+                                    else if (type === 'Movie') favTitle = `Película ${xtreamId}`;
+                                    else if (type === 'Series') favTitle = `Serie ${xtreamId}`;
+                                    else favTitle = 'Favorito';
+                                }
+
+                                const addedDate = typeof data === 'number' ? new Date(data * 1000).toISOString() : new Date().toISOString();
+
+                                results.push({
+                                    uid: buildXtreamCollectionUid(pl._id, cType, xtreamId),
+                                    name: favTitle,
+                                    contentType: cType,
+                                    sourceType: 'xtream',
+                                    playlistId: pl._id,
+                                    playlistName: pl.title || 'Xtream',
+                                    logo: cType === 'live' ? (thumb ?? null) : null,
+                                    posterUrl: cType !== 'live' ? (thumb ?? null) : null,
+                                    xtreamId: xtreamId,
+                                    categoryId: finalCategoryId,
+                                    tvgId: cType === 'live' ? String(xtreamId) : undefined,
+                                    contentId: xtreamId,
+                                    addedAt: addedDate,
+                                    position: 0,
+                                });
+                            }
+                        }
+                    }
+                }
+                
+                return await this.enrichUnifiedItems(results);
+            } catch(e) {}
+        }
+
         if (!this.electronActivityBridge) {
-            const allMeta = await this.getAllMeta();
-            const results: UnifiedCollectionItem[] = [];
-            for (const meta of allMeta.filter(
-                (p) => p._id && this.isXtreamPlaylist(p)
-            )) {
-                results.push(
-                    ...(await this.getXtreamPlaylistFavorites(meta._id))
-                );
+            for (const meta of allMeta.filter((p: any) => p._id && this.isXtreamPlaylist(p))) {
+                results.push(...(await this.getXtreamPlaylistFavorites(meta._id)));
             }
             return results;
         }
 
         try {
-            const rows =
-                (await this.dbService.getAllGlobalFavorites()) as XtreamFavoriteRow[];
-            return rows.map((r) => this.mapXtreamRow(r));
+            const rows = (await this.dbService.getAllGlobalFavorites()) as XtreamFavoriteRow[];
+            const mapped = rows.map((r) => this.mapXtreamRow(r));
+            return await this.enrichUnifiedItems(mapped);
         } catch {
             return [];
         }
@@ -548,22 +798,93 @@ export class UnifiedFavoritesDataService {
     private async getXtreamPlaylistFavorites(
         playlistId: string
     ): Promise<UnifiedCollectionItem[]> {
+        const results: UnifiedCollectionItem[] = [];
         try {
             const meta = await this.getPlaylistMeta(playlistId);
+            const metaAny = meta as any;
+            
+            if (this.firebaseSync && metaAny?.serverUrl) {
+                try {
+                    const win = window as any;
+                    const ipc = win.electron?.ipcRenderer;
+                    const userIdObj = { username: metaAny.username, password: metaAny.password, server: metaAny.serverUrl };
+                    const cloudFavorites = await (this.firebaseSync as any).getAllFavorites(userIdObj);
+                    
+                    if (cloudFavorites) {
+                        for (const type of ['Movie', 'Series', 'LiveTv']) {
+                            if (!cloudFavorites[type]) continue;
+                            for (const itemId of Object.keys(cloudFavorites[type])) {
+                                const data = cloudFavorites[type][itemId];
+                                let thumb = undefined;
+                                let favTitle = undefined;
+                                let finalCategoryId = '0';
+                                
+                                if (typeof data === 'object' && data !== null) {
+                                    thumb = data.thumbnail && data.thumbnail !== 'null' ? data.thumbnail : undefined;
+                                    if (data.title && data.title !== 'null') favTitle = data.title;
+                                }
+                                
+                                const xtreamId = Number(itemId);
+                                const cType = type === 'Movie' ? 'movie' : type === 'Series' ? 'series' : 'live';
+
+                                if (cType === 'live') {
+                                    let liveChannelsMap = win.__liveChannelsCache?.[playlistId];
+                                    if (liveChannelsMap) {
+                                        const liveInfo = liveChannelsMap.get(String(xtreamId));
+                                        if (liveInfo) {
+                                            favTitle = liveInfo.name;
+                                            thumb = liveInfo.logo;
+                                        }
+                                    }
+                                }
+
+                                if (!favTitle || favTitle === 'Favorito' || favTitle === '' || favTitle === 'Contenido') {
+                                    if (type === 'LiveTv') favTitle = `Canal ${xtreamId}`;
+                                    else if (type === 'Movie') favTitle = `Película ${xtreamId}`;
+                                    else if (type === 'Series') favTitle = `Serie ${xtreamId}`;
+                                    else favTitle = 'Favorito';
+                                }
+
+                                const addedDate = typeof data === 'number' ? new Date(data * 1000).toISOString() : new Date().toISOString();
+
+                                results.push({
+                                    uid: buildXtreamCollectionUid(playlistId, cType, xtreamId),
+                                    name: favTitle,
+                                    contentType: cType,
+                                    sourceType: 'xtream',
+                                    playlistId: playlistId,
+                                    playlistName: meta?.title || 'Xtream',
+                                    logo: cType === 'live' ? (thumb ?? null) : null,
+                                    posterUrl: cType !== 'live' ? (thumb ?? null) : null,
+                                    xtreamId: xtreamId,
+                                    categoryId: finalCategoryId,
+                                    tvgId: cType === 'live' ? String(xtreamId) : undefined,
+                                    contentId: xtreamId,
+                                    addedAt: addedDate,
+                                    position: 0,
+                                });
+                            }
+                        }
+                    }
+                    return await this.enrichUnifiedItems(results);
+                } catch(e) {}
+            }
+
             if (!this.electronActivityBridge) {
-                const rows =
-                    await this.xtreamDataSource.getFavorites(playlistId);
-                return rows.map((row) =>
+                const rows = await this.xtreamDataSource.getFavorites(playlistId);
+                const mapped = rows.map((row) =>
                     this.mapXtreamContentItem(row, playlistId, meta?.title)
                 );
+                return await this.enrichUnifiedItems(mapped);
             }
 
             const rows = await this.dbService.getFavorites(playlistId);
-            return (rows as unknown as XtreamFavoriteRow[]).map((r) => ({
+            const mapped2 = (rows as unknown as XtreamFavoriteRow[]).map((r) => ({
                 ...this.mapXtreamRow(r),
                 playlistId,
                 playlistName: meta?.title || 'Xtream',
             }));
+            return await this.enrichUnifiedItems(mapped2);
         } catch {
             return [];
         }
@@ -646,7 +967,7 @@ export class UnifiedFavoritesDataService {
     private async getStalkerAllFavorites(): Promise<UnifiedCollectionItem[]> {
         const allMeta = await this.getAllMeta();
         const results: UnifiedCollectionItem[] = [];
-        for (const meta of allMeta.filter((p) => p._id && p.macAddress)) {
+        for (const meta of allMeta.filter((p: any) => p._id && p.macAddress)) {
             results.push(...(await this.extractStalkerFavorites(meta)));
         }
         return results;
@@ -729,7 +1050,7 @@ export class UnifiedFavoritesDataService {
     }
 
     private async getSavedOrder(): Promise<string[]> {
-        const electron = window.electron;
+        const electron = (window as any).electron;
         if (!this.runtime.supportsAppStateStorage || !electron) return [];
         try {
             const raw = await electron.dbGetAppState(
@@ -742,7 +1063,7 @@ export class UnifiedFavoritesDataService {
     }
 
     private async saveOrder(uidOrder: string[]): Promise<void> {
-        const electron = window.electron;
+        const electron = (window as any).electron;
         if (!this.runtime.supportsAppStateStorage || !electron) return;
         try {
             await electron.dbSetAppState(
@@ -750,7 +1071,6 @@ export class UnifiedFavoritesDataService {
                 JSON.stringify(uidOrder)
             );
         } catch {
-            /* ignore */
         }
     }
 
@@ -837,7 +1157,7 @@ export class UnifiedFavoritesDataService {
     }
 
     private isXtreamPlaylist(
-        playlist: Pick<PlaylistMeta, 'serverUrl' | 'macAddress'>
+        playlist: Pick<PlaylistMeta, 'serverUrl' | 'macAddress'> | any
     ): boolean {
         return Boolean(playlist.serverUrl) && !playlist.macAddress;
     }
@@ -856,9 +1176,9 @@ export class UnifiedFavoritesDataService {
         return extractStalkerItemId(favorite);
     }
 
-    private get electronActivityBridge(): Window['electron'] | undefined {
+    private get electronActivityBridge(): any | undefined {
         return this.runtime.supportsPortalActivityStorage
-            ? window.electron
+            ? (window as any).electron
             : undefined;
     }
 }

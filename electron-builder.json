@@ -139,6 +139,14 @@
         "target": [
             {
                 "target": "nsis",
+                "arch": ["x64"]
+            },
+            {
+                "target": "nsis",
+                "arch": ["ia32"]
+            },
+            {
+                "target": "nsis",
                 "arch": ["x64", "ia32"]
             }
         ],

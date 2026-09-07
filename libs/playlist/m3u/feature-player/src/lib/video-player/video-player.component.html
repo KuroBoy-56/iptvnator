@@ -57,11 +57,28 @@
             <mat-icon>chevron_right</mat-icon>
         </button>
     }
+    
     @if (activeChannel(); as activeChannel) {
-        @if (
+        
+        <!-- PANTALLA NEGRA PUENTE PARA MPV -->
+        @if (isMpvActive()) {
+            <div class="video-player" style="display: flex; align-items: center; justify-content: center; background-color: #050505; height: 100%; width: 100%;">
+                <div style="text-align: center;">
+                    <mat-icon style="font-size: 80px; width: 80px; height: 80px; color: #4dabf7; opacity: 0.9;">movie_creation</mat-icon>
+                    <h2 style="color: #ffffff; margin-top: 20px; font-weight: 500; font-size: 26px;">Reproduciendo en MPV</h2>
+                    <p style="color: #adb5bd; font-size: 18px; margin-top: 8px;">{{ timelineChannelName() }}</p>
+                    <p style="color: #6c757d; font-size: 14px; margin-top: 4px;">El progreso se guarda automáticamente.</p>
+                    <button mat-flat-button style="margin-top: 30px; background-color: #e50914; color: white; padding: 0 30px; border-radius: 20px; font-size: 16px;" (click)="closeMpv()">
+                        <mat-icon>stop</mat-icon> Detener y Volver
+                    </button>
+                </div>
+            </div>
+            
+        } @else if (
             activeChannel.radio === 'true' ||
             shouldShowInlinePlayer(activeChannel)
         ) {
+            <!-- REPRODUCTORES NORMALES (HTML5, VideoJS, etc) -->
             <div class="video-player">
                 @if (activeChannel.radio === 'true') {
                     <app-audio-player
@@ -89,7 +106,7 @@
             </div>
         }
 
-        @if (supportsEpg && activeChannel.radio !== 'true') {
+        @if (supportsEpg && activeChannel.radio !== 'true' && !isMpvActive()) {
             @let canCollapseEpgPanel = shouldShowInlinePlayer(activeChannel);
             <div
                 class="epg"

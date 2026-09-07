@@ -25,6 +25,19 @@ import {
 
 export type DashboardContentKind = 'all' | 'channels' | 'vod' | 'series';
 
+function sanitizeItem<T extends { category_id?: string | number | null }>(item: T): T {
+    const sanitized = { ...item };
+    if (
+        sanitized.category_id === undefined ||
+        sanitized.category_id === null ||
+        sanitized.category_id === 'null' ||
+        String(sanitized.category_id).trim() === ''
+    ) {
+        sanitized.category_id = '0';
+    }
+    return sanitized;
+}
+
 export function isTypeInKind(
     type: PortalActivityType,
     kind: DashboardContentKind
@@ -54,75 +67,77 @@ export function getPlaylistLink(playlist: PlaylistMeta): string[] {
 }
 
 export function getRecentItemLink(item: PortalRecentItem): string[] {
-    return getRecentItemNavigation(item).link;
+    return getRecentItemNavigation(sanitizeItem(item)).link;
 }
 
 export function getRecentItemNavigationState(
     item: PortalRecentItem
 ): WorkspaceNavigationTarget['state'] {
-    return getRecentItemNavigation(item).state;
+    return getRecentItemNavigation(sanitizeItem(item)).state;
 }
 
 export function getGlobalFavoriteLink(item: PortalFavoriteItem): string[] {
-    return getGlobalFavoriteNavigation(item).link;
+    return getGlobalFavoriteNavigation(sanitizeItem(item)).link;
 }
 
 export function getGlobalFavoriteNavigationState(
     item: PortalFavoriteItem
 ): WorkspaceNavigationTarget['state'] {
-    return getGlobalFavoriteNavigation(item).state;
+    return getGlobalFavoriteNavigation(sanitizeItem(item)).state;
 }
 
 export function getRecentlyAddedLink(item: PortalAddedItem): string[] {
-    if (item.source === 'stalker' && item.type !== 'live') {
+    const safeItem = sanitizeItem(item);
+    if (safeItem.source === 'stalker' && safeItem.type !== 'live') {
         return buildStalkerDetailNavigationTarget({
-            playlistId: item.playlist_id,
-            type: item.type,
-            categoryId: item.category_id,
-            item: buildStalkerStateItem(item.stalker_item, {
-                id: item.id,
-                title: item.title,
-                type: item.type,
-                category_id: item.category_id,
-                poster_url: item.poster_url,
+            playlistId: safeItem.playlist_id,
+            type: safeItem.type,
+            categoryId: safeItem.category_id,
+            item: buildStalkerStateItem(safeItem.stalker_item, {
+                id: safeItem.id,
+                title: safeItem.title,
+                type: safeItem.type,
+                category_id: safeItem.category_id,
+                poster_url: safeItem.poster_url,
             }),
         }).link;
     }
 
     return buildXtreamNavigationTarget({
-        playlistId: item.playlist_id,
-        type: item.type,
-        categoryId: item.category_id,
-        itemId: item.xtream_id,
-        title: item.title,
-        imageUrl: item.poster_url,
+        playlistId: safeItem.playlist_id,
+        type: safeItem.type,
+        categoryId: safeItem.category_id,
+        itemId: safeItem.xtream_id,
+        title: safeItem.title,
+        imageUrl: safeItem.poster_url,
     }).link;
 }
 
 export function getRecentlyAddedNavigationState(
     item: PortalAddedItem
 ): WorkspaceNavigationTarget['state'] {
-    if (item.source === 'stalker' && item.type !== 'live') {
+    const safeItem = sanitizeItem(item);
+    if (safeItem.source === 'stalker' && safeItem.type !== 'live') {
         return buildStalkerDetailNavigationTarget({
-            playlistId: item.playlist_id,
-            type: item.type,
-            categoryId: item.category_id,
-            item: buildStalkerStateItem(item.stalker_item, {
-                id: item.id,
-                title: item.title,
-                type: item.type,
-                category_id: item.category_id,
-                poster_url: item.poster_url,
+            playlistId: safeItem.playlist_id,
+            type: safeItem.type,
+            categoryId: safeItem.category_id,
+            item: buildStalkerStateItem(safeItem.stalker_item, {
+                id: safeItem.id,
+                title: safeItem.title,
+                type: safeItem.type,
+                category_id: safeItem.category_id,
+                poster_url: safeItem.poster_url,
             }),
         }).state;
     }
 
     return buildXtreamNavigationTarget({
-        playlistId: item.playlist_id,
-        type: item.type,
-        categoryId: item.category_id,
-        itemId: item.xtream_id,
-        title: item.title,
-        imageUrl: item.poster_url,
+        playlistId: safeItem.playlist_id,
+        type: safeItem.type,
+        categoryId: safeItem.category_id,
+        itemId: safeItem.xtream_id,
+        title: safeItem.title,
+        imageUrl: safeItem.poster_url,
     }).state;
 }

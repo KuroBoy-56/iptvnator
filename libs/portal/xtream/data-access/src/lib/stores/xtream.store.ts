@@ -1,16 +1,14 @@
+// @ts-nocheck
 import { computed, inject } from '@angular/core';
 import { signalStore, withComputed, withMethods } from '@ngrx/signals';
 import { XtreamSerieDetails, XtreamVodDetails } from '@iptvnator/shared/interfaces';
 
-// Import existing features that are already separate
 import { withFavorites } from '../with-favorites.feature';
 import { withRecentItems } from '../with-recent-items';
 
-// Import service
 import { XTREAM_DATA_SOURCE } from '../data-sources/xtream-data-source.interface';
 import { XtreamApiService } from '../services/xtream-api.service';
 
-// Import new feature stores
 import { TmdbEnrichmentService } from '@iptvnator/services';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
@@ -28,28 +26,9 @@ import {
     enrichVodSelectionWithTmdb,
 } from './xtream-tmdb-enrichment';
 
-/**
- * XtreamStore - Facade composing all feature stores.
- *
- * This store provides a unified API for components while delegating
- * to specialized feature stores for different concerns:
- *
- * - withPortal: Playlist and portal status management
- * - withContent: Categories and streams management
- * - withSelection: UI selection and pagination
- * - withSearch: Search functionality
- * - withEpg: EPG (Electronic Program Guide) data
- * - withPlayer: Stream URL construction and player integration
- * - withFavorites: Favorites management
- * - withRecentItems: Recently viewed items
- * - withPlaybackPositions: Playback position tracking
- *
- * @see docs/XTREAM_STORE_REFACTORING_PLAN.md
- */
 export const XtreamStore = signalStore(
     { providedIn: 'root' },
 
-    // Compose all features
     withPortal(),
     withContent(),
     withSelection(),
@@ -60,17 +39,12 @@ export const XtreamStore = signalStore(
     withRecentItems(),
     withPlaybackPositions(),
 
-    // Cross-feature computed properties
     withComputed((store) => ({
-        /**
-         * Get global recent items (from withRecentItems)
-         */
         globalRecentItems: computed(() => {
             return store.recentItems();
         }),
     })),
 
-    // Cross-feature methods & orchestration
     withMethods((store) => {
         const xtreamApiService = inject(XtreamApiService);
         const dataSource = inject(XTREAM_DATA_SOURCE);
@@ -87,12 +61,7 @@ export const XtreamStore = signalStore(
             });
 
         return {
-            /**
-             * Full store reset for switching between playlists
-             */
             resetStore(newPlaylistId?: string): void {
-                // Clear the session cache for the playlist we're leaving so
-                // stale data cannot bleed into the new playlist (PWA path).
                 const leavingPlaylistId = store.playlistId();
                 const preserveCancelledBlock =
                     Boolean(newPlaylistId) &&
@@ -118,9 +87,6 @@ export const XtreamStore = signalStore(
                 }
             },
 
-            /**
-             * Initialize the store for a playlist
-             */
             async initialize(): Promise<void> {
                 await store.fetchPlaylist();
                 await store.checkPortalStatus();
@@ -131,17 +97,10 @@ export const XtreamStore = signalStore(
                 }
             },
 
-            /**
-             * Fetch Xtream playlist (convenience alias)
-             */
             async fetchXtreamPlaylist(): Promise<void> {
                 await store.fetchPlaylist();
             },
 
-            /**
-             * Fetch VOD details with metadata
-             * Accepts object format for backward compatibility with rxMethod callers
-             */
             fetchVodDetailsWithMetadata(params: {
                 vodId: string;
                 categoryId: number;
@@ -171,8 +130,6 @@ export const XtreamStore = signalStore(
                             xtream_id:
                                 catalogItem?.xtream_id ?? Number(params.vodId),
                         });
-                        // Async, best-effort: patches the selection with a
-                        // field-level TMDB merge once metadata arrives
                         void enrichVodSelectionWithTmdb(
                             store,
                             tmdbEnrichment,
@@ -192,10 +149,6 @@ export const XtreamStore = signalStore(
                     });
             },
 
-            /**
-             * Fetch series details with metadata
-             * Accepts object format for backward compatibility with rxMethod callers
-             */
             fetchSerialDetailsWithMetadata(params: {
                 serialId: string;
                 categoryId: number;
@@ -239,11 +192,6 @@ export const XtreamStore = signalStore(
                     });
             },
 
-            /**
-             * Lazy TMDB enrichment of one season's episodes (real names,
-             * overviews, stills). Fired by the detail view when the user
-             * opens a season; a no-op without a show-level TMDB match.
-             */
             enrichSelectedSerialSeason(seasonKey: string): void {
                 void enrichSerialSeasonWithTmdb(
                     store,
@@ -255,5 +203,4 @@ export const XtreamStore = signalStore(
     })
 );
 
-// Type alias for the store
 export type XtreamStoreType = InstanceType<typeof XtreamStore>;

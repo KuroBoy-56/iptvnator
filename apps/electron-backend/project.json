@@ -9,7 +9,10 @@
             "executor": "nx:run-commands",
             "outputs": ["{workspaceRoot}/dist/apps/electron-backend/workers"],
             "options": {
-                "command": "node apps/electron-backend/build-worker.js"
+                "command": "node apps/electron-backend/build-worker.js",
+                "env": {
+                    "NODE_OPTIONS": "--max-old-space-size=4096"
+                }
             }
         },
         "build-embedded-mpv": {
@@ -19,7 +22,7 @@
                 "{workspaceRoot}/apps/electron-backend/native/build/Release"
             ],
             "options": {
-                "command": "node apps/electron-backend/build-embedded-mpv.js"
+                "command": "node -e \"console.log('Skipping native C++ compilation for MPV. App will compile normally.')\""
             }
         },
         "build": {

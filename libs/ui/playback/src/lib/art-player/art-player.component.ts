@@ -27,6 +27,7 @@ import {
 } from '../playback-diagnostics/playback-diagnostics.util';
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { FirebaseSyncService } from '@iptvnator/services';
 
 Artplayer.AUTO_PLAYBACK_TIMEOUT = 10000;
 
@@ -54,8 +55,10 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     private player!: Artplayer;
     private hls: Hls | null = null;
     private mpegtsPlayer: mpegts.Player | null = null;
+    private lastSaveTime = 0;
 
     private readonly elementRef = inject(ElementRef);
+    private readonly firebaseSync = inject(FirebaseSyncService);
 
     private readonly handleNativePlaybackError = () => {
         this.playbackIssue.emit(
@@ -127,7 +130,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         }
     }
 
-    private initPlayer(): void {
+    private async initPlayer(): Promise<void> {
         this.playbackIssue.emit(null);
         const el = this.elementRef.nativeElement.querySelector(
             '.artplayer-container'
@@ -136,6 +139,16 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             this.channel?.url ?? ''
         );
         const isLive = extension === 'm3u8' || extension === 'ts' || !extension;
+
+        let initialSeek = this.startTime;
+        const pbInfo = (window as any).currentPlaybackInfo;
+
+        if (pbInfo && pbInfo.type !== 'live') {
+            const savedPosition = await this.firebaseSync.getProgress(pbInfo.userId, pbInfo);
+            if (savedPosition > 5) {
+                initialSeek = savedPosition;
+            }
+        }
 
         this.player = new Artplayer({
             container: el,
@@ -235,17 +248,28 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         this.player.video.addEventListener('playing', this.clearPlaybackIssue);
         this.player.video.addEventListener('ended', this.handlePlaybackEnded);
 
-        if (this.startTime > 0) {
-            this.player.on('ready', () => {
-                this.player.seek = this.startTime;
-            });
-        }
+        this.player.on('ready', () => {
+            if (initialSeek > 0) {
+                this.player.seek = initialSeek;
+            }
+        });
 
         this.player.on('video:timeupdate', () => {
+            const currentTime = this.player.currentTime;
+            const currentDuration = this.player.duration;
+            
             this.timeUpdate.emit({
-                currentTime: this.player.currentTime,
-                duration: this.player.duration,
+                currentTime: currentTime,
+                duration: currentDuration,
             });
+
+            if (currentTime > 5 && Math.abs(currentTime - this.lastSaveTime) > 5) {
+                this.lastSaveTime = currentTime;
+                const pbInfo = (window as any).currentPlaybackInfo;
+                if (pbInfo && pbInfo.type !== 'live') {
+                    this.firebaseSync.saveProgress(pbInfo.userId, pbInfo, currentTime, currentDuration);
+                }
+            }
         });
     }
 
@@ -313,8 +337,6 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             case 'ts':
                 return 'ts';
             default:
-                // No recognized extension (e.g. IPTV proxy URL) → default to
-                // MPEG-TS which is the most common format for live IPTV streams.
                 return extension ? 'auto' : 'ts';
         }
     }
