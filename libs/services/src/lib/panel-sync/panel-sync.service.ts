@@ -19,6 +19,8 @@ import {
 import { lookupSeriesInfo } from './series-info.lookup';
 
 const MIN_SAVE_SECONDS = 5;
+/** Players report every few seconds; the panel gets at most one save per item in this window. */
+export const PANEL_SAVE_INTERVAL_MS = 20_000;
 
 function clean(value: unknown): string {
     const text = value == null ? '' : String(value).trim();
@@ -46,6 +48,7 @@ export function sessionCredentials(): SyncUserCredentials {
 @Injectable({ providedIn: 'root' })
 export class PanelSyncService {
     private readonly client = new PanelProgressClient();
+    private readonly lastSaveAt = new Map<string, number>();
 
     private creds(userIdObj?: SyncUserCredentials | null): SyncUserCredentials {
         return userIdObj?.username ? userIdObj : sessionCredentials();
@@ -55,11 +58,19 @@ export class PanelSyncService {
         userIdObj: SyncUserCredentials | null | undefined,
         pbInfo: PlaybackSyncInfo | null | undefined,
         currentTime: number,
-        duration: number
+        duration: number,
+        options: { force?: boolean } = {}
     ): Promise<void> {
         if (!pbInfo?.id || !(currentTime > MIN_SAVE_SECONDS)) return;
         const kind = pbInfo.type === 'movie' ? 'movie' : pbInfo.type === 'series' ? 'series' : null;
         if (!kind) return;
+        const throttleKey = `${kind}:${clean(pbInfo.id)}`;
+        const now = Date.now();
+        const watched = isWatched(currentTime, duration);
+        if (!options.force && !watched && now - (this.lastSaveAt.get(throttleKey) ?? 0) < PANEL_SAVE_INTERVAL_MS) {
+            return;
+        }
+        this.lastSaveAt.set(throttleKey, now);
         const creds = this.creds(userIdObj);
         const snapshot = await this.client.getSnapshot(creds);
         const progress = snapshot?.progress ?? {};
@@ -67,7 +78,7 @@ export class PanelSyncService {
         const seriesId = clean(pbInfo.seriesId) || clean(pbInfo.categoryId) || id;
         const existingKey = findProgressKey(progress, kind, kind === 'movie' ? id : seriesId);
 
-        if (isWatched(currentTime, duration)) {
+        if (watched) {
             if (existingKey) await this.deleteByTitle(creds, existingKey);
             return;
         }

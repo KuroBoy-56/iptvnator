@@ -1,3 +1,5 @@
+import { TestBed } from '@angular/core/testing';
+import { PanelSyncService } from '@iptvnator/services';
 import { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
 import { ExternalPlaybackService } from './external-playback.service';
 
@@ -7,6 +9,9 @@ describe('ExternalPlaybackService', () => {
         | undefined;
     let closeExternalPlayerSession: jest.Mock;
     let service: ExternalPlaybackService;
+    let progressListener: ((event: unknown, data: unknown) => void) | undefined;
+    let panelSync: { saveProgress: jest.Mock };
+    let invoke: jest.Mock;
 
     const createSession = (
         overrides: Partial<ExternalPlayerSession> = {}
@@ -30,6 +35,9 @@ describe('ExternalPlaybackService', () => {
     beforeEach(() => {
         listener = undefined;
         closeExternalPlayerSession = jest.fn().mockResolvedValue(null);
+        progressListener = undefined;
+        invoke = jest.fn().mockResolvedValue(undefined);
+        panelSync = { saveProgress: jest.fn().mockResolvedValue(undefined) };
 
         Object.defineProperty(window, 'electron', {
             configurable: true,
@@ -39,10 +47,21 @@ describe('ExternalPlaybackService', () => {
                     return () => undefined;
                 }),
                 closeExternalPlayerSession,
+                ipcRenderer: {
+                    on: jest.fn((channel: string, callback) => {
+                        if (channel === 'MPV_PROGRESS_UPDATE') {
+                            progressListener = callback;
+                        }
+                    }),
+                    invoke,
+                },
             },
         });
 
-        service = new ExternalPlaybackService();
+        TestBed.configureTestingModule({
+            providers: [{ provide: PanelSyncService, useValue: panelSync }],
+        });
+        service = TestBed.inject(ExternalPlaybackService);
     });
 
     it('tracks the latest launch and hides dismissed sessions until the next launch', () => {
@@ -146,5 +165,32 @@ describe('ExternalPlaybackService', () => {
             })
         );
         expect(service.visibleSession()).toBeNull();
+    });
+
+    it('saves MPV/VLC progress to the panel and forces the save on close', async () => {
+        const pbInfo = {
+            title: 'Movie',
+            type: 'movie',
+            id: '42',
+            categoryId: '0',
+            playlistId: 'playlist-1',
+        };
+        progressListener?.(null, { position: 120, duration: 6000, pbInfo });
+        progressListener?.(null, { position: 130, duration: 6000, closed: true, pbInfo });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(panelSync.saveProgress).toHaveBeenNthCalledWith(1, null, pbInfo, 120, 6000, { force: false });
+        expect(panelSync.saveProgress).toHaveBeenNthCalledWith(2, null, pbInfo, 130, 6000, { force: true });
+        expect(invoke).toHaveBeenCalledWith(
+            'DB_SAVE_PLAYBACK_POSITION',
+            expect.objectContaining({ playlistId: 'playlist-1' })
+        );
+    });
+
+    it('ignores live streams and the first seconds', async () => {
+        progressListener?.(null, { position: 3, pbInfo: { type: 'movie', id: '1' } });
+        progressListener?.(null, { position: 300, pbInfo: { type: 'live', id: '2' } });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(panelSync.saveProgress).not.toHaveBeenCalled();
     });
 });

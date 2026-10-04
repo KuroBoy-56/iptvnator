@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { ExternalPlayerInfoDialogComponent } from '@iptvnator/ui/playback/external-player-info-dialog';
-import { DataService } from '@iptvnator/services';
+import { DataService, PanelSyncService } from '@iptvnator/services';
 import {
     ExternalPlayerSession,
     OPEN_MPV_PLAYER,
@@ -20,6 +20,7 @@ export class PlayerService {
     private dialog = inject(MatDialog);
     private dataService = inject(DataService);
     private settingsStore = inject(SettingsStore);
+    private panelSync = inject(PanelSyncService);
 
     isEmbeddedPlayer(
         player = this.settingsStore.player() ?? VideoPlayer.VideoJs
@@ -92,6 +93,7 @@ export class PlayerService {
         player: ExternalPlayerName
     ): Promise<ExternalPlayerSession | void> {
         const ipcEvent = player === 'mpv' ? OPEN_MPV_PLAYER : OPEN_VLC_PLAYER;
+        const startTime = await this.resolveStartTime(playback);
 
         return await this.dataService.sendIpcEvent<ExternalPlayerSession>(
             ipcEvent,
@@ -99,13 +101,36 @@ export class PlayerService {
                 url: playback.streamUrl,
                 title: playback.title,
                 thumbnail: playback.thumbnail,
-                userAgent: playback.userAgent, // CORREGIDO PARA QUE LLEGUE CORRECTAMENTE
+                'user-agent': playback.userAgent,
                 referer: playback.referer,
                 origin: playback.origin,
                 headers: playback.headers,
                 contentInfo: playback.contentInfo,
-                startTime: playback.startTime,
+                startTime,
             }
         );
+    }
+
+    /**
+     * External players resume from the panel position (source of truth),
+     * falling back to the position the caller already resolved.
+     */
+    private async resolveStartTime(
+        playback: ResolvedPortalPlayback
+    ): Promise<number | undefined> {
+        const info = playback.contentInfo;
+        if (!info || playback.isLive) return playback.startTime;
+        if (info.contentType !== 'vod' && info.contentType !== 'episode') {
+            return playback.startTime;
+        }
+        try {
+            const position = await this.panelSync.getProgress(null, {
+                type: info.contentType === 'vod' ? 'movie' : 'series',
+                id: info.contentXtreamId,
+            });
+            return position > 0 ? position : playback.startTime;
+        } catch {
+            return playback.startTime;
+        }
     }
 }

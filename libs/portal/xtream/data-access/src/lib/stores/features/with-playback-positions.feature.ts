@@ -209,6 +209,8 @@ export function withPlaybackPositions() {
                                     data.durationSeconds = parseDuration(selected.duration_secs || selected.duration);
                                 }
                             } else if (data.contentType === 'episode' && selected.episodes) {
+                                // The panel keeps one entry per series, keyed by the series name.
+                                (data as any).seriesTitle = selected.info?.name || selected.name || selected.title;
                                 let foundEp: any = null;
                                 for (const seasonNum of Object.keys(selected.episodes)) {
                                     const eps = selected.episodes[seasonNum];

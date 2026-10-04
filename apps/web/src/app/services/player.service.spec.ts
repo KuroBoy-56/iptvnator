@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
-import { DataService } from '@iptvnator/services';
+import { DataService, PanelSyncService } from '@iptvnator/services';
 import { ExternalPlayerSession, VideoPlayer } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from './settings-store.service';
 import { PlayerService } from './player.service';
@@ -15,6 +15,9 @@ describe('PlayerService', () => {
     };
     const settingsStore = {
         player: jest.fn(() => VideoPlayer.VideoJs),
+    };
+    const panelSync = {
+        getProgress: jest.fn().mockResolvedValue(0),
     };
 
     beforeEach(() => {
@@ -33,6 +36,10 @@ describe('PlayerService', () => {
                     provide: SettingsStore,
                     useValue: settingsStore,
                 },
+                {
+                    provide: PanelSyncService,
+                    useValue: panelSync,
+                },
             ],
         });
 
@@ -41,13 +48,64 @@ describe('PlayerService', () => {
         dataService.sendIpcEvent.mockReset();
         settingsStore.player.mockReset();
         settingsStore.player.mockReturnValue(VideoPlayer.VideoJs);
+        panelSync.getProgress.mockReset();
+        panelSync.getProgress.mockResolvedValue(0);
+    });
+
+    it('resumes external players from the panel position', async () => {
+        settingsStore.player.mockReturnValue(VideoPlayer.VLC);
+        dataService.sendIpcEvent.mockResolvedValue(undefined);
+        panelSync.getProgress.mockResolvedValue(733);
+
+        await service.openResolvedPlayback({
+            streamUrl: 'https://example.com/movie.mp4',
+            title: 'Movie',
+            startTime: 10,
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 77,
+                contentType: 'vod',
+            },
+        });
+
+        expect(panelSync.getProgress).toHaveBeenCalledWith(null, {
+            type: 'movie',
+            id: 77,
+        });
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            'OPEN_VLC_PLAYER',
+            expect.objectContaining({ startTime: 733 })
+        );
+    });
+
+    it('keeps the caller position when the panel has none', async () => {
+        settingsStore.player.mockReturnValue(VideoPlayer.MPV);
+        dataService.sendIpcEvent.mockResolvedValue(undefined);
+
+        await service.openResolvedPlayback({
+            streamUrl: 'https://example.com/ep.mp4',
+            title: 'Episode',
+            startTime: 42,
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 5,
+                contentType: 'episode',
+                seriesXtreamId: 9,
+            },
+        });
+
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            'OPEN_MPV_PLAYER',
+            expect.objectContaining({ startTime: 42 })
+        );
     });
 
     it('identifies embedded players', () => {
         expect(service.isEmbeddedPlayer(VideoPlayer.VideoJs)).toBe(true);
         expect(service.isEmbeddedPlayer(VideoPlayer.Html5Player)).toBe(true);
         expect(service.isEmbeddedPlayer(VideoPlayer.ArtPlayer)).toBe(true);
-        expect(service.isEmbeddedPlayer(VideoPlayer.EmbeddedMpv)).toBe(true);
+        // This build treats every MPV variant as an external player.
+        expect(service.isEmbeddedPlayer(VideoPlayer.EmbeddedMpv)).toBe(false);
         expect(service.isEmbeddedPlayer(VideoPlayer.MPV)).toBe(false);
         expect(service.isEmbeddedPlayer(VideoPlayer.VLC)).toBe(false);
     });

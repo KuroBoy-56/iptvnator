@@ -204,6 +204,8 @@ export async function openMpvPlayer(request: OpenExternalPlayerRequest) {
         args.push(`--input-ipc-server=${socketPath}`);
 
         args.push('--ytdl=no');
+        args.push('--force-window=immediate');
+        args.push('--fullscreen');
         if (effectiveUserAgent) args.push(`--user-agent=${effectiveUserAgent}`);
         if (effectiveReferer) args.push(`--referrer=${effectiveReferer}`);
         if (headerFields.length > 0) args.push(`--http-header-fields=${headerFields.join(',')}`);

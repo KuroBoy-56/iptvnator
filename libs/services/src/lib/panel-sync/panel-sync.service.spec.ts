@@ -99,4 +99,16 @@ describe('PanelSyncService', () => {
         expect(favs.LiveTv['3'].title).toBe('Canal');
         expect(localStorage.getItem('panel_sync_token:line1')).toBe('new');
     });
+
+    it('throttles periodic saves but always sends a forced save', async () => {
+        const svc = service();
+        const info = { type: 'movie', id: 10, title: 'Movie A' };
+        await svc.saveProgress(creds, info, 100, 1000);
+        await svc.saveProgress(creds, info, 102, 1000);
+        await svc.saveProgress(creds, info, 104, 1000, { force: true });
+        const saves = calls
+            .map((c) => c.init?.body && JSON.parse(String(c.init.body)))
+            .filter((b) => b?.action === 'save');
+        expect(saves.map((b) => b.position)).toEqual([100, 104]);
+    });
 });

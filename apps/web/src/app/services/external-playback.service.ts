@@ -1,6 +1,13 @@
 import { computed, Injectable, signal, inject, NgZone } from '@angular/core';
 import { ExternalPlayerSession, PlayerContentInfo } from '@iptvnator/shared/interfaces';
-import { PanelSyncService } from '@iptvnator/services';
+import { PanelSyncService, PlaybackSyncInfo } from '@iptvnator/services';
+
+interface ExternalProgressUpdate {
+    position: number;
+    duration?: number;
+    closed?: boolean;
+    pbInfo?: PlaybackSyncInfo & { playlistId?: string };
+}
 
 @Injectable({
     providedIn: 'root',
@@ -39,39 +46,54 @@ export class ExternalPlaybackService {
         }
 
         if (win.electron?.ipcRenderer) {
-            win.electron.ipcRenderer.on('MPV_PROGRESS_UPDATE', async (_event: any, data: any) => {
-                if (!data || !data.pbInfo || data.position <= 5) return;
-                
-                const pbInfo = data.pbInfo;
-                const isVod = pbInfo.type === 'movie';
-                
-                try {
-                    await win.electron.ipcRenderer.invoke('DB_SAVE_PLAYBACK_POSITION', {
-                        playlistId: pbInfo.playlistId,
-                        data: {
-                            contentXtreamId: Number(pbInfo.id),
-                            contentType: isVod ? 'vod' : 'episode',
-                            seriesXtreamId: isVod ? undefined : Number(pbInfo.categoryId),
-                            positionSeconds: Math.floor(data.position),
-                            durationSeconds: Math.floor(data.duration || data.position * 1.25)
-                        }
-                    });
-                } catch(e) {}
+            win.electron.ipcRenderer.on(
+                'MPV_PROGRESS_UPDATE',
+                (_event: unknown, data: ExternalProgressUpdate) => {
+                    void this.handleExternalProgress(data);
+                }
+            );
+        }
+    }
 
-                try {
-                    const username = localStorage.getItem('session_user') || '';
-                    const password = localStorage.getItem('session_pass') || '';
-                    const server = localStorage.getItem('session_server') || '';
-                    const userIdObj = { username, password, server };
-                    
-                    await this.panelSync.saveProgress(
-                        userIdObj, 
-                        pbInfo, 
-                        data.position, 
-                        data.duration
-                    );
-                } catch(e) {}
+    /**
+     * MPV and VLC report their position every couple of seconds and once more
+     * when they close. The panel gets a throttled save while playing and a
+     * forced save on close; the local row is only a cache.
+     */
+    private async handleExternalProgress(
+        data: ExternalProgressUpdate | null | undefined
+    ): Promise<void> {
+        const pbInfo = data?.pbInfo;
+        if (!data || !pbInfo || !(data.position > 5) || pbInfo.type === 'live') return;
+        const isVod = pbInfo.type === 'movie';
+        const duration = Math.floor(data.duration || 0);
+        const electron = (window as any).electron;
+
+        try {
+            await electron?.ipcRenderer?.invoke('DB_SAVE_PLAYBACK_POSITION', {
+                playlistId: pbInfo.playlistId,
+                data: {
+                    contentXtreamId: Number(pbInfo.id),
+                    contentType: isVod ? 'vod' : 'episode',
+                    seriesXtreamId: isVod ? undefined : Number(pbInfo.categoryId),
+                    positionSeconds: Math.floor(data.position),
+                    durationSeconds: duration || undefined,
+                },
             });
+        } catch {
+            // Cache only; the panel save below is what matters.
+        }
+
+        try {
+            await this.panelSync.saveProgress(
+                null,
+                pbInfo,
+                data.position,
+                duration,
+                { force: !!data.closed }
+            );
+        } catch {
+            // Panel unreachable: the next update retries.
         }
     }
 
