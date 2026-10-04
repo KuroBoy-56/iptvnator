@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { computed, inject } from '@angular/core';
 import { signalStore, withComputed, withMethods } from '@ngrx/signals';
 import { XtreamSerieDetails, XtreamVodDetails } from '@iptvnator/shared/interfaces';

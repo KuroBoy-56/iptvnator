@@ -31,7 +31,7 @@ export class FavoritesService {
                     server: activePl.serverUrl
                 };
             }
-        } catch (e) {}
+        } catch { /* best effort */ }
 
         return {
             username: localStorage.getItem('session_user') || '',
@@ -62,7 +62,7 @@ export class FavoritesService {
             if (item.type === 'series') fbType = 'Series';
 
             const timestamp = Math.floor(Date.now() / 1000);
-            let meta: any = { thumbnail: item.backdrop_url || '', title: '' };
+            const meta: any = { thumbnail: item.backdrop_url || '', title: '' };
             
             try {
                 const favs = await firstValueFrom(this.getFavorites(item.playlist_id));
@@ -85,13 +85,13 @@ export class FavoritesService {
                         }
                     }
                 }
-            } catch(e) {}
+            } catch { /* best effort */ }
 
             const finalTitle = meta.title && meta.title !== 'null' && !/^Contenido \d+$/.test(meta.title) ? meta.title : `Canal ${item.content_id}`;
             meta.title = finalTitle;
 
             await this.panelSync.addFavorite(userIdObj, fbType, String(item.content_id), timestamp, meta);
-        } catch (e) {}
+        } catch { /* best effort */ }
     }
 
     async removeFromFavorites(
@@ -109,7 +109,7 @@ export class FavoritesService {
             if (type === 'series') fbType = 'Series';
 
             await this.panelSync.removeFavorite(userIdObj, fbType, String(contentId));
-        } catch (e) {}
+        } catch { /* best effort */ }
     }
 
     async isFavorite(contentId: number, playlistId: string): Promise<boolean> {

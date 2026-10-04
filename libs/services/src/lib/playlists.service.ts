@@ -199,7 +199,7 @@ export class PlaylistsService {
     private writeIndexedDbMigrationFlag(key: string): void {
         try {
             localStorage.setItem(key, '1');
-        } catch {}
+        } catch { /* best effort */ }
     }
 
     private async migrateStalkerPlaylistMetadataInSqlite(): Promise<void> {

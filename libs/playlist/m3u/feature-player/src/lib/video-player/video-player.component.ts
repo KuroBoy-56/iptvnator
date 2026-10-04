@@ -298,7 +298,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 
                 let type = 'live';
                 let itemId = String(channel.id || '');
-                let categoryId = String(chanAny.category_id || '');
+                const categoryId = String(chanAny.category_id || '');
 
                 if (chanAny.stream_id) {
                     type = 'movie';
@@ -443,7 +443,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
         const electron = (window as any).electron || (window as any).require?.('electron');
         if (electron && electron.ipcRenderer) {
-            try { electron.ipcRenderer.removeAllListeners('MPV_PROGRESS_UPDATE'); } catch(e) {}
+            try { electron.ipcRenderer.removeAllListeners('MPV_PROGRESS_UPDATE'); } catch { /* best effort */ }
             electron.ipcRenderer.on('MPV_PROGRESS_UPDATE', (event: any, data: any) => {
                 
                 // NOTA: Se eliminó el "saveProgress" directo al panel desde aquí (lo hace PlaybackPositionService).
@@ -526,7 +526,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     closeMpv(): void {
         const electron = (window as any).electron || (window as any).require?.('electron');
         if (electron && electron.ipcRenderer) {
-            try { electron.ipcRenderer.send('STOP_MPV_PLAYER'); } catch(e) {}
+            try { electron.ipcRenderer.send('STOP_MPV_PLAYER'); } catch { /* best effort */ }
         }
         this.store.dispatch(ChannelActions.resetActiveChannel());
         this.location.back();
@@ -545,7 +545,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                     if (!nextChannel) return;
                     this.store.dispatch(createM3uChannelPlaybackRequest(nextChannel));
                 },
-                error: () => {},
+                error: () => {
+                    // No adjacent channel to switch to.
+                },
             });
     }
 
@@ -651,7 +653,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             delete nextState['openRecentChannelUrl'];
             delete nextState['openM3uChannelUrl'];
             window.history.replaceState(nextState, document.title);
-        } catch {}
+        } catch { /* best effort */ }
     }
 
     openMultiEpgView(): void {

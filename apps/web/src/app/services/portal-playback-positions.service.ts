@@ -74,7 +74,9 @@ export class AppPortalPlaybackPositionsService
                     }
                 }
             }
-        } catch (e) {}
+        } catch {
+            // The panel is best effort; the local cache keeps working.
+        }
         
         return localPos;
     }
@@ -107,7 +109,9 @@ export class AppPortalPlaybackPositionsService
                     }
                 }
             }
-        } catch (e) {}
+        } catch {
+            // The panel is best effort; the local cache keeps working.
+        }
         
         return Array.from(map.values());
     }
@@ -157,7 +161,9 @@ export class AppPortalPlaybackPositionsService
                     }
                 }
             }
-        } catch (e) {}
+        } catch {
+            // The panel is best effort; the local cache keeps working.
+        }
         
         return Array.from(map.values());
     }

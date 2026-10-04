@@ -359,8 +359,7 @@ export class DashboardDataService {
                         );
                     }
                 }
-            } catch (err) {
-            }
+            } catch { /* best effort */ }
         }
 
         this.ngZone.run(() => {
@@ -470,8 +469,8 @@ export class DashboardDataService {
                     continue;
                 }
 
-                let titleStr = String(item.title || '');
-                let tLower = titleStr.toLowerCase();
+                const titleStr = String(item.title || '');
+                const tLower = titleStr.toLowerCase();
                 let isGeneric = !item.title || tLower === 'contenido' || tLower === 'favorito' || tLower === 'null' || tLower.includes('película') || tLower.includes('pelicula') || tLower.includes('serie') || tLower.includes('canal');
                 let noPoster = !item.poster_url && !item.backdrop_url;
 
@@ -492,7 +491,7 @@ export class DashboardDataService {
                             }
                             win.__liveChannelsCache = win.__liveChannelsCache || {};
                             win.__liveChannelsCache[item.playlist_id] = liveChannelsMap;
-                        } catch(e) {}
+                        } catch { /* best effort */ }
                     }
 
                     if (liveChannelsMap) {
@@ -534,7 +533,7 @@ export class DashboardDataService {
                                     noPoster = false;
                                 }
                             }
-                        } catch(e) {}
+                        } catch { /* best effort */ }
                     }
 
                     if ((isGeneric || noPoster) && pl && pl.serverUrl) {
@@ -554,7 +553,7 @@ export class DashboardDataService {
                                 item.backdrop_url = item.poster_url;
                                 isGeneric = false;
                             }
-                        } catch(e) {}
+                        } catch { /* best effort */ }
                     }
                     
                     if (item.title && item.title !== 'Contenido' && item.title !== 'Favorito' && !item.title.includes('Película') && !item.title.includes('Serie') && !item.title.includes('Canal')) {
@@ -574,8 +573,8 @@ export class DashboardDataService {
 
         let memoryRecents: GlobalRecentItem[] = [];
         let memoryFavorites: DashboardFavoriteItem[] = [];
-        let memoryPositions = new Map<string, PlaybackPositionData>();
-        let nextBySeries = new Map<string, PlaybackPositionData>();
+        const memoryPositions = new Map<string, PlaybackPositionData>();
+        const nextBySeries = new Map<string, PlaybackPositionData>();
 
         for (const pl of playlists) {
             const plAny = pl as any;
@@ -597,7 +596,7 @@ export class DashboardDataService {
                         }
                         win.__liveChannelsCache = win.__liveChannelsCache || {};
                         win.__liveChannelsCache[pl._id] = liveChannelsMap;
-                    } catch(e) {}
+                    } catch { /* best effort */ }
                 }
 
                 const [cloudProgress, cloudFavorites] = await Promise.all([
@@ -620,8 +619,8 @@ export class DashboardDataService {
                                     const targetLookupId = seriesId ?? episodeId;
 
                                     let realTitle = data.title && data.title !== 'null' ? data.title : undefined;
-                                    let realPoster = data.thumbnail && data.thumbnail !== 'null' ? data.thumbnail : undefined;
-                                    let finalCategoryId = data.categoryId || data.category_id || '0';
+                                    const realPoster = data.thumbnail && data.thumbnail !== 'null' ? data.thumbnail : undefined;
+                                    const finalCategoryId = data.categoryId || data.category_id || '0';
 
                                     if (!realTitle || realTitle === '' || realTitle.includes('Sincronizado') || realTitle === 'Contenido') {
                                         realTitle = data.episodeName || (uiType === 'movie' ? `Película ${targetLookupId}` : `Serie ${targetLookupId}`);
@@ -724,7 +723,7 @@ export class DashboardDataService {
                         }
                     }
                 }
-            } catch(e) {}
+            } catch { /* best effort */ }
         }
 
         memoryRecents = await this.enrichDashboardItems(memoryRecents);
@@ -1297,7 +1296,7 @@ export class DashboardDataService {
                         const userIdObj = { username: metaAny.username, password: metaAny.password, server: metaAny.serverUrl };
                         await (this.panelSync as any).removeFavorite(userIdObj, fbType, item.xtream_id);
                     }
-                } catch(e) {}
+                } catch { /* best effort */ }
             }
 
             if (this.hasPortalActivityStorage) {

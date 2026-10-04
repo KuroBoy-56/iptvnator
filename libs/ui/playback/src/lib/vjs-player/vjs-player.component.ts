@@ -231,12 +231,12 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
                     displayCurrentQuality: true,
                 });
             }
-        } catch (e) {}
+        } catch { /* best effort */ }
         try {
             if (typeof this.player.aspectRatioPanel === 'function') {
                 this.player.aspectRatioPanel();
             }
-        } catch (e) {}
+        } catch { /* best effort */ }
     }
 
     ngOnChanges(changes: SimpleChanges): void {
@@ -308,7 +308,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             );
             targetVideo.removeEventListener('playing', this.clearPlaybackIssue);
             targetVideo.removeEventListener('ended', this.handlePlaybackEnded);
-        } catch {}
+        } catch { /* best effort */ }
     }
 
     private initMpegTs(url: string): void {

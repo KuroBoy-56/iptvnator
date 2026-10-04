@@ -102,7 +102,11 @@ export class AppComponent implements OnInit, OnDestroy {
                 if (settings && Object.keys(settings).length > 0) {
                     const resolvedLang = settings.language ?? this.DEFAULT_LANG;
                     this.translate.use(resolvedLang);
-                    try { localStorage.setItem('iptvnator:preferred-language', resolvedLang); } catch {}
+                    try {
+                        localStorage.setItem('iptvnator:preferred-language', resolvedLang);
+                    } catch {
+                        // Storage unavailable.
+                    }
                     if (this.epgBridge.supportsImport && settings.epgUrl?.length > 0 && settings.epgUrl?.some((u) => u !== '')) {
                         this.fetchStaleEpgData(settings.epgUrl);
                     }

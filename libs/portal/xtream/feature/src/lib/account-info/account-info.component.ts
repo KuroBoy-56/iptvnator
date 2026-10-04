@@ -252,13 +252,13 @@ export class AccountInfoComponent {
 
         this.loadState.set('loading');
         try {
-            let rawAccountInfo = await this.xtreamApiService.getAccountInfo({
+            const rawAccountInfo = await this.xtreamApiService.getAccountInfo({
                 serverUrl: playlist.serverUrl,
                 username: playlist.username,
                 password: playlist.password,
             });
 
-            let accountInfo = JSON.parse(JSON.stringify(rawAccountInfo));
+            const accountInfo = JSON.parse(JSON.stringify(rawAccountInfo));
             
             const pid = (playlist as any)?._id || (playlist as any)?.id;
             const isSessionDemo = pid ? localStorage.getItem(`is_demo_${pid}`) === 'true' : false;

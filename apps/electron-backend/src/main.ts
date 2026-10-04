@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { app, BrowserWindow, session } from 'electron';
 import { getElectronUserDataPath } from '@iptvnator/shared/database';
 import fixPath from 'fix-path';
@@ -69,7 +68,7 @@ function scheduleDeferredFixPath(): void {
         try {
             fixPath();
             if (isStartupTraceEnabled()) trace('startup', 'fix-path:done');
-        } catch (error) {}
+        } catch { /* best effort */ }
     });
 }
 

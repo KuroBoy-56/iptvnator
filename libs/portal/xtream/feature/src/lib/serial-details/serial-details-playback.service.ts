@@ -228,7 +228,7 @@ export class SerialDetailsPlaybackService {
                     }
                 }
             }
-        } catch(e) {}
+        } catch { /* best effort */ }
 
         this.episodePlaybackPositions.set(positionsMap);
     }

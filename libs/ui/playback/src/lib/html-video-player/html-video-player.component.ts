@@ -296,6 +296,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                     }
                 })
                 .catch(() => {
+                    // Autoplay can be blocked; the user starts playback manually.
                 });
         }
     }

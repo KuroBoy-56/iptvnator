@@ -296,7 +296,9 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         });
     }
 
-    ngOnInit(): void {}
+    ngOnInit(): void {
+        // Setup lives in the constructor effects.
+    }
 
     ngOnDestroy(): void {
         this.playback.closeInlinePlayer();

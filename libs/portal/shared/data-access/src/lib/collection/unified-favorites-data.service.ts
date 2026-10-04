@@ -78,7 +78,7 @@ export class UnifiedFavoritesDataService {
         let allMeta: PlaylistMeta[] = [];
         try {
             allMeta = await this.getAllMeta();
-        } catch(e) {}
+        } catch { /* best effort */ }
 
         return await Promise.all(items.map(async (item) => {
             if (item.sourceType === 'xtream' && item.xtreamId != null) {
@@ -95,8 +95,8 @@ export class UnifiedFavoritesDataService {
                     return item;
                 }
 
-                let titleStr = String(item.name || '');
-                let tLower = titleStr.toLowerCase();
+                const titleStr = String(item.name || '');
+                const tLower = titleStr.toLowerCase();
                 let isGeneric = !item.name || tLower === 'contenido' || tLower === 'favorito' || tLower === 'null' || tLower.includes('película') || tLower.includes('pelicula') || tLower.includes('serie') || tLower.includes('canal');
                 let noPoster = !item.posterUrl && !item.logo;
                 
@@ -119,7 +119,7 @@ export class UnifiedFavoritesDataService {
                             }
                             win.__liveChannelsCache = win.__liveChannelsCache || {};
                             win.__liveChannelsCache[item.playlistId] = liveChannelsMap;
-                        } catch(e) {}
+                        } catch { /* best effort */ }
                     }
 
                     if (liveChannelsMap) {
@@ -157,7 +157,7 @@ export class UnifiedFavoritesDataService {
                                     noPoster = false;
                                 }
                             }
-                        } catch(e) {}
+                        } catch { /* best effort */ }
                     }
 
                     if ((isGeneric || noPoster) && pl && pl.serverUrl) {
@@ -177,7 +177,7 @@ export class UnifiedFavoritesDataService {
                                 item.logo = item.posterUrl;
                                 isGeneric = false;
                             }
-                        } catch(e) {}
+                        } catch { /* best effort */ }
                     }
 
                     if (item.name && !isGeneric) {
@@ -244,7 +244,7 @@ export class UnifiedFavoritesDataService {
                             const userIdObj = { username: metaAny.username, password: metaAny.password, server: metaAny.serverUrl };
                             await (this.panelSync as any).removeFavorite(userIdObj, fbType, item.xtreamId);
                         }
-                    } catch(e) {}
+                    } catch { /* best effort */ }
                 }
 
                 const electron = this.electronActivityBridge;
@@ -325,7 +325,7 @@ export class UnifiedFavoritesDataService {
                         thumbnail: item.posterUrl || item.logo
                     });
                 }
-            } catch(e) {}
+            } catch { /* best effort */ }
         }
 
         const electron = this.electronActivityBridge;
@@ -400,7 +400,7 @@ export class UnifiedFavoritesDataService {
                         }
                     }
                 }
-            } catch(e) {}
+            } catch { /* best effort */ }
         }
 
         await Promise.all([
@@ -724,7 +724,7 @@ export class UnifiedFavoritesDataService {
                                 const data = cloudFavorites[type][itemId];
                                 let thumb = undefined;
                                 let favTitle = undefined;
-                                let finalCategoryId = '0';
+                                const finalCategoryId = '0';
                                 
                                 if (typeof data === 'object' && data !== null) {
                                     thumb = data.thumbnail && data.thumbnail !== 'null' ? data.thumbnail : undefined;
@@ -735,7 +735,7 @@ export class UnifiedFavoritesDataService {
                                 const cType = type === 'Movie' ? 'movie' : type === 'Series' ? 'series' : 'live';
 
                                 if (cType === 'live') {
-                                    let liveChannelsMap = win.__liveChannelsCache?.[pl._id];
+                                    const liveChannelsMap = win.__liveChannelsCache?.[pl._id];
                                     if (liveChannelsMap) {
                                         const liveInfo = liveChannelsMap.get(String(xtreamId));
                                         if (liveInfo) {
@@ -777,7 +777,7 @@ export class UnifiedFavoritesDataService {
                 }
                 
                 return await this.enrichUnifiedItems(results);
-            } catch(e) {}
+            } catch { /* best effort */ }
         }
 
         if (!this.electronActivityBridge) {
@@ -818,7 +818,7 @@ export class UnifiedFavoritesDataService {
                                 const data = cloudFavorites[type][itemId];
                                 let thumb = undefined;
                                 let favTitle = undefined;
-                                let finalCategoryId = '0';
+                                const finalCategoryId = '0';
                                 
                                 if (typeof data === 'object' && data !== null) {
                                     thumb = data.thumbnail && data.thumbnail !== 'null' ? data.thumbnail : undefined;
@@ -829,7 +829,7 @@ export class UnifiedFavoritesDataService {
                                 const cType = type === 'Movie' ? 'movie' : type === 'Series' ? 'series' : 'live';
 
                                 if (cType === 'live') {
-                                    let liveChannelsMap = win.__liveChannelsCache?.[playlistId];
+                                    const liveChannelsMap = win.__liveChannelsCache?.[playlistId];
                                     if (liveChannelsMap) {
                                         const liveInfo = liveChannelsMap.get(String(xtreamId));
                                         if (liveInfo) {
@@ -869,7 +869,7 @@ export class UnifiedFavoritesDataService {
                         }
                     }
                     return await this.enrichUnifiedItems(results);
-                } catch(e) {}
+                } catch { /* best effort */ }
             }
 
             if (!this.electronActivityBridge) {
@@ -1072,8 +1072,7 @@ export class UnifiedFavoritesDataService {
                 GLOBAL_FAVORITES_ORDER_KEY,
                 JSON.stringify(uidOrder)
             );
-        } catch {
-        }
+        } catch { /* best effort */ }
     }
 
     private async setM3uFavorites(

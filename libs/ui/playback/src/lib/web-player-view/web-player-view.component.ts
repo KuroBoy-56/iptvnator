@@ -38,6 +38,7 @@ import {
     getPlaybackMediaExtensionFromUrl,
 } from '../playback-diagnostics/playback-diagnostics.util';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { buildCurrentPlaybackInfo } from './current-playback-info';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 
@@ -131,7 +132,7 @@ export class WebPlayerViewComponent implements OnInit {
                 rawUrl = rawUrl.replace(targetRegex, `http://${newHost}:80`);
                 rawUrl = rawUrl.replace(/\.ts($|\?)/i, '.m3u8$1');
             }
-        } catch(e) {}
+        } catch { /* best effort */ }
 
         if (playback) {
             return { ...playback, streamUrl: rawUrl, title };
@@ -168,48 +169,8 @@ export class WebPlayerViewComponent implements OnInit {
         });
 
         effect(() => {
-            const playback = this.resolvedPlayback();
-            
-            const channel = this.channel;
-            const chanAny = channel as any;
-            
-            let type = 'live';
-            let itemId = String(channel?.id || '');
-            let categoryId = String(chanAny?.category_id || '');
-            let poster = channel?.tvg?.logo || '';
-            let episodeName = '';
-            let season = '';
-
-            if (chanAny?.stream_id) { 
-                type = 'movie'; 
-                itemId = String(chanAny.stream_id); 
-            } else if (chanAny?.series_id) { 
-                type = 'series'; 
-                itemId = String(chanAny.series_id);
-                if (this.seriesNavigation()) {
-                    episodeName = playback.title || '';
-                }
-            }
-
-            const activeUser = localStorage.getItem('session_user') || 'default_user';
-            const serverUrl = localStorage.getItem('session_server') || ''; 
-            const userPass = localStorage.getItem('session_pass') || ''; 
-
-            (window as any).currentPlaybackInfo = {
-                userId: {
-                    username: activeUser,
-                    password: userPass,
-                    server: serverUrl
-                },
-                title: playback.title,
-                url: playback.streamUrl,
-                poster: poster,
-                type: type,
-                id: itemId,
-                categoryId: categoryId,
-                episodeName: episodeName,
-                season: season
-            };
+            (window as unknown as { currentPlaybackInfo?: unknown }).currentPlaybackInfo =
+                buildCurrentPlaybackInfo(this.channel, this.resolvedPlayback(), !!this.seriesNavigation());
         });
     }
 

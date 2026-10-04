@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { inject } from '@angular/core';
 import {
     patchState,
@@ -200,7 +199,7 @@ export function withPlaybackPositions() {
                     data: PlaybackPositionData
                 ): Promise<void> {
                     try {
-                        const selected: any = store.selectedItem?.();
+                        const selected: any = (store as { selectedItem?: () => unknown }).selectedItem?.();
                         if (selected) {
                             if (data.contentType === 'vod') {
                                 (data as any).title = selected.name || selected.title || selected.original_title;

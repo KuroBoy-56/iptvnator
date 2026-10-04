@@ -100,7 +100,7 @@ export class WorkspaceDashboardRailsComponent {
             const url = window.location.href;
             const match = url.match(/(?:playlists|xtreams)\/([a-zA-Z0-9-]+)/);
             if (match && match[1]) return match[1];
-        } catch(e) {}
+        } catch { /* best effort */ }
         try {
             const sessionServer = localStorage.getItem('session_server');
             const sessionUser = localStorage.getItem('session_user');
@@ -108,12 +108,12 @@ export class WorkspaceDashboardRailsComponent {
                 const match = this.data.playlists().find((p: any) => p.serverUrl === sessionServer && p.username === sessionUser);
                 if (match) return match._id;
             }
-        } catch(e) {}
+        } catch { /* best effort */ }
         return this.data.playlists()[0]?._id || 'none';
     }
 
     private isValidItem(item: any): boolean {
-        let title = item.title || item.name;
+        const title = item.title || item.name;
         if (!title || title.trim() === '' || title === 'null') return false;
         if (/^Contenido \d+$/.test(title.trim())) return false;
         return true;
@@ -121,7 +121,7 @@ export class WorkspaceDashboardRailsComponent {
 
     private getWatchProgress(position: any): number {
         if (position && position.durationSeconds > 0 && position.positionSeconds > 0) {
-            let progress = (position.positionSeconds / position.durationSeconds) * 100;
+            const progress = (position.positionSeconds / position.durationSeconds) * 100;
             return Math.min(Math.max(Math.round(progress), 0), 100);
         }
         return 0;
@@ -150,8 +150,8 @@ export class WorkspaceDashboardRailsComponent {
                         const cacheKey = `${item.playlist_id}:${item.xtream_id}:${item.type}`;
                         if (dashboardPostersCache.has(cacheKey)) return;
 
-                        let titleStr = String(item.title || '');
-                        let tLower = titleStr.toLowerCase();
+                        const titleStr = String(item.title || '');
+                        const tLower = titleStr.toLowerCase();
                         let isGeneric = !item.title || tLower === 'contenido' || tLower === 'favorito' || tLower === 'null' || tLower.includes('película') || tLower.includes('pelicula') || tLower.includes('serie') || tLower.includes('canal');
                         let noPoster = !item.poster_url && !item.backdrop_url;
 
@@ -199,7 +199,7 @@ export class WorkspaceDashboardRailsComponent {
                                             updated = true;
                                         }
                                     }
-                                } catch(e) {}
+                                } catch { /* best effort */ }
                             }
 
                             if ((isGeneric || noPoster) && pl && pl.serverUrl) {
@@ -218,7 +218,7 @@ export class WorkspaceDashboardRailsComponent {
                                         }
                                         newBackdrop = newPoster;
                                     }
-                                } catch(e) {}
+                                } catch { /* best effort */ }
                             }
 
                             if (updated) {

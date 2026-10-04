@@ -83,7 +83,7 @@ export class UnifiedRecentDataService {
         let allMeta: PlaylistMeta[] = [];
         try {
             allMeta = await this.getAllMeta();
-        } catch(e) {}
+        } catch { /* best effort */ }
 
         return await Promise.all(items.map(async (item) => {
             if (item.sourceType === 'xtream' && item.xtreamId != null && item.playlistId) {
@@ -100,7 +100,7 @@ export class UnifiedRecentDataService {
                     return item;
                 }
 
-                let titleStr = String(item.name || '');
+                const titleStr = String(item.name || '');
                 let isGeneric = !item.name || titleStr === 'Contenido' || titleStr === 'Favorito' || titleStr === 'null' || titleStr.includes('Película') || titleStr.includes('Serie') || titleStr.includes('Canal');
                 let noPoster = !item.posterUrl && !item.logo;
                 
@@ -109,7 +109,7 @@ export class UnifiedRecentDataService {
                     const cType: 'vod' | 'series' | 'live' = (itemType === 'live' || itemType === 'itv') ? 'live' : ((itemType === 'series' || itemType === 'episode') ? 'series' : 'vod');
 
                     if (cType === 'live') {
-                        let liveChannelsMap = win.__liveChannelsCache?.[item.playlistId];
+                        const liveChannelsMap = win.__liveChannelsCache?.[item.playlistId];
                         if (liveChannelsMap) {
                             const liveInfo = liveChannelsMap.get(String(item.xtreamId));
                             if (liveInfo) {
@@ -140,7 +140,7 @@ export class UnifiedRecentDataService {
                                         noPoster = false;
                                     }
                                 }
-                            } catch(e) {}
+                            } catch { /* best effort */ }
                         }
 
                         if ((isGeneric || noPoster) && pl && pl.serverUrl) {
@@ -160,7 +160,7 @@ export class UnifiedRecentDataService {
                                     item.logo = item.posterUrl;
                                     isGeneric = false;
                                 }
-                            } catch(e) {}
+                            } catch { /* best effort */ }
                         }
                     }
 
@@ -517,7 +517,7 @@ export class UnifiedRecentDataService {
                     viewedAt: normalizeStalkerDate(row.viewed_at),
                 });
             });
-        } catch {}
+        } catch { /* best effort */ }
 
         if (this.panelSync) {
             try {
@@ -552,9 +552,9 @@ export class UnifiedRecentDataService {
                                         continue;
                                     }
 
-                                    let realTitle = '';
-                                    let realPoster = undefined;
-                                    let finalCategoryId = '0';
+                                    const realTitle = '';
+                                    const realPoster = undefined;
+                                    const finalCategoryId = '0';
 
                                     itemsMap.set(uid, {
                                         uid,
@@ -576,7 +576,7 @@ export class UnifiedRecentDataService {
                         }
                     }
                 }
-            } catch(e) {}
+            } catch { /* best effort */ }
         }
 
         const finalArray = Array.from(itemsMap.values());
@@ -618,7 +618,7 @@ export class UnifiedRecentDataService {
                     });
                 });
             }
-        } catch {}
+        } catch { /* best effort */ }
 
         const metaAny = meta as any;
         if (this.panelSync && metaAny?.serverUrl) {
@@ -649,9 +649,9 @@ export class UnifiedRecentDataService {
                                     continue;
                                 }
 
-                                let realTitle = '';
-                                let realPoster = undefined;
-                                let finalCategoryId = '0';
+                                const realTitle = '';
+                                const realPoster = undefined;
+                                const finalCategoryId = '0';
 
                                 itemsMap.set(uid, {
                                     uid,
@@ -672,7 +672,7 @@ export class UnifiedRecentDataService {
                         }
                     }
                 }
-            } catch(e) {}
+            } catch { /* best effort */ }
         }
 
         const finalArray = Array.from(itemsMap.values());

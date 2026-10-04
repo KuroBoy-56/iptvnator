@@ -88,7 +88,7 @@ export class WorkspaceShellComponent implements OnInit {
                         break; 
                     }
                 }
-            } catch (e) {}
+            } catch { /* best effort */ }
         }
 
         const finalHtml = warningHtml || welcomeHtml;
@@ -155,7 +155,7 @@ export class WorkspaceShellComponent implements OnInit {
                         });
                     }
                 }
-            } catch (err) {}
+            } catch { /* best effort */ }
         };
 
         container.appendChild(iframe);
