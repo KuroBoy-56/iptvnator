@@ -655,6 +655,12 @@ describe('WorkspaceShellFacade', () => {
 
         expect(facade.workspaceLinks()).toEqual([
             {
+                icon: 'sports_soccer',
+                tooltip: 'WORKSPACE.SHELL.RAIL_SPORTS',
+                path: ['/workspace/sports'],
+                exact: true,
+            },
+            {
                 icon: 'library_books',
                 tooltip: 'WORKSPACE.SHELL.RAIL_SOURCES',
                 path: ['/workspace/sources'],
@@ -686,6 +692,7 @@ describe('WorkspaceShellFacade', () => {
         showDashboardSignal.set(false);
 
         expect(facade.workspaceLinks().map((link) => link.path)).toEqual([
+            ['/workspace/sports'],
             ['/workspace/sources'],
             ['/workspace/global-favorites'],
             ['/workspace/global-recent'],

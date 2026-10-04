@@ -3,3 +3,6 @@ export * from './panel-sync.mapper';
 export * from './panel-sync.service';
 export * from './panel-sync.types';
 export * from './series-info.lookup';
+export * from './panel-sports.types';
+export * from './provider-api';
+export * from './sports-matcher';

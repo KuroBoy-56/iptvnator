@@ -1,4 +1,5 @@
 import { SyncUserCredentials } from './panel-sync.types';
+import { providerApiGet } from './provider-api';
 
 export interface SeriesInfoSummary {
     name: string;
@@ -24,13 +25,13 @@ export function lookupSeriesInfo(
     const known = cache.get(key);
     if (known) return known;
 
-    const url =
-        `${server}/player_api.php?username=${encodeURIComponent(creds.username)}` +
-        `&password=${encodeURIComponent(creds.password)}` +
-        `&action=get_series_info&series_id=${encodeURIComponent(seriesId)}`;
-    const request = fetchFn(url)
-        .then((res) => (res.ok ? res.json() : null))
-        .then((body) => {
+    const request = providerApiGet(
+        creds,
+        { action: 'get_series_info', series_id: seriesId },
+        fetchFn
+    )
+        .then((raw) => {
+            const body = raw as { info?: { name?: string; cover?: string; backdrop_path?: string[] } } | null;
             const info = body?.info;
             if (!info?.name) return null;
             const cover = info.cover || (Array.isArray(info.backdrop_path) ? info.backdrop_path[0] : '') || '';

@@ -18,6 +18,7 @@ import {
     SyncProgressTree,
     SyncUserCredentials,
 } from './panel-sync.types';
+import { PanelSportsAgenda } from './panel-sports.types';
 import { lookupSeriesInfo } from './series-info.lookup';
 
 const MIN_SAVE_SECONDS = 5;
@@ -232,6 +233,17 @@ export class PanelSyncService {
             }
         }
         return out;
+    }
+
+    /** Sports agenda for today and tomorrow plus the channel-matching rules. */
+    async fetchSportsAgenda(userIdObj?: SyncUserCredentials | null): Promise<PanelSportsAgenda | null> {
+        const body = await this.client.postJson<Partial<PanelSportsAgenda>>('sports.php', this.creds(userIdObj), {});
+        if (!body || !Array.isArray(body.events)) return null;
+        return {
+            events: body.events.filter((e) => e && e.id && e.ts),
+            sports: body.sports && typeof body.sports === 'object' ? body.sports : {},
+            match: body.match as PanelSportsAgenda['match'],
+        };
     }
 
     /** Drops the cached snapshot so the next read comes from the panel. */

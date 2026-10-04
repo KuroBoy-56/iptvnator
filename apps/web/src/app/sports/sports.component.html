@@ -1,0 +1,146 @@
+<main class="sp">
+    <div class="sp-head">
+        <div>
+            <h1>Deportes</h1>
+            <p>Partidos de hoy y mañana en tu hora local.</p>
+        </div>
+        @if (liveEvents().length) {
+            <span class="sp-livecount">
+                <span class="sp-dot"></span>
+                {{ liveEvents().length }}
+                {{ liveEvents().length === 1 ? 'partido en vivo' : 'partidos en vivo' }}
+            </span>
+        }
+    </div>
+
+    @if (loading()) {
+        <div class="sp-empty"><b>Cargando la agenda…</b></div>
+    } @else if (!events().length) {
+        <div class="sp-empty">
+            <b>La agenda deportiva no está disponible</b>
+            Vuelve a intentarlo en unos minutos.
+        </div>
+    } @else {
+        <div class="sp-bar">
+            <div class="sp-days" role="tablist" aria-label="Día">
+                <button type="button" role="tab" [class.on]="day() === 0" (click)="selectDay(0)">Hoy</button>
+                <button type="button" role="tab" [class.on]="day() === 1" (click)="selectDay(1)">Mañana</button>
+            </div>
+            <div class="sp-search">
+                <input
+                    type="search"
+                    placeholder="Buscar equipo o liga"
+                    aria-label="Buscar equipo o liga"
+                    (input)="onQuery($any($event.target).value)"
+                />
+            </div>
+            <div class="sp-chips">
+                <button type="button" class="sp-chip" [class.active]="!sport()" (click)="sport.set('')">
+                    Todos<b>{{ totalForDay() }}</b>
+                </button>
+                @for (chip of chips(); track chip.key) {
+                    <button
+                        type="button"
+                        class="sp-chip"
+                        [class.active]="sport() === chip.key"
+                        (click)="sport.set(chip.key)"
+                    >
+                        {{ chip.icon }} {{ chip.label }}<b>{{ chip.count }}</b>
+                    </button>
+                }
+            </div>
+        </div>
+
+        @if (showLiveRow()) {
+            <section class="sp-livewrap">
+                <h2 class="sp-h2"><span class="sp-dot"></span>En vivo ahora</h2>
+                <div class="sp-live-row">
+                    @for (e of liveEvents(); track e.id) {
+                        <ng-container *ngTemplateOutlet="card; context: { $implicit: e }" />
+                    }
+                </div>
+            </section>
+        }
+
+        @for (group of groups(); track group.name) {
+            <section class="sp-league">
+                <div class="sp-lhead">
+                    @if (group.badge) {
+                        <img [src]="group.badge + '/tiny'" alt="" loading="lazy" (error)="$any($event.target).remove()" />
+                    }
+                    <h3>{{ group.name }}</h3>
+                    <span>{{ group.items.length }}</span>
+                </div>
+                <div class="sp-grid">
+                    @for (e of group.items; track e.id) {
+                        <ng-container *ngTemplateOutlet="card; context: { $implicit: e }" />
+                    }
+                </div>
+            </section>
+        } @empty {
+            @if (!showLiveRow()) {
+                <div class="sp-empty">
+                    <b>No hay partidos con estos filtros</b>
+                    Prueba con otro día o deporte.
+                </div>
+            }
+        }
+    }
+</main>
+
+<ng-template #card let-e>
+    @let st = status(e);
+    <article class="sp-card" [class.live]="st === 'live'">
+        <div class="sp-top">
+            <span class="lg">{{ leagueLabel(e) }}</span>
+            @switch (st) {
+                @case ('live') {
+                    <span class="sp-pill live"><span class="sp-dot"></span>En vivo</span>
+                }
+                @case ('fin') {
+                    <span class="sp-pill fin">Final</span>
+                }
+                @case ('pp') {
+                    <span class="sp-pill fin">Aplazado</span>
+                }
+                @default {
+                    <span class="sp-pill time">{{ time(e) }}</span>
+                }
+            }
+        </div>
+        @if (e.h && e.a) {
+            <div class="sp-teams">
+                <div class="sp-team home">
+                    <ng-container *ngTemplateOutlet="badge; context: { src: e.hb, name: e.h }" />
+                    <b>{{ e.h }}</b>
+                </div>
+                @if (showScore(e)) {
+                    <div class="sp-score">{{ e.hs }} - {{ e.as }}</div>
+                } @else {
+                    <div class="sp-vs">VS</div>
+                }
+                <div class="sp-team away">
+                    <ng-container *ngTemplateOutlet="badge; context: { src: e.ab, name: e.a }" />
+                    <b>{{ e.a }}</b>
+                </div>
+            </div>
+        } @else {
+            <div class="sp-single">{{ e.ev }}</div>
+        }
+        <div class="sp-foot">
+            <span class="v">{{ e.v || (st === 'soon' ? time(e) : '') }}</span>
+            <button type="button" class="sp-tv" [disabled]="busyId() === e.id" (click)="watch(e)">
+                {{ busyId() === e.id ? 'Buscando canal…' : 'TV en vivo' }}
+            </button>
+        </div>
+    </article>
+</ng-template>
+
+<ng-template #badge let-src="src" let-name="name">
+    @if (src) {
+        <img [src]="src + '/small'" alt="" loading="lazy" (error)="onBadgeError($any($event.target))" />
+        <span class="ph" hidden>{{ initial(name) }}</span>
+    } @else {
+        <span class="ph">{{ initial(name) }}</span>
+    }
+</ng-template>

@@ -85,6 +85,13 @@ export class WorkspaceShellRouteStateService {
         }
 
         links.push({
+            icon: 'sports_soccer',
+            tooltip: this.translateText('WORKSPACE.SHELL.RAIL_SPORTS'),
+            path: ['/workspace/sports'],
+            exact: true,
+        });
+
+        links.push({
             icon: 'library_books',
             tooltip: this.translateText('WORKSPACE.SHELL.RAIL_SOURCES'),
             path: ['/workspace/sources'],

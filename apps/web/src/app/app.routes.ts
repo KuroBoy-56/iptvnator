@@ -114,6 +114,13 @@ export const routes: Routes = [
                     ),
             },
             {
+                path: 'sports',
+                loadComponent: () =>
+                    import('./sports/sports.component').then(
+                        (c) => c.SportsComponent
+                    ),
+            },
+            {
                 path: 'downloads',
                 loadComponent: () =>
                     import('@iptvnator/portal/downloads/feature').then(
