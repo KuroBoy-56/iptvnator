@@ -1,6 +1,6 @@
 import { computed, Injectable, signal, inject, NgZone } from '@angular/core';
 import { ExternalPlayerSession, PlayerContentInfo } from '@iptvnator/shared/interfaces';
-import { FirebaseSyncService } from '@iptvnator/services';
+import { PanelSyncService } from '@iptvnator/services';
 
 @Injectable({
     providedIn: 'root',
@@ -9,7 +9,7 @@ export class ExternalPlaybackService {
     readonly activeSession = signal<ExternalPlayerSession | null>(null);
     private readonly dismissedSessionId = signal<string | null>(null);
 
-    private readonly firebaseSync = inject(FirebaseSyncService);
+    private readonly panelSync = inject(PanelSyncService);
     private readonly ngZone = inject(NgZone);
 
     readonly visibleSession = computed(() => {
@@ -64,7 +64,7 @@ export class ExternalPlaybackService {
                     const server = localStorage.getItem('session_server') || '';
                     const userIdObj = { username, password, server };
                     
-                    await this.firebaseSync.saveProgress(
+                    await this.panelSync.saveProgress(
                         userIdObj, 
                         pbInfo, 
                         data.position, 

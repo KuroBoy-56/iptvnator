@@ -6,10 +6,17 @@ import {
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { PlaybackPositionRuntimeBridgeService } from './playback-position-runtime-bridge.service';
 import { PlaybackPositionService } from './playback-position.service';
+import { PanelSyncService } from './panel-sync';
 
 describe('PlaybackPositionService', () => {
     let service: PlaybackPositionService;
     let injector: DestroyableInjector;
+    let panel: {
+        saveProgress: jest.Mock;
+        getPlaybackEntry: jest.Mock;
+        getAllProgress: jest.Mock;
+        removeProgress: jest.Mock;
+    };
     let bridge: jest.Mocked<
         Pick<
             PlaybackPositionRuntimeBridgeService,
@@ -34,9 +41,17 @@ describe('PlaybackPositionService', () => {
             clearPlaybackPosition: jest.fn().mockResolvedValue(undefined),
         };
 
+        panel = {
+            saveProgress: jest.fn().mockResolvedValue(undefined),
+            getPlaybackEntry: jest.fn().mockResolvedValue(null),
+            getAllProgress: jest.fn().mockResolvedValue({ Movie: {}, Series: {} }),
+            removeProgress: jest.fn().mockResolvedValue(undefined),
+        };
+
         injector = Injector.create({
             providers: [
                 PlaybackPositionService,
+                { provide: PanelSyncService, useValue: panel },
                 {
                     provide: PlaybackPositionRuntimeBridgeService,
                     useValue: bridge,
@@ -106,6 +121,30 @@ describe('PlaybackPositionService', () => {
             100,
             'vod'
         );
+    });
+
+    it('writes positions to the panel and prefers the panel when reading', async () => {
+        const position = createPosition();
+        await service.savePlaybackPosition('playlist-1', position);
+        expect(panel.saveProgress).toHaveBeenCalledWith(
+            null,
+            expect.objectContaining({ id: String(position.contentXtreamId) }),
+            position.positionSeconds,
+            position.durationSeconds ?? 0
+        );
+
+        panel.getPlaybackEntry.mockResolvedValue({
+            position: 321,
+            duration: 900,
+            type: 'movie',
+            id: '100',
+        });
+        await expect(
+            service.getPlaybackPosition('playlist-1', 100, 'vod')
+        ).resolves.toMatchObject({ positionSeconds: 321, durationSeconds: 900 });
+
+        await service.clearPlaybackPosition('playlist-1', 100, 'vod');
+        expect(panel.removeProgress).toHaveBeenCalledWith(null, 'movie', '100');
     });
 
     it('preserves fallback values when the runtime bridge rejects', async () => {

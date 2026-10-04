@@ -6,7 +6,7 @@ import {
     DatabaseService,
     PlaylistsService,
     RuntimeCapabilitiesService,
-    FirebaseSyncService,
+    PanelSyncService,
 } from '@iptvnator/services';
 import {
     Channel,
@@ -74,7 +74,7 @@ export class UnifiedRecentDataService {
     private readonly playlistsService = inject(PlaylistsService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
-    private readonly firebaseSync = inject(FirebaseSyncService, { optional: true });
+    private readonly panelSync = inject(PanelSyncService, { optional: true });
 
     private async enrichUnifiedItems(items: UnifiedCollectionItem[]): Promise<UnifiedCollectionItem[]> {
         const win = window as any;
@@ -519,7 +519,7 @@ export class UnifiedRecentDataService {
             });
         } catch {}
 
-        if (this.firebaseSync) {
+        if (this.panelSync) {
             try {
                 const allMeta = await this.getAllMeta();
                 const xtreamPlaylists = allMeta.filter((p: any) => !!p.serverUrl);
@@ -527,7 +527,7 @@ export class UnifiedRecentDataService {
                 for (const pl of xtreamPlaylists) {
                     const plAny = pl as any;
                     const userIdObj = { username: plAny.username, password: plAny.password, server: plAny.serverUrl };
-                    const cloudProgress = await (this.firebaseSync as any).getAllProgress(userIdObj);
+                    const cloudProgress = await (this.panelSync as any).getAllProgress(userIdObj);
 
                     if (cloudProgress) {
                         for (const fbType of ['Movie', 'Series']) {
@@ -621,10 +621,10 @@ export class UnifiedRecentDataService {
         } catch {}
 
         const metaAny = meta as any;
-        if (this.firebaseSync && metaAny?.serverUrl) {
+        if (this.panelSync && metaAny?.serverUrl) {
             try {
                 const userIdObj = { username: metaAny.username, password: metaAny.password, server: metaAny.serverUrl };
-                const cloudProgress = await (this.firebaseSync as any).getAllProgress(userIdObj);
+                const cloudProgress = await (this.panelSync as any).getAllProgress(userIdObj);
 
                 if (cloudProgress) {
                     for (const fbType of ['Movie', 'Series']) {

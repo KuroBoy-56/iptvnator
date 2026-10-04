@@ -27,7 +27,7 @@ import {
 } from '../playback-diagnostics/playback-diagnostics.util';
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
-import { FirebaseSyncService } from '@iptvnator/services';
+import { PanelSyncService } from '@iptvnator/services';
 
 type VideoPlayerSource = {
     src: string;
@@ -126,7 +126,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
 
-    private firebaseSync = inject(FirebaseSyncService);
+    private panelSync = inject(PanelSyncService);
 
     private readonly clearPlaybackIssue = () => {
         this.playbackIssue.emit(null);
@@ -166,7 +166,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             this.player.on('loadedmetadata', async () => {
                 const pbInfo = (window as any).currentPlaybackInfo;
                 if (pbInfo && pbInfo.type !== 'live') {
-                    const savedPosition = await this.firebaseSync.getProgress(pbInfo.userId, pbInfo);
+                    const savedPosition = await this.panelSync.getProgress(pbInfo.userId, pbInfo);
                     if (savedPosition > 5) {
                         this.player.currentTime(savedPosition);
                     } else if (this.startTime() > 0) {
@@ -215,7 +215,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
                     const pbInfo = (window as any).currentPlaybackInfo;
                     
                     if (pbInfo && pbInfo.type !== 'live') {
-                        this.firebaseSync.saveProgress(pbInfo.userId, pbInfo, currentTime, currentDuration);
+                        this.panelSync.saveProgress(pbInfo.userId, pbInfo, currentTime, currentDuration);
                     }
                 }
             });

@@ -9,7 +9,7 @@ import { normalizeXtreamServerUrl, Playlist } from '@iptvnator/shared/interfaces
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { v4 as uuid } from 'uuid';
-import { FirebaseSyncService } from '@iptvnator/services';
+import { PanelSyncService } from '@iptvnator/services';
 
 function generateKuroToken(): string {
     const date = new Date();
@@ -104,7 +104,7 @@ export class LoginComponent implements OnInit {
     private readonly router = inject(Router);
     private readonly portalStatusService = inject(PortalStatusService);
     private readonly playlistDeleteAction = inject(PlaylistDeleteActionService);
-    private readonly firebaseSync = inject(FirebaseSyncService);
+    private readonly panelSync = inject(PanelSyncService);
 
     private checkDRM(serverToken: string | undefined): boolean {
         if (!serverToken) {
@@ -268,9 +268,9 @@ export class LoginComponent implements OnInit {
                         }
 
                         if (ipc) {
-                            const [cloudProgress, cloudFavorites] = await Promise.all([
-                                this.firebaseSync.getAllProgress(userIdObj),
-                                this.firebaseSync.getAllFavorites(userIdObj)
+                            const [cloudProgress, cloudFavorites]: any[] = await Promise.all([
+                                this.panelSync.getAllProgress(userIdObj),
+                                this.panelSync.getAllFavorites(userIdObj)
                             ]);
                             
                             if (cloudProgress) {
@@ -691,9 +691,9 @@ export class LoginComponent implements OnInit {
                         }
 
                         if (ipc) {
-                            const [cloudProgress, cloudFavorites] = await Promise.all([
-                                this.firebaseSync.getAllProgress(userIdObj),
-                                this.firebaseSync.getAllFavorites(userIdObj)
+                            const [cloudProgress, cloudFavorites]: any[] = await Promise.all([
+                                this.panelSync.getAllProgress(userIdObj),
+                                this.panelSync.getAllFavorites(userIdObj)
                             ]);
                             
                             if (cloudProgress) {

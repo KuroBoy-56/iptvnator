@@ -7,7 +7,7 @@ import {
     DatabaseService,
     PlaylistsService,
     RuntimeCapabilitiesService,
-    FirebaseSyncService,
+    PanelSyncService,
 } from '@iptvnator/services';
 import {
     Channel,
@@ -69,7 +69,7 @@ export class UnifiedFavoritesDataService {
     private readonly translate = inject(TranslateService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
-    private readonly firebaseSync = inject(FirebaseSyncService, { optional: true });
+    private readonly panelSync = inject(PanelSyncService, { optional: true });
 
     private async enrichUnifiedItems(items: UnifiedCollectionItem[]): Promise<UnifiedCollectionItem[]> {
         const win = window as any;
@@ -235,14 +235,14 @@ export class UnifiedFavoritesDataService {
                     return;
                 }
 
-                if (this.firebaseSync && item.xtreamId != null) {
+                if (this.panelSync && item.xtreamId != null) {
                     try {
                         const meta = await this.getPlaylistMeta(item.playlistId);
                         const metaAny = meta as any;
                         if (metaAny?.serverUrl) {
                             const fbType = item.contentType === 'movie' ? 'Movie' : item.contentType === 'series' ? 'Series' : 'LiveTv';
                             const userIdObj = { username: metaAny.username, password: metaAny.password, server: metaAny.serverUrl };
-                            await (this.firebaseSync as any).removeFavorite(userIdObj, fbType, item.xtreamId);
+                            await (this.panelSync as any).removeFavorite(userIdObj, fbType, item.xtreamId);
                         }
                     } catch(e) {}
                 }
@@ -312,7 +312,7 @@ export class UnifiedFavoritesDataService {
             return;
         }
 
-        if (this.firebaseSync && item.xtreamId != null) {
+        if (this.panelSync && item.xtreamId != null) {
             try {
                 const meta = await this.getPlaylistMeta(item.playlistId);
                 const metaAny = meta as any;
@@ -320,7 +320,7 @@ export class UnifiedFavoritesDataService {
                     const fbType = item.contentType === 'movie' ? 'Movie' : item.contentType === 'series' ? 'Series' : 'LiveTv';
                     const userIdObj = { username: metaAny.username, password: metaAny.password, server: metaAny.serverUrl };
                     const ts = Math.floor(Date.now() / 1000);
-                    await (this.firebaseSync as any).addFavorite(userIdObj, fbType, item.xtreamId, ts, {
+                    await (this.panelSync as any).addFavorite(userIdObj, fbType, item.xtreamId, ts, {
                         title: item.name,
                         thumbnail: item.posterUrl || item.logo
                     });
@@ -387,7 +387,7 @@ export class UnifiedFavoritesDataService {
             return;
         }
 
-        if (this.firebaseSync) {
+        if (this.panelSync) {
             try {
                 for (const item of items) {
                     if (item.sourceType === 'xtream' && item.xtreamId != null) {
@@ -396,7 +396,7 @@ export class UnifiedFavoritesDataService {
                         if (metaAny?.serverUrl) {
                             const fbType = item.contentType === 'movie' ? 'Movie' : item.contentType === 'series' ? 'Series' : 'LiveTv';
                             const userIdObj = { username: metaAny.username, password: metaAny.password, server: metaAny.serverUrl };
-                            await (this.firebaseSync as any).removeFavorite(userIdObj, fbType, item.xtreamId);
+                            await (this.panelSync as any).removeFavorite(userIdObj, fbType, item.xtreamId);
                         }
                     }
                 }
@@ -706,7 +706,7 @@ export class UnifiedFavoritesDataService {
         const allMeta = await this.getAllMeta();
         const results: UnifiedCollectionItem[] = [];
         
-        if (this.firebaseSync) {
+        if (this.panelSync) {
             try {
                 const win = window as any;
                 const ipc = win.electron?.ipcRenderer;
@@ -715,7 +715,7 @@ export class UnifiedFavoritesDataService {
                 for (const pl of xtreamPlaylists) {
                     const plAny = pl as any;
                     const userIdObj = { username: plAny.username, password: plAny.password, server: plAny.serverUrl };
-                    const cloudFavorites = await (this.firebaseSync as any).getAllFavorites(userIdObj);
+                    const cloudFavorites = await (this.panelSync as any).getAllFavorites(userIdObj);
                     
                     if (cloudFavorites) {
                         for (const type of ['Movie', 'Series', 'LiveTv']) {
@@ -752,7 +752,8 @@ export class UnifiedFavoritesDataService {
                                     else favTitle = 'Favorito';
                                 }
 
-                                const addedDate = typeof data === 'number' ? new Date(data * 1000).toISOString() : new Date().toISOString();
+                                const addedSeconds = typeof data === 'number' ? data : Number(data?.timestamp) || 0;
+                                const addedDate = addedSeconds > 0 ? new Date(addedSeconds * 1000).toISOString() : new Date().toISOString();
 
                                 results.push({
                                     uid: buildXtreamCollectionUid(pl._id, cType, xtreamId),
@@ -803,12 +804,12 @@ export class UnifiedFavoritesDataService {
             const meta = await this.getPlaylistMeta(playlistId);
             const metaAny = meta as any;
             
-            if (this.firebaseSync && metaAny?.serverUrl) {
+            if (this.panelSync && metaAny?.serverUrl) {
                 try {
                     const win = window as any;
                     const ipc = win.electron?.ipcRenderer;
                     const userIdObj = { username: metaAny.username, password: metaAny.password, server: metaAny.serverUrl };
-                    const cloudFavorites = await (this.firebaseSync as any).getAllFavorites(userIdObj);
+                    const cloudFavorites = await (this.panelSync as any).getAllFavorites(userIdObj);
                     
                     if (cloudFavorites) {
                         for (const type of ['Movie', 'Series', 'LiveTv']) {
@@ -845,7 +846,8 @@ export class UnifiedFavoritesDataService {
                                     else favTitle = 'Favorito';
                                 }
 
-                                const addedDate = typeof data === 'number' ? new Date(data * 1000).toISOString() : new Date().toISOString();
+                                const addedSeconds = typeof data === 'number' ? data : Number(data?.timestamp) || 0;
+                                const addedDate = addedSeconds > 0 ? new Date(addedSeconds * 1000).toISOString() : new Date().toISOString();
 
                                 results.push({
                                     uid: buildXtreamCollectionUid(playlistId, cType, xtreamId),

@@ -214,7 +214,7 @@ export class WebPlayerViewComponent implements OnInit {
     }
 
     ngOnInit(): void {
-        // Limpiado de llamadas directas a Firebase. 
+        // Limpiado de llamadas directas al servicio de sincronización. 
         // El componente solo emite el evento de tiempo hacia arriba de forma limpia.
     }
 

@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { FirebaseSyncService } from '@iptvnator/services';
+import { PanelSyncService } from '@iptvnator/services';
 import {
     PORTAL_PLAYBACK_POSITIONS,
     PortalPlaybackPositions,
@@ -16,7 +16,7 @@ export class AppPortalPlaybackPositionsService
     implements PortalPlaybackPositions
 {
     private readonly dataSource = inject(XTREAM_DATA_SOURCE);
-    private readonly firebaseSync = inject(FirebaseSyncService, { optional: true });
+    private readonly panelSync = inject(PanelSyncService, { optional: true });
 
     private getUserIdObj() {
         return {
@@ -41,8 +41,8 @@ export class AppPortalPlaybackPositionsService
         const localPos = await this.dataSource.getPlaybackPosition(playlistId, contentXtreamId, contentType);
         
         try {
-            if (this.firebaseSync) {
-                const progress = await (this.firebaseSync as any).getAllProgress(this.getUserIdObj());
+            if (this.panelSync) {
+                const progress = await (this.panelSync as any).getAllProgress(this.getUserIdObj());
                 if (progress) {
                     if (contentType === 'vod' && progress['Movie']?.[contentXtreamId]) {
                         const data = progress['Movie'][contentXtreamId];
@@ -88,8 +88,8 @@ export class AppPortalPlaybackPositionsService
         local.forEach(p => map.set(p.contentXtreamId, p));
         
         try {
-            if (this.firebaseSync) {
-                const progress = await (this.firebaseSync as any).getAllProgress(this.getUserIdObj());
+            if (this.panelSync) {
+                const progress = await (this.panelSync as any).getAllProgress(this.getUserIdObj());
                 if (progress?.['Series']?.[seriesXtreamId]) {
                     const eps = progress['Series'][seriesXtreamId];
                     for (const epId of Object.keys(eps)) {
@@ -120,8 +120,8 @@ export class AppPortalPlaybackPositionsService
         local.forEach(p => map.set(`${p.contentType}-${p.contentXtreamId}`, p));
         
         try {
-            if (this.firebaseSync) {
-                const progress = await (this.firebaseSync as any).getAllProgress(this.getUserIdObj());
+            if (this.panelSync) {
+                const progress = await (this.panelSync as any).getAllProgress(this.getUserIdObj());
                 if (progress) {
                     if (progress['Movie']) {
                         for (const mId of Object.keys(progress['Movie'])) {

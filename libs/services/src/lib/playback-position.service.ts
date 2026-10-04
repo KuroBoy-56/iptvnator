@@ -1,9 +1,23 @@
-// @ts-nocheck
 import { inject, Injectable } from '@angular/core';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { PlaybackPositionRuntimeBridgeService } from './playback-position-runtime-bridge.service';
-import { FirebaseSyncService } from './firebase-sync.service';
+import { PanelSyncService, PlaybackSyncInfo } from './panel-sync';
 
+type PositionWithMeta = PlaybackPositionData & {
+    title?: string;
+    name?: string;
+    poster?: string;
+    posterUrl?: string;
+    thumbnail?: string;
+    url?: string;
+    seriesTitle?: string;
+};
+
+/**
+ * Playback positions. The panel (api/progress.php) is the source of truth:
+ * writes go to the panel, reads prefer the panel and the local store is only
+ * a cache that keeps the UI responsive and works offline.
+ */
 @Injectable({
     providedIn: 'root',
 })
@@ -11,23 +25,7 @@ export class PlaybackPositionService {
     private readonly playbackPositionBridge = inject(
         PlaybackPositionRuntimeBridgeService
     );
-    private readonly firebaseSync = inject(FirebaseSyncService);
-
-    private termLog(msg: string, data?: any) {
-        try {
-            const win = window as any;
-            if (win.electron && win.electron.ipcRenderer) {
-                win.electron.ipcRenderer.send('TERMINAL_LOG', msg, data || null);
-            }
-        } catch (e) {}
-    }
-
-    private getUserIdObj(): any {
-        const username = localStorage.getItem('session_user') || '';
-        const password = localStorage.getItem('session_pass') || '';
-        const server = localStorage.getItem('session_server') || '';
-        return { username, password, server };
-    }
+    private readonly panelSync = inject(PanelSyncService);
 
     async savePlaybackPosition(
         playlistId: string,
@@ -43,35 +41,24 @@ export class PlaybackPositionService {
         }
 
         try {
-            const userIdObj = this.getUserIdObj();
-            const posAny = data as any;
-            
-            let fbType = 'live';
-            if (data.contentType === 'vod') fbType = 'movie';
-            if (data.contentType === 'episode') fbType = 'series';
-
-            // Ahora sí capturamos el título y póster real que inyectamos en el Feature Store
-            const title = posAny.title || posAny.name || `Contenido ${data.contentXtreamId}`;
-            const poster = posAny.poster || posAny.posterUrl || posAny.thumbnail || 'null';
-
-            const currentTime = Number(data.positionSeconds ?? posAny.currentTime ?? posAny.position ?? posAny.time ?? 0);
-            const duration = Number(data.durationSeconds ?? posAny.duration ?? 0);
-
-            const pbInfo = {
-                type: fbType,
+            const meta = data as PositionWithMeta;
+            const pbInfo: PlaybackSyncInfo = {
+                type: data.contentType === 'vod' ? 'movie' : 'series',
                 id: String(data.contentXtreamId),
                 categoryId: String(data.seriesXtreamId || data.contentXtreamId),
-                title: title,
-                poster: poster
+                seriesTitle: meta.seriesTitle,
+                title: meta.title || meta.name,
+                poster: meta.poster || meta.posterUrl || meta.thumbnail,
+                url: meta.url,
             };
-            
-            this.termLog(`[FIREBASE SYNC] 🚀 Enviando a la nube -> Título: "${title}" | Duración: ${duration}s | Timeline: ${currentTime}s`, pbInfo);
-
-            if (currentTime > 5) {
-                await this.firebaseSync.saveProgress(userIdObj, pbInfo, currentTime, duration);
-            }
+            await this.panelSync.saveProgress(
+                null,
+                pbInfo,
+                Number(data.positionSeconds ?? 0),
+                Number(data.durationSeconds ?? 0)
+            );
         } catch (error) {
-            console.error('Error al sincronizar progreso con Firebase:', error);
+            console.error('Error al sincronizar progreso con el panel:', error);
         }
     }
 
@@ -80,6 +67,13 @@ export class PlaybackPositionService {
         contentXtreamId: number,
         contentType: 'vod' | 'episode'
     ): Promise<PlaybackPositionData | null> {
+        const fromPanel = await this.getPanelPosition(
+            playlistId,
+            contentXtreamId,
+            contentType
+        );
+        if (fromPanel) return fromPanel;
+
         try {
             return await this.playbackPositionBridge.getPlaybackPosition(
                 playlistId,
@@ -96,14 +90,37 @@ export class PlaybackPositionService {
         playlistId: string,
         seriesXtreamId: number
     ): Promise<PlaybackPositionData[]> {
+        let local: PlaybackPositionData[] = [];
         try {
-            return await this.playbackPositionBridge.getSeriesPlaybackPositions(
+            local = await this.playbackPositionBridge.getSeriesPlaybackPositions(
                 playlistId,
                 seriesXtreamId
             );
         } catch (error) {
             console.error('Error getting series playback positions:', error);
-            return [];
+        }
+        try {
+            const tree = await this.panelSync.getAllProgress();
+            const episodes = tree.Series[String(seriesXtreamId)] ?? {};
+            const merged = new Map(
+                local.map((p) => [p.contentXtreamId, p] as const)
+            );
+            for (const [episodeId, leaf] of Object.entries(episodes)) {
+                merged.set(Number(episodeId), {
+                    contentXtreamId: Number(episodeId),
+                    contentType: 'episode',
+                    seriesXtreamId,
+                    positionSeconds: leaf.timeline,
+                    durationSeconds: leaf.duration || undefined,
+                    playlistId,
+                    updatedAt: leaf.timestamp
+                        ? new Date(leaf.timestamp * 1000).toISOString()
+                        : undefined,
+                });
+            }
+            return Array.from(merged.values());
+        } catch {
+            return local;
         }
     }
 
@@ -161,9 +178,42 @@ export class PlaybackPositionService {
         }
 
         try {
-            const userIdObj = this.getUserIdObj();
             const type = contentType === 'vod' ? 'movie' : 'series';
-            await this.firebaseSync.removeProgress(userIdObj, type, String(contentXtreamId), String(contentXtreamId));
-        } catch (error) {}
+            await this.panelSync.removeProgress(
+                null,
+                type,
+                String(contentXtreamId)
+            );
+        } catch {
+            // The panel is unreachable; the next save overwrites the entry.
+        }
+    }
+
+    private async getPanelPosition(
+        playlistId: string,
+        contentXtreamId: number,
+        contentType: 'vod' | 'episode'
+    ): Promise<PlaybackPositionData | null> {
+        try {
+            const entry = await this.panelSync.getPlaybackEntry(
+                null,
+                contentType === 'vod' ? 'movie' : 'series',
+                contentXtreamId
+            );
+            if (!entry || !(entry.position > 0)) return null;
+            return {
+                contentXtreamId,
+                contentType,
+                seriesXtreamId: entry.seriesId
+                    ? Number(entry.seriesId)
+                    : undefined,
+                positionSeconds: Math.floor(entry.position),
+                durationSeconds: entry.duration || undefined,
+                playlistId,
+                updatedAt: entry.updatedAt,
+            };
+        } catch {
+            return null;
+        }
     }
 }

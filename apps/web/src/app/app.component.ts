@@ -10,7 +10,7 @@ import { EpgProgressPanelComponent } from '@iptvnator/ui/epg/progress-panel';
 import { WindowControlsComponent } from '@iptvnator/ui/components';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { filter, take, firstValueFrom } from 'rxjs';
-import { DatabaseService, DataService, RuntimeCapabilitiesService, SettingsStore, FirebaseSyncService, PlaybackPositionService } from '@iptvnator/services';
+import { DatabaseService, DataService, RuntimeCapabilitiesService, SettingsStore, PanelSyncService, PlaybackPositionService } from '@iptvnator/services';
 import { AUTO_UPDATE_PLAYLISTS, Language, OPEN_FILE, Settings, STORE_KEY, Theme, createDevLogger } from '@iptvnator/shared/interfaces';
 import { SettingsService } from './services/settings.service';
 import { AppUpdateNotificationPanelComponent } from './app-update-notification-panel.component';
@@ -43,7 +43,7 @@ export class AppComponent implements OnInit, OnDestroy {
     private settingsService = inject(SettingsService);
     private settingsStore = inject(SettingsStore);
     private runtime = inject(RuntimeCapabilitiesService);
-    private firebaseSync = inject(FirebaseSyncService);
+    private panelSync = inject(PanelSyncService);
     private playbackPositionService = inject(PlaybackPositionService);
     private externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly workspaceShellActions = inject(WORKSPACE_SHELL_ACTIONS);
@@ -116,11 +116,11 @@ export class AppComponent implements OnInit, OnDestroy {
                     if (!pl.serverUrl) continue;
                     const userIdObj = { username: pl.username, password: pl.password, server: pl.serverUrl };
 
-                    if (ipc && this.firebaseSync) {
+                    if (ipc && this.panelSync) {
                         try {
                             const [cloudProgress, cloudFavorites] = await Promise.all([
-                                (this.firebaseSync as any).getAllProgress(userIdObj),
-                                (this.firebaseSync as any).getAllFavorites(userIdObj)
+                                (this.panelSync as any).getAllProgress(userIdObj),
+                                (this.panelSync as any).getAllFavorites(userIdObj)
                             ]);
 
                             if (cloudProgress) {
@@ -202,8 +202,8 @@ export class AppComponent implements OnInit, OnDestroy {
                                 poster: meta?.poster_url || meta?.backdrop_url || (pos as any).poster || ''
                             };
 
-                            if (this.firebaseSync && typeof (this.firebaseSync as any).saveProgress === 'function') {
-                                (this.firebaseSync as any).saveProgress(userIdObj, pbInfo, pos.positionSeconds, pos.durationSeconds || 0);
+                            if (this.panelSync && typeof (this.panelSync as any).saveProgress === 'function') {
+                                (this.panelSync as any).saveProgress(userIdObj, pbInfo, pos.positionSeconds, pos.durationSeconds || 0);
                             }
                         }
                     }
@@ -232,8 +232,8 @@ export class AppComponent implements OnInit, OnDestroy {
                         };
                         const timestamp = fav.added_at ? Math.floor(new Date(fav.added_at).getTime() / 1000) : Math.floor(Date.now() / 1000);
 
-                        if (this.firebaseSync && typeof (this.firebaseSync as any).addFavorite === 'function') {
-                            await (this.firebaseSync as any).addFavorite(userIdObj, fbType, contentIdStr, timestamp, meta);
+                        if (this.panelSync && typeof (this.panelSync as any).addFavorite === 'function') {
+                            await (this.panelSync as any).addFavorite(userIdObj, fbType, contentIdStr, timestamp, meta);
                             this.syncedFavorites.add(syncKey);
                         }
                     }

@@ -446,7 +446,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             try { electron.ipcRenderer.removeAllListeners('MPV_PROGRESS_UPDATE'); } catch(e) {}
             electron.ipcRenderer.on('MPV_PROGRESS_UPDATE', (event: any, data: any) => {
                 
-                // NOTA: Se eliminó el "saveProgress" directo a Firebase de aquí.
+                // NOTA: Se eliminó el "saveProgress" directo al panel desde aquí (lo hace PlaybackPositionService).
                 // Ahora SOLO guarda en la base de datos local SQLite y deja que 
                 // app.component.ts (con su hash correcto) se encargue de subirlo.
                 

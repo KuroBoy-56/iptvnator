@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { from, map, Observable, firstValueFrom } from 'rxjs';
 import { XTREAM_DATA_SOURCE } from '../data-sources/xtream-data-source.interface';
 import { FavoriteItem } from './favorite-item.interface';
-import { FirebaseSyncService } from '@iptvnator/services';
+import { PanelSyncService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 
@@ -16,7 +16,7 @@ function normalizeCategoryId(categoryId: string | number): number {
 })
 export class FavoritesService {
     private dataSource = inject(XTREAM_DATA_SOURCE);
-    private firebaseSync = inject(FirebaseSyncService);
+    private panelSync = inject(PanelSyncService);
     private store = inject(Store);
 
     private async getUserIdObj(playlistId: string): Promise<any> {
@@ -90,7 +90,7 @@ export class FavoritesService {
             const finalTitle = meta.title && meta.title !== 'null' && !/^Contenido \d+$/.test(meta.title) ? meta.title : `Canal ${item.content_id}`;
             meta.title = finalTitle;
 
-            await this.firebaseSync.addFavorite(userIdObj, fbType, String(item.content_id), timestamp, meta);
+            await this.panelSync.addFavorite(userIdObj, fbType, String(item.content_id), timestamp, meta);
         } catch (e) {}
     }
 
@@ -108,7 +108,7 @@ export class FavoritesService {
             if (type === 'movie' || type === 'vod') fbType = 'Movie';
             if (type === 'series') fbType = 'Series';
 
-            await this.firebaseSync.removeFavorite(userIdObj, fbType, String(contentId));
+            await this.panelSync.removeFavorite(userIdObj, fbType, String(contentId));
         } catch (e) {}
     }
 

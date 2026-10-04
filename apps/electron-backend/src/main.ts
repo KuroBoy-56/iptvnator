@@ -149,7 +149,6 @@ async function launchMpvPortable(streamUrl: string, streamTitle: string, playlis
                                 id: itemId,
                                 categoryId: categoryId,
                                 playlistId: playlistId,
-                                forcedHash: 'bad90e6f3a74f4aeab6ccee156c1726d'
                             }
                         });
                     }
@@ -197,7 +196,6 @@ async function launchMpvPortable(streamUrl: string, streamTitle: string, playlis
                 position: lastKnownPosition,
                 duration: lastKnownDuration,
                 closed: true,
-                forcedHash: 'bad90e6f3a74f4aeab6ccee156c1726d'
             });
         }
     });

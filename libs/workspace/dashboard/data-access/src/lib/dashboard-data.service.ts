@@ -20,7 +20,7 @@ import {
     GlobalRecentlyAddedKind,
     PlaylistsService,
     RuntimeCapabilitiesService,
-    FirebaseSyncService
+    PanelSyncService
 } from '@iptvnator/services';
 import {
     XTREAM_DATA_SOURCE,
@@ -128,7 +128,7 @@ export class DashboardDataService {
     private readonly ngZone = inject(NgZone);
     private readonly translate = inject(TranslateService);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
-    private readonly firebaseSync = inject(FirebaseSyncService, { optional: true });
+    private readonly panelSync = inject(PanelSyncService, { optional: true });
     private readonly favoritesAutoRefreshEnabled = signal(false);
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
@@ -136,10 +136,10 @@ export class DashboardDataService {
     );
 
     private readonly xtreamGlobalRecentItems = signal<GlobalRecentItem[]>([]);
-    private readonly firebaseGlobalRecentItems = signal<GlobalRecentItem[]>([]);
+    private readonly panelGlobalRecentItems = signal<GlobalRecentItem[]>([]);
     private readonly xtreamRecentlyAddedItemsState = signal<DashboardRecentlyAddedItem[]>([]);
     private readonly xtreamGlobalFavorites = signal<DashboardFavoriteItem[]>([]);
-    private readonly firebaseGlobalFavorites = signal<DashboardFavoriteItem[]>([]);
+    private readonly panelGlobalFavorites = signal<DashboardFavoriteItem[]>([]);
     private readonly m3uPlaylistFavoritesMap = signal<Map<string, DashboardFavoriteItem[]>>(new Map());
 
     private readonly m3uFavoritesCache = new Map<
@@ -239,7 +239,7 @@ export class DashboardDataService {
 
     readonly globalRecentItems = computed<GlobalRecentItem[]>(() => {
         const all = [
-            ...this.firebaseGlobalRecentItems(),
+            ...this.panelGlobalRecentItems(),
             ...this.xtreamGlobalRecentItems(),
             ...this.playlistBackedGlobalRecentItems(),
         ];
@@ -379,7 +379,7 @@ export class DashboardDataService {
 
     readonly globalFavoriteItems = computed(() => {
         const all = [
-            ...this.firebaseGlobalFavorites(),
+            ...this.panelGlobalFavorites(),
             ...this.xtreamGlobalFavorites(),
             ...this.m3uGlobalFavorites(),
             ...this.stalkerGlobalFavorites(),
@@ -443,11 +443,11 @@ export class DashboardDataService {
         });
 
         setInterval(() => {
-            void this.syncFromFirebase();
+            void this.syncFromPanel();
         }, 10000);
         
         setTimeout(() => {
-            void this.syncFromFirebase();
+            void this.syncFromPanel();
         }, 2000);
     }
 
@@ -566,8 +566,8 @@ export class DashboardDataService {
         return items;
     }
 
-    private async syncFromFirebase() {
-        if (!this.firebaseSync) return;
+    private async syncFromPanel() {
+        if (!this.panelSync) return;
         const playlists = this.playlists();
         const win = window as any;
         const ipc = win.electron?.ipcRenderer;
@@ -601,8 +601,8 @@ export class DashboardDataService {
                 }
 
                 const [cloudProgress, cloudFavorites] = await Promise.all([
-                    (this.firebaseSync as any).getAllProgress(userIdObj),
-                    (this.firebaseSync as any).getAllFavorites(userIdObj)
+                    (this.panelSync as any).getAllProgress(userIdObj),
+                    (this.panelSync as any).getAllFavorites(userIdObj)
                 ]);
 
                 if (cloudProgress) {
@@ -705,7 +705,8 @@ export class DashboardDataService {
                                 else favTitle = 'Favorito';
                             }
 
-                            const addedDate = typeof data === 'number' ? new Date(data * 1000).toISOString() : new Date().toISOString();
+                            const addedSeconds = typeof data === 'number' ? data : Number(data?.timestamp) || 0;
+                            const addedDate = addedSeconds > 0 ? new Date(addedSeconds * 1000).toISOString() : new Date().toISOString();
                             
                             memoryFavorites.push({
                                 id: xtreamId,
@@ -730,8 +731,8 @@ export class DashboardDataService {
         memoryFavorites = await this.enrichDashboardItems(memoryFavorites);
 
         this.ngZone.run(() => {
-            this.firebaseGlobalRecentItems.set(memoryRecents);
-            this.firebaseGlobalFavorites.set(memoryFavorites);
+            this.panelGlobalRecentItems.set(memoryRecents);
+            this.panelGlobalFavorites.set(memoryFavorites);
             
             if (memoryPositions.size > 0) {
                 const currentPos = new Map(this.playbackPositionsMap());
@@ -1287,14 +1288,14 @@ export class DashboardDataService {
 
     async removeGlobalFavorite(item: DashboardFavoriteItem): Promise<void> {
         if (item.source === 'xtream') {
-            if (this.firebaseSync && item.xtream_id != null) {
+            if (this.panelSync && item.xtream_id != null) {
                 try {
                     const meta = this.playlists().find((p: any) => p._id === item.playlist_id);
                     const metaAny = meta as any;
                     if (metaAny?.serverUrl) {
                         const fbType = item.type === 'movie' ? 'Movie' : item.type === 'series' ? 'Series' : 'LiveTv';
                         const userIdObj = { username: metaAny.username, password: metaAny.password, server: metaAny.serverUrl };
-                        await (this.firebaseSync as any).removeFavorite(userIdObj, fbType, item.xtream_id);
+                        await (this.panelSync as any).removeFavorite(userIdObj, fbType, item.xtream_id);
                     }
                 } catch(e) {}
             }

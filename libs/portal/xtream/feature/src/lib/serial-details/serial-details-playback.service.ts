@@ -15,7 +15,7 @@ import {
     getSeriesQuickStartAction,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { PlaybackPositionRuntimeBridgeService, SettingsStore, FirebaseSyncService } from '@iptvnator/services';
+import { PlaybackPositionRuntimeBridgeService, SettingsStore, PanelSyncService } from '@iptvnator/services';
 import {
     PlaybackPositionData,
     PlayerContentInfo,
@@ -49,7 +49,7 @@ export class SerialDetailsPlaybackService {
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly settingsStore = inject(SettingsStore);
-    private readonly firebaseSync = inject(FirebaseSyncService, { optional: true });
+    private readonly panelSync = inject(PanelSyncService, { optional: true });
 
     private readonly bindings = signal<SerialDetailsPlaybackBindings | null>(null);
     private readonly currentPlaylistId = computed(() => this.xtreamStore.currentPlaylist()?.id ?? '');
@@ -200,9 +200,9 @@ export class SerialDetailsPlaybackService {
 
         try {
             const playlist = this.xtreamStore.currentPlaylist();
-            if (playlist && this.firebaseSync) {
+            if (playlist && this.panelSync) {
                 const userIdObj = { username: playlist.username, password: playlist.password, server: playlist.serverUrl };
-                const progress = await (this.firebaseSync as any).getAllProgress(userIdObj);
+                const progress = await (this.panelSync as any).getAllProgress(userIdObj);
                 
                 if (progress && progress['Series'] && progress['Series'][seriesXtreamId]) {
                     const episodes = progress['Series'][seriesXtreamId];
@@ -212,7 +212,7 @@ export class SerialDetailsPlaybackService {
                         if (data && (data.timeline > 0 || data.timestamp || data.showInContinueWatchingList)) {
                             const existing = positionsMap.get(Number(epId));
                             
-                            // LA JUGADA MAESTRA: Si Firebase no envía timeline, mantenemos el que VLC guardó localmente.
+                            // LA JUGADA MAESTRA: Si el panel no envía timeline, mantenemos el que VLC guardó localmente.
                             const finalTimeline = data.timeline > 0 ? data.timeline : (existing?.positionSeconds || 0);
                             const finalDuration = data.duration > 0 ? data.duration : (existing?.durationSeconds || (finalTimeline ? finalTimeline * 1.25 : 0));
 

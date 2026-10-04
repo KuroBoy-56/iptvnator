@@ -23,7 +23,7 @@ import {
     CrossPortalSimilarItem,
     CrossPortalSimilarService,
     DownloadsService,
-    FirebaseSyncService
+    PanelSyncService
 } from '@iptvnator/services';
 import type { PlaybackFallbackRequest } from '../playback-diagnostics/playback-diagnostics.util';
 import { PortalInlinePlayerComponent } from '../portal-inline-player/portal-inline-player.component';
@@ -64,11 +64,11 @@ export class VodDetailsComponent {
     private readonly crossPortalSimilar = inject(CrossPortalSimilarService);
     private readonly externalPlaybackActions = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly router = inject(Router);
-    private readonly firebaseSync = inject(FirebaseSyncService);
+    private readonly panelSync = inject(PanelSyncService);
     private readonly ngZone = inject(NgZone);
 
-    readonly firebasePosition = signal<number | null>(null);
-    readonly effectivePlaybackPosition = computed(() => this.firebasePosition() ?? this.playbackPosition());
+    readonly panelPosition = signal<number | null>(null);
+    readonly effectivePlaybackPosition = computed(() => this.panelPosition() ?? this.playbackPosition());
 
     readonly isElectron = computed(() => this.downloadsService.isAvailable());
 
@@ -134,9 +134,9 @@ export class VodDetailsComponent {
             };
 
             const fetchProgress = async () => {
-                const pos = await this.firebaseSync.getProgress(userIdObj, pbInfo);
+                const pos = await this.panelSync.getProgress(userIdObj, pbInfo);
                 if (pos > 5) {
-                    this.firebasePosition.set(pos);
+                    this.panelPosition.set(pos);
                 }
             };
 

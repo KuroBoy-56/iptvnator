@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
 import mpegts from 'mpegts.js';
-import { DataService, FirebaseSyncService } from '@iptvnator/services';
+import { DataService, PanelSyncService } from '@iptvnator/services';
 import { Channel, createDevLogger } from '@iptvnator/shared/interfaces';
 import {
     InlinePlaybackPlayer,
@@ -52,7 +52,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     @Output() nextEpisodeRequested = new EventEmitter<void>();
 
     private readonly dataService = inject(DataService);
-    private readonly firebaseSync = inject(FirebaseSyncService);
+    private readonly panelSync = inject(PanelSyncService);
 
     @ViewChild('videoPlayer', { static: true })
     videoPlayer!: ElementRef<HTMLVideoElement>;
@@ -87,7 +87,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     private readonly handleLoadedMetadata = async (): Promise<void> => {
         const pbInfo = (window as any).currentPlaybackInfo;
         if (pbInfo && pbInfo.type !== 'live') {
-            const savedPosition = await this.firebaseSync.getProgress(pbInfo.userId, pbInfo);
+            const savedPosition = await this.panelSync.getProgress(pbInfo.userId, pbInfo);
             if (savedPosition > 5) {
                 this.videoPlayer.nativeElement.currentTime = savedPosition;
             } else if (this.startTime > 0) {
@@ -112,7 +112,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             const pbInfo = (window as any).currentPlaybackInfo;
             
             if (pbInfo && pbInfo.type !== 'live') {
-                this.firebaseSync.saveProgress(pbInfo.userId, pbInfo, currentTime, currentDuration);
+                this.panelSync.saveProgress(pbInfo.userId, pbInfo, currentTime, currentDuration);
             }
         }
     };

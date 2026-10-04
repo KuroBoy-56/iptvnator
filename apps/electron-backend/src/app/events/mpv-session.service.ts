@@ -85,7 +85,6 @@ function broadcastProgressToAngular(
                         id: String(contentInfo.contentXtreamId),
                         categoryId: contentInfo.seriesXtreamId ? String(contentInfo.seriesXtreamId) : '0',
                         playlistId: contentInfo.playlistId,
-                        forcedHash: 'bad90e6f3a74f4aeab6ccee156c1726d'
                     }
                 });
             }

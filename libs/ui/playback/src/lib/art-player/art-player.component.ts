@@ -27,7 +27,7 @@ import {
 } from '../playback-diagnostics/playback-diagnostics.util';
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
-import { FirebaseSyncService } from '@iptvnator/services';
+import { PanelSyncService } from '@iptvnator/services';
 
 Artplayer.AUTO_PLAYBACK_TIMEOUT = 10000;
 
@@ -58,7 +58,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     private lastSaveTime = 0;
 
     private readonly elementRef = inject(ElementRef);
-    private readonly firebaseSync = inject(FirebaseSyncService);
+    private readonly panelSync = inject(PanelSyncService);
 
     private readonly handleNativePlaybackError = () => {
         this.playbackIssue.emit(
@@ -144,7 +144,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         const pbInfo = (window as any).currentPlaybackInfo;
 
         if (pbInfo && pbInfo.type !== 'live') {
-            const savedPosition = await this.firebaseSync.getProgress(pbInfo.userId, pbInfo);
+            const savedPosition = await this.panelSync.getProgress(pbInfo.userId, pbInfo);
             if (savedPosition > 5) {
                 initialSeek = savedPosition;
             }
@@ -267,7 +267,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
                 this.lastSaveTime = currentTime;
                 const pbInfo = (window as any).currentPlaybackInfo;
                 if (pbInfo && pbInfo.type !== 'live') {
-                    this.firebaseSync.saveProgress(pbInfo.userId, pbInfo, currentTime, currentDuration);
+                    this.panelSync.saveProgress(pbInfo.userId, pbInfo, currentTime, currentDuration);
                 }
             }
         });
