@@ -234,7 +234,7 @@
 
         &--active {
             border-color: transparent;
-            background: #2f7bff;
+            background: var(--app-selection-color, #e50914);
             color: #fff;
         }
     }

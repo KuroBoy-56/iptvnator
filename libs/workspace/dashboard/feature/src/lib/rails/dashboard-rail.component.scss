@@ -2,7 +2,7 @@
     display: block;
     --rail-card-width: var(--cover-rail-width, 172px);
     --rail-gap: var(--cover-gap, 14px);
-    --rail-radius: 12px;
+    --rail-radius: 8px;
 }
 
 .rail {
@@ -135,10 +135,10 @@
     overflow-x: auto;
     overflow-y: hidden;
     scroll-snap-type: x mandatory;
-    scroll-padding-inline-start: 4px;
+    scroll-padding-inline-start: 12px;
     scrollbar-width: none;
-    padding: 4px;
-    margin: -4px;
+    padding: 12px;
+    margin: -12px;
 
     &::-webkit-scrollbar {
         display: none;
@@ -161,11 +161,13 @@
     color: inherit;
     border-radius: var(--rail-radius);
     transition:
-        transform 0.2s ease,
+        transform 0.25s ease,
         filter 0.2s ease;
 
-    &:hover {
-        transform: translateY(-2px);
+    &:hover,
+    &:focus-within {
+        transform: scale(1.06);
+        z-index: 2;
 
         .rail__art {
             box-shadow:

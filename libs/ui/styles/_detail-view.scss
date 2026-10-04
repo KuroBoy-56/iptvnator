@@ -25,20 +25,20 @@
         --text-secondary: rgba(26, 26, 26, 0.75);
         --text-muted: rgba(26, 26, 26, 0.5);
         // Single primary CTA color — matches --app-selection-color so the
-        // Play button reads as the same blue used everywhere else for
+        // Play button reads as the same brand red used everywhere else for
         // "active / call to action".
-        --accent-color: #2f7bff;
+        --accent-color: #e50914;
         --tag-bg: rgba(0, 0, 0, 0.06);
         --tag-border: rgba(0, 0, 0, 0.12);
         --play-idle-bg: linear-gradient(
             135deg,
-            #2f7bff 0%,
-            #3b86ff 52%,
-            #4a90ff 100%
+            #e50914 0%,
+            #f0121c 52%,
+            #f6121d 100%
         );
         --play-idle-fg: #ffffff;
-        --play-idle-border: rgba(47, 123, 255, 0.4);
-        --play-idle-shadow: 0 18px 38px rgba(47, 123, 255, 0.32);
+        --play-idle-border: rgba(229, 9, 20, 0.4);
+        --play-idle-shadow: 0 18px 38px rgba(229, 9, 20, 0.32);
         --play-launching-bg: linear-gradient(
             135deg,
             #ffd36f 0%,
@@ -77,19 +77,19 @@
         --text-primary: #fff;
         --text-secondary: rgba(255, 255, 255, 0.7);
         --text-muted: rgba(255, 255, 255, 0.5);
-        --accent-color: #78adff;
+        --accent-color: #e50914;
         --tag-bg: rgba(255, 255, 255, 0.1);
         --tag-border: rgba(255, 255, 255, 0.2);
         --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
         --play-idle-bg: linear-gradient(
             135deg,
-            #2f7bff 0%,
-            #4f8eff 58%,
-            #78adff 100%
+            #e50914 0%,
+            #f0121c 58%,
+            #f6121d 100%
         );
         --play-idle-fg: #ffffff;
-        --play-idle-border: rgba(120, 173, 255, 0.32);
-        --play-idle-shadow: 0 20px 42px rgba(47, 123, 255, 0.32);
+        --play-idle-border: rgba(229, 9, 20, 0.32);
+        --play-idle-shadow: 0 20px 42px rgba(229, 9, 20, 0.32);
         --play-launching-bg: linear-gradient(
             135deg,
             #ffdd79 0%,

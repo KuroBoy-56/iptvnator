@@ -10,9 +10,12 @@ mat-card {
     background: transparent;
 }
 
-mat-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+mat-card:hover,
+mat-card:focus-within {
+    position: relative;
+    z-index: 1;
+    transform: scale(1.05);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.5);
 }
 
 // ─── Grid layout ─────────────────────────────────────────────────────────────

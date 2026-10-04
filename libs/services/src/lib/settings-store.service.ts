@@ -33,7 +33,7 @@ const DEFAULT_SETTINGS: Settings = {
     showDashboard: true,
     startupBehavior: StartupBehavior.FirstView,
     showExternalPlaybackBar: true,
-    theme: Theme.SystemTheme,
+    theme: Theme.DarkTheme,
     mpvPlayerPath: '',
     mpvPlayerArguments: '',
     mpvReuseInstance: false,
