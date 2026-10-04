@@ -1,3 +1,4 @@
+import type { PanelBridgeApi } from './panel-bridge.interface';
 import {
     EmbeddedMpvBounds,
     EmbeddedMpvRecordingStartOptions,
@@ -503,7 +504,7 @@ export interface ElectronDownloadItem {
     updatedAt?: string;
 }
 
-export interface ElectronBridgeApi {
+export interface ElectronBridgeApi extends PanelBridgeApi {
     onPortalDebugEvent?: (
         callback: (data: PortalDebugEvent) => void
     ) => () => void;

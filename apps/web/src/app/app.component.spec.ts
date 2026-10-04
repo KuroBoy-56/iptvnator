@@ -25,6 +25,8 @@ import { PlaylistActions } from '@iptvnator/m3u-state';
 import { AppComponent } from './app.component';
 import { ElectronServiceStub } from './services/electron.service.stub';
 import { SettingsService } from './services/settings.service';
+import { PanelCacheSyncService } from './services/panel-cache-sync.service';
+import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 
 jest.spyOn(global.console, 'error').mockImplementation(() => {
     // suppress console.error output during tests
@@ -131,6 +133,11 @@ describe('AppComponent', () => {
                         openAccountInfo: jest.fn(),
                     },
                 },
+                { provide: PORTAL_EXTERNAL_PLAYBACK, useValue: {} },
+                MockProvider(PanelCacheSyncService, {
+                    start: jest.fn(),
+                    stop: jest.fn(),
+                }),
             ],
         })
             .overrideComponent(AppComponent, {

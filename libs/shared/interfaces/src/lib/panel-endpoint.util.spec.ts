@@ -1,4 +1,4 @@
-import { decodePanelUrl, deriveApiBase, getPanelApiBase, panelEndpoint } from './panel-endpoint';
+import { decodePanelUrl, deriveApiBase, getPanelApiBase, panelEndpoint } from './panel-endpoint.util';
 
 function encode(url: string, key: string): string {
     let xored = '';

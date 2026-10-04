@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
+import { createPanelBridge } from '../panel/panel.preload';
 import {
     APP_UPDATE_CHECK,
     APP_UPDATE_DOWNLOAD,
@@ -834,7 +835,7 @@ const electronApi: any = {
         ipcRenderer.on('DOWNLOADS_UPDATE_EVENT', handler);
         return () => ipcRenderer.off('DOWNLOADS_UPDATE_EVENT', handler);
     },
-    getHardwareId: () => ipcRenderer.invoke('GET_HARDWARE_ID'),
+    ...createPanelBridge(ipcRenderer),
 };
 
 contextBridge.exposeInMainWorld('electron', wrapElectronApi(electronApi));

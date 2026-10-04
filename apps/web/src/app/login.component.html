@@ -1,83 +1,76 @@
-<div class="login-container">
-  <div class="login-box">
-    <h2>Bienvenido a LatMpx TV+</h2>
-    
-    <div class="form-group">
-      <label>Usuario</label>
-      <input type="text" #user class="form-control" placeholder="Ingresa tu usuario">
-    </div>
-
-    <div class="form-group">
-      <label>Contraseña</label>
-      <div class="password-wrapper">
-        <input [type]="isPasswordVisible ? 'text' : 'password'" #pass class="form-control" placeholder="Ingresa tu contraseña">
-        
-        <button type="button" class="eye-btn" (click)="togglePasswordVisibility()">
-          @if (isPasswordVisible) {
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-              <circle cx="12" cy="12" r="3"></circle>
-            </svg>
-          } @else {
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-              <line x1="1" y1="1" x2="23" y2="23"></line>
-            </svg>
-          }
-        </button>
-      </div>
-    </div>
-
-    <!-- INYECCIÓN: BOTÓN DNS / VPN -->
-    <div style="text-align: center; margin-bottom: 20px;">
-        <button type="button" (click)="toggleDns()" 
-                [ngStyle]="{
-                    'background-color': currentDns !== 'off' ? '#28a745' : '#343a40', 
-                    'color': 'white', 
-                    'border': 'none', 
-                    'padding': '10px 20px', 
-                    'border-radius': '8px', 
-                    'cursor': 'pointer', 
-                    'font-weight': 'bold',
-                    'transition': 'background-color 0.3s',
-                    'width': '100%'
-                }">
-            {{ getDnsLabel() }}
-        </button>
-        <p style="font-size: 12px; color: #adb5bd; margin-top: 8px; margin-bottom: 0;">
-            * Activa esta opción si tu proveedor de internet bloquea la conexión.
-        </p>
-    </div>
-
-    <div class="action-buttons">
-      <button class="btn-primary" [disabled]="isLoading" (click)="login(user.value, pass.value)">
-        {{ isLoading ? 'Conectando...' : 'Entrar' }}
-      </button>
-      <button class="btn-secondary" [disabled]="isLoading" (click)="activateDemo(demoCode.value)">
-        Auto-Demo
-      </button>
-    </div>
-
-    <div class="demo-divider" (click)="toggleDemoPanel()">
-      <div class="line"></div>
-      <div class="tab">
-        @if (!isDemoPanelOpen) {
-          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-        } @else {
-          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>
-        }
-      </div>
-      <div class="line"></div>
-    </div>
-
-    <div class="demo-panel" [class.expanded]="isDemoPanelOpen">
-      <input type="text" #demoCode class="form-control" placeholder="ID o Código del demo (Opcional)">
-    </div>
-
-    @if (errorMessage) {
-      <div class="error-message" [class.success]="isSuccessMessage">
-        {{ errorMessage }}
-      </div>
+<div class="nf-login-page">
+    @if (posters().length) {
+        <div class="nf-login-wall" aria-hidden="true">
+            <div class="nf-login-wall-inner">
+                @for (poster of posters(); track $index) {
+                    <img [src]="poster" alt="" loading="lazy" decoding="async" />
+                }
+                @for (poster of posters(); track $index) {
+                    <img [src]="poster" alt="" loading="lazy" decoding="async" />
+                }
+            </div>
+        </div>
     }
-  </div>
+    <div class="nf-login-shade"></div>
+
+    <header class="nf-login-header">
+        <span class="nf-login-brand">LatMpx <b>TV+</b></span>
+    </header>
+
+    <main class="nf-login-main">
+        <form class="nf-login-box" (ngSubmit)="login()" autocomplete="on" novalidate>
+            <h1>Iniciar sesión</h1>
+
+            @if (message(); as msg) {
+                <div class="nf-login-msg" [class]="'nf-login-msg ' + msg.kind" role="alert">{{ msg.text }}</div>
+            }
+
+            @if (checking()) {
+                <p class="nf-login-hint">Verificando el dispositivo…</p>
+            } @else {
+                <label class="nf-field">
+                    <input type="text" name="username" placeholder=" " autocomplete="username" autocapitalize="none" spellcheck="false" [(ngModel)]="username" />
+                    <span>Usuario</span>
+                </label>
+
+                <label class="nf-field">
+                    <input [type]="showPassword() ? 'text' : 'password'" name="password" placeholder=" " autocomplete="current-password" [(ngModel)]="password" />
+                    <span>Contraseña</span>
+                    <button type="button" class="nf-eye" [class.on]="showPassword()" aria-label="Mostrar contraseña" (click)="showPassword.set(!showPassword())">
+                        <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 5c-5 0-9 4.5-10 7 1 2.5 5 7 10 7s9-4.5 10-7c-1-2.5-5-7-10-7zm0 11.5A4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 0 1 0 9zm0-7a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"/></svg>
+                    </button>
+                </label>
+
+                @if (dnsList().length > 1) {
+                    <label class="nf-select">
+                        <span>Servidor</span>
+                        <select name="dns" [(ngModel)]="selectedDns">
+                            @for (dns of dnsList(); track dns; let i = $index) {
+                                <option [value]="dns">Servidor {{ i + 1 }}</option>
+                            }
+                        </select>
+                    </label>
+                }
+
+                <button class="nf-btn-red nf-btn-block" type="submit" [class.loading]="busy()" [disabled]="busy() || demoBusy()">
+                    <span class="lbl">Iniciar sesión</span>
+                    <span class="nf-spinner" aria-hidden="true"></span>
+                </button>
+
+                <button class="nf-btn-dark nf-btn-block" type="button" [class.loading]="demoBusy()" [disabled]="demoBlocked() || busy() || demoBusy()" (click)="autoDemo()">
+                    <span class="lbl">{{ demoBlocked() ? 'Demo ya utilizada' : 'Auto-Demo' }}</span>
+                    <span class="nf-spinner" aria-hidden="true"></span>
+                </button>
+            }
+
+            <div class="nf-login-dns">
+                <app-secure-dns-picker />
+            </div>
+
+            @if (deviceId()) {
+                <p class="nf-device">ID del dispositivo <code>{{ deviceId() }}</code></p>
+            }
+            <p class="nf-login-hint">Ingresa con el usuario y la contraseña de tu suscripción o activa una demo de 24 horas.</p>
+        </form>
+    </main>
 </div>

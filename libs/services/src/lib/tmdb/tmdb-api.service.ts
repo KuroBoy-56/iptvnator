@@ -76,6 +76,20 @@ export class TmdbApiService {
         );
     }
 
+    /** Movies now in theaters (login poster wall) */
+    async getNowPlaying(
+        language: string,
+        apiKey: string,
+        page = 1
+    ): Promise<TmdbSearchResult[]> {
+        const response = await this.request<TmdbSearchResponse>(
+            '/movie/now_playing',
+            { language, page: String(page) },
+            apiKey
+        );
+        return response.results ?? [];
+    }
+
     /** Weekly trending titles for one media type */
     async getTrending(
         mediaType: 'movie' | 'tv',

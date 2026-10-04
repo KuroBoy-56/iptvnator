@@ -8,6 +8,7 @@ export const VLC_PLAYER_PATH = 'VLC_PLAYER_PATH';
 export const VLC_PLAYER_ARGUMENTS = 'VLC_PLAYER_ARGUMENTS';
 export const MPV_REUSE_INSTANCE = 'MPV_REUSE_INSTANCE';
 export const VLC_REUSE_INSTANCE = 'VLC_REUSE_INSTANCE';
+export const SECURE_DNS_MODE = 'SECURE_DNS_MODE';
 
 export type StoreType = {
     [WINDOW_BOUNDS]: Electron.Rectangle;
@@ -17,6 +18,7 @@ export type StoreType = {
     [VLC_PLAYER_ARGUMENTS]: string;
     [MPV_REUSE_INSTANCE]: boolean;
     [VLC_REUSE_INSTANCE]: boolean;
+    [SECURE_DNS_MODE]: string;
 };
 
 // Export singleton store instance

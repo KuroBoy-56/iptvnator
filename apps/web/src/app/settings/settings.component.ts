@@ -79,6 +79,7 @@ import { SettingsPlaybackSectionComponent } from './settings-playback-section.co
 import { SettingsRemoteControlSectionComponent } from './settings-remote-control-section.component';
 import { SettingsResetSectionComponent } from './settings-reset-section.component';
 import { SettingsSectionScrollDirective } from './settings-section-scroll.directive';
+import { SecureDnsPickerComponent } from '../panel-login/secure-dns-picker.component';
 import { SettingsTmdbSectionComponent } from './settings-tmdb-section.component';
 import { SettingsBackupFacade } from './settings-backup.facade';
 import { SettingsPlaylistResetFacade } from './settings-playlist-reset.facade';
@@ -116,6 +117,7 @@ const APP_UPDATE_STATUS_LOAD_RETRY_DELAY_MS = 250;
         SettingsResetSectionComponent,
         SettingsSectionScrollDirective,
         SettingsTmdbSectionComponent,
+        SecureDnsPickerComponent,
     ],
     providers: [
         SettingsBackupFacade,
@@ -166,36 +168,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
     private readonly settingsCtx = inject(SettingsContextService);
     readonly activeSection = this.settingsCtx.activeSection;
-
-    // --- VARIABLES Y MÉTODOS DEL BOTÓN VPN (DNS DoH) ---
-    currentDns: string = 'off';
-
-    toggleDns() {
-        if (this.currentDns === 'off') {
-            this.currentDns = 'cloudflare';
-        } else if (this.currentDns === 'cloudflare') {
-            this.currentDns = 'google';
-        } else {
-            this.currentDns = 'off';
-        }
-        localStorage.setItem('secure_dns', this.currentDns);
-        this.applyDns(this.currentDns);
-    }
-
-    applyDns(provider: string) {
-        try {
-            const win = window as any;
-            if (win.electron && win.electron.ipcRenderer) {
-                win.electron.ipcRenderer.send('SET_SECURE_DNS', provider);
-            }
-        } catch (e) {}
-    }
-
-    getDnsLabel(): string {
-        if (this.currentDns === 'cloudflare') return '🛡️ DNS: Cloudflare (Activo)';
-        if (this.currentDns === 'google') return '🛡️ DNS: Google (Activo)';
-        return '🌐 DNS Privado: Apagado';
-    }
 
     readonly osPlayers = computed(() => {
         // Detectamos si alguna de las listas cargadas tiene la palabra "demo" (sin importar mayúsculas/minúsculas)
@@ -276,9 +248,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
     }
 
     async ngOnInit(): Promise<void> {
-        this.currentDns = localStorage.getItem('secure_dns') || 'off';
-        this.applyDns(this.currentDns);
-
         await this.settingsStore.loadSettings();
         this.setSettings();
         this.bindDashboardControlsEnabledState();

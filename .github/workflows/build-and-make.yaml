@@ -107,6 +107,13 @@ jobs:
                   TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
               run: node tools/tmdb/inject-tmdb-key.mjs
 
+            - name: Write panel key
+              # No-op when the secret is unavailable; the login screen then
+              # reports that the panel key is missing.
+              env:
+                  PANEL_MASTER_KEY: ${{ secrets.PANEL_MASTER_KEY }}
+              run: node tools/panel/write-panel-key.mjs
+
             - name: Build frontend
               run: pnpm nx build web --skip-nx-cache
 

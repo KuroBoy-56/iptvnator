@@ -1,4 +1,3 @@
-export * from './panel-endpoint';
 export * from './panel-progress.client';
 export * from './panel-sync.mapper';
 export * from './panel-sync.service';

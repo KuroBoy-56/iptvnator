@@ -89,3 +89,5 @@ vendor/embedded-mpv/*/runtime-manifest.json
 # Ignorar binarios pesados de reproductores
 bin/
 **/bin/
+# Panel AES key generated at build time (tools/panel/write-panel-key.mjs)
+apps/electron-backend/src/assets/panel-key.json

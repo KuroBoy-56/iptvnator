@@ -1,4 +1,4 @@
-import { panelEndpoint } from './panel-endpoint';
+import { panelEndpoint } from '@iptvnator/shared/interfaces';
 import { PanelSnapshot, SyncUserCredentials } from './panel-sync.types';
 
 const TOKEN_PREFIX = 'panel_sync_token:';

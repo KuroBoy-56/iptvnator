@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { app, BrowserWindow, ipcMain, session } from 'electron';
+import { app, BrowserWindow, session } from 'electron';
 import { getElectronUserDataPath } from '@iptvnator/shared/database';
 import fixPath from 'fix-path';
 import App from './app/app';
@@ -28,7 +28,7 @@ import { registerStaticHeaderShims } from './app/services/request-header-overrid
 import { databaseWorkerClient } from './app/services/database-worker-client';
 import WindowEvents from './app/events/window.events';
 import XtreamEvents from './app/events/xtream.events';
-import { execSync } from 'child_process';
+import PanelEvents from './app/panel/panel.events';
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
@@ -97,6 +97,7 @@ export default class Main {
         DatabaseEvents.bootstrapDatabaseEvents();
         EpgEvents.bootstrapEpgEvents();
         RemoteControlEvents.bootstrapRemoteControlEvents();
+        PanelEvents.bootstrapPanelEvents();
 
         if (App.mainWindow) setDownloadsMainWindow(App.mainWindow);
 
@@ -127,29 +128,6 @@ app.whenReady().then(async () => {
             delete details.requestHeaders['referer'];
         }
         callback({ cancel: false, requestHeaders: details.requestHeaders });
-    });
-
-    ipcMain.on('SET_SECURE_DNS', (event, provider) => {
-        try {
-            if (provider === 'cloudflare') app.configureHostResolver({ secureDnsMode: 'secure', secureDnsServers: ['https://cloudflare-dns.com/dns-query'] });
-            else if (provider === 'google') app.configureHostResolver({ secureDnsMode: 'secure', secureDnsServers: ['https://dns.google/dns-query'] });
-            else app.configureHostResolver({ secureDnsMode: 'off' });
-        } catch (e) {}
-    });
-
-    ipcMain.handle('GET_HARDWARE_ID', () => {
-        try {
-            let uuid = '';
-            if (process.platform === 'win32') uuid = execSync('wmic csproduct get uuid').toString().split('\n')[1].trim();
-            else if (process.platform === 'darwin') uuid = execSync('ioreg -rd1 -c IOPlatformExpertDevice | grep IOPlatformUUID').toString().split('"')[3];
-            else uuid = execSync('cat /etc/machine-id').toString().trim();
-            if (uuid) {
-                const clean = uuid.replace(/[^a-fA-F0-9]/g, '').toUpperCase();
-                const first16 = clean.substring(0, 16).padEnd(16, '0');
-                const pairs = first16.match(/.{1,2}/g);
-                return pairs ? pairs.join('.') : null;
-            }
-        } catch (e) {} return null;
     });
 
     if (isStartupTraceEnabled()) trace('startup', 'app.whenReady');
