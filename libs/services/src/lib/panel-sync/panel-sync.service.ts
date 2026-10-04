@@ -10,6 +10,8 @@ import {
 } from './panel-sync.mapper';
 import {
     FavoriteSyncMeta,
+    PanelEpgChannel,
+    PanelEpgProgram,
     PanelProgressEntry,
     PlaybackSyncInfo,
     SyncFavoritesTree,
@@ -19,6 +21,8 @@ import {
 import { lookupSeriesInfo } from './series-info.lookup';
 
 const MIN_SAVE_SECONDS = 5;
+/** api/epg.php accepts at most this many channels per request. */
+export const PANEL_EPG_BATCH_SIZE = 400;
 /** Players report every few seconds; the panel gets at most one save per item in this window. */
 export const PANEL_SAVE_INTERVAL_MS = 20_000;
 
@@ -204,6 +208,30 @@ export class PanelSyncService {
     async getAllFavorites(userIdObj?: SyncUserCredentials | null): Promise<SyncFavoritesTree> {
         const snapshot = await this.client.getSnapshot(this.creds(userIdObj));
         return toFavoritesTree(snapshot?.favorites);
+    }
+
+    /**
+     * Fallback guide from api/epg.php for channels the provider has no EPG
+     * for. Requests are split into batches of PANEL_EPG_BATCH_SIZE.
+     */
+    async fetchFallbackEpg(
+        channels: PanelEpgChannel[],
+        userIdObj?: SyncUserCredentials | null
+    ): Promise<Record<string, PanelEpgProgram[]>> {
+        const creds = this.creds(userIdObj);
+        const out: Record<string, PanelEpgProgram[]> = {};
+        for (let i = 0; i < channels.length; i += PANEL_EPG_BATCH_SIZE) {
+            const batch = channels.slice(i, i + PANEL_EPG_BATCH_SIZE);
+            const body = await this.client.postJson<{ epg?: Record<string, PanelEpgProgram[]> }>(
+                'epg.php',
+                creds,
+                { channels: batch }
+            );
+            for (const [id, programs] of Object.entries(body?.epg ?? {})) {
+                if (Array.isArray(programs)) out[id] = programs;
+            }
+        }
+        return out;
     }
 
     /** Drops the cached snapshot so the next read comes from the panel. */

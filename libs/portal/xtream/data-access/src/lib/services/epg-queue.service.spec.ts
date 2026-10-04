@@ -3,6 +3,7 @@ import { SettingsStore } from '@iptvnator/services';
 import { EpgQueueService } from './epg-queue.service';
 import { XtreamApiService } from './xtream-api.service';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
+import { XtreamPanelEpgFallbackService } from './xtream-panel-epg-fallback.service';
 import type { EpgItem } from '@iptvnator/shared/interfaces';
 
 describe('EpgQueueService', () => {
@@ -13,6 +14,7 @@ describe('EpgQueueService', () => {
         getCurrentProgramsBatch: jest.Mock;
     };
     let settings: { preferUploadedEpgOverXtream: jest.Mock };
+    let panelFallback: { getPrograms: jest.Mock };
 
     const credentials = {
         serverUrl: 'https://xtream.example.com',
@@ -39,6 +41,7 @@ describe('EpgQueueService', () => {
             getCurrentProgramsBatch: jest.fn().mockResolvedValue({}),
         };
         settings = { preferUploadedEpgOverXtream: jest.fn(() => false) };
+        panelFallback = { getPrograms: jest.fn().mockResolvedValue([]) };
 
         TestBed.configureTestingModule({
             providers: [
@@ -46,6 +49,10 @@ describe('EpgQueueService', () => {
                 { provide: XtreamApiService, useValue: xtreamApi },
                 { provide: XtreamXmltvFallbackService, useValue: fallback },
                 { provide: SettingsStore, useValue: settings },
+                {
+                    provide: XtreamPanelEpgFallbackService,
+                    useValue: panelFallback,
+                },
             ],
         });
 
@@ -65,6 +72,25 @@ describe('EpgQueueService', () => {
         priv().xmltvPreviewByStreamId.set(streamId, item);
         return item;
     }
+
+    it('asks the panel guide when the provider and XMLTV have nothing', async () => {
+        const future = Math.floor(Date.now() / 1000) + 600;
+        const panelItem = {
+            ...makeEpgItem('canal5.mx', 'Panel show'),
+            start_timestamp: String(future - 1200),
+            stop_timestamp: String(future),
+        };
+        panelFallback.getPrograms.mockResolvedValue([panelItem]);
+        priv().epgChannelByStreamId.set(202, 'canal5.mx');
+
+        await priv().fetchEpg(credentials, 202);
+
+        expect(panelFallback.getPrograms).toHaveBeenCalledWith(
+            { streamId: 202, epgChannelId: 'canal5.mx', name: undefined },
+            credentials
+        );
+        expect(service.getCached(202)).toEqual([panelItem]);
+    });
 
     it('caches empty EPG responses and does not immediately refetch them', async () => {
         xtreamApi.getShortEpg.mockResolvedValue([]);

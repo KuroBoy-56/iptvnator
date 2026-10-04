@@ -13,6 +13,7 @@ import {
     XtreamCredentials,
 } from '../../services/xtream-api.service';
 import { XtreamXmltvFallbackService } from '../../services/xtream-xmltv-fallback.service';
+import { XtreamPanelEpgFallbackService } from '../../services/xtream-panel-epg-fallback.service';
 import { createLogger } from '@iptvnator/portal/shared/util';
 
 /**
@@ -44,6 +45,8 @@ export function withEpg() {
         selectedItem?: () => {
             xtream_id?: number | null;
             epg_channel_id?: string | null;
+            title?: string | null;
+            name?: string | null;
         } | null;
     };
 
@@ -77,6 +80,7 @@ export function withEpg() {
         withMethods((store) => {
             const apiService = inject(XtreamApiService);
             const fallbackService = inject(XtreamXmltvFallbackService);
+            const panelFallback = inject(XtreamPanelEpgFallbackService);
             const runtime = inject(RuntimeCapabilitiesService);
             const settingsStore = inject(SettingsStore);
 
@@ -111,6 +115,16 @@ export function withEpg() {
                 apiService.getFullEpg(credentials, xtreamId, {
                     suppressErrorLog: true,
                 });
+
+            /** Last resort for channels without a guide: the panel EPG. */
+            const orPanel = async (
+                items: EpgItem[],
+                credentials: XtreamCredentials,
+                channel: { streamId: number; epgChannelId?: string | null; name?: string | null }
+            ): Promise<EpgItem[]> =>
+                items.length > 0
+                    ? items
+                    : panelFallback.getPrograms(channel, credentials);
 
             return {
                 /**
@@ -147,13 +161,20 @@ export function withEpg() {
                     patchState(store, { epgItems: [], isLoadingEpg: true });
 
                     try {
-                        const epgItems =
+                        const epgItems = await orPanel(
                             await fallbackService.resolveCurrentEpg({
                                 epgChannelId: selectedItem.epg_channel_id,
                                 preferUploaded: preferUploaded(),
                                 fetchProvider: () =>
                                     fetchFullProvider(credentials, xtreamId),
-                            });
+                            }),
+                            credentials,
+                            {
+                                streamId: xtreamId,
+                                epgChannelId: selectedItem.epg_channel_id,
+                                name: selectedItem.title ?? selectedItem.name,
+                            }
+                        );
 
                         patchState(store, {
                             epgItems,
@@ -183,7 +204,7 @@ export function withEpg() {
                     if (!credentials) return [];
 
                     try {
-                        return await fallbackService.resolveCurrentEpg({
+                        const items = await fallbackService.resolveCurrentEpg({
                             epgChannelId,
                             preferUploaded: preferUploaded(),
                             fetchProvider: () =>
@@ -193,6 +214,10 @@ export function withEpg() {
                                     1,
                                     { suppressErrorLog: true }
                                 ),
+                        });
+                        return await orPanel(items, credentials, {
+                            streamId,
+                            epgChannelId,
                         });
                     } catch (error) {
                         logger.error('Error loading channel EPG', error);

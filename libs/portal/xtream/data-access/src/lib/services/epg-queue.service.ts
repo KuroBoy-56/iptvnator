@@ -4,6 +4,10 @@ import { EpgItem } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
 import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
+import {
+    upcomingPrograms,
+    XtreamPanelEpgFallbackService,
+} from './xtream-panel-epg-fallback.service';
 import { createLogger } from '@iptvnator/portal/shared/util';
 
 interface CacheEntry {
@@ -19,6 +23,8 @@ interface CacheEntry {
 export interface EpgQueueEntry {
     streamId: number;
     epgChannelId?: string | null;
+    /** Channel name, used by the panel EPG fallback to match by name. */
+    name?: string | null;
 }
 
 /**
@@ -43,6 +49,7 @@ export interface EpgQueueEntry {
 export class EpgQueueService implements OnDestroy {
     private readonly apiService = inject(XtreamApiService);
     private readonly fallbackService = inject(XtreamXmltvFallbackService);
+    private readonly panelFallback = inject(XtreamPanelEpgFallbackService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly logger = createLogger('EpgQueueService');
     private readonly previewLimit = 3;
@@ -51,6 +58,7 @@ export class EpgQueueService implements OnDestroy {
     private queue: number[] = [];
     private readonly inFlight = new Set<number>();
     private readonly epgChannelByStreamId = new Map<number, string>();
+    private readonly nameByStreamId = new Map<number, string>();
     private readonly xmltvPreviewByStreamId = new Map<number, EpgItem>();
     private visibleSet = new Set<number>();
     private processing = false;
@@ -146,6 +154,7 @@ export class EpgQueueService implements OnDestroy {
                 this.epgChannelByStreamId.delete(entry.streamId);
             }
             this.xmltvPreviewByStreamId.delete(entry.streamId);
+            if (entry.name) this.nameByStreamId.set(entry.streamId, entry.name);
         }
         for (const [epgChannelId, item] of Object.entries(batchResult)) {
             const streams = streamsByEpgId.get(epgChannelId) ?? [];
@@ -199,6 +208,7 @@ export class EpgQueueService implements OnDestroy {
             if (!visibleIds.has(id) && this.getCached(id) === null) {
                 this.epgChannelByStreamId.delete(id);
                 this.xmltvPreviewByStreamId.delete(id);
+                this.nameByStreamId.delete(id);
             }
         }
     }
@@ -247,7 +257,24 @@ export class EpgQueueService implements OnDestroy {
             }
 
             const xmltv = this.xmltvPreviewByStreamId.get(streamId);
-            this.recordSuccess(streamId, xmltv ? [xmltv] : []);
+            if (xmltv) {
+                this.recordSuccess(streamId, [xmltv]);
+                return;
+            }
+
+            // Provider and local XMLTV have nothing: ask the panel guide.
+            const panelItems = await this.panelFallback.getPrograms(
+                {
+                    streamId,
+                    epgChannelId: this.epgChannelByStreamId.get(streamId),
+                    name: this.nameByStreamId.get(streamId),
+                },
+                credentials
+            );
+            this.recordSuccess(
+                streamId,
+                upcomingPrograms(panelItems, this.previewLimit)
+            );
         } catch (error) {
             this.failureTimestamps.set(streamId, Date.now());
             this.logger.error(

@@ -95,3 +95,18 @@ export interface FavoriteSyncMeta {
     categoryId?: string | number;
     url?: string;
 }
+
+/** Channel sent to api/epg.php when the provider has no guide for it. */
+export interface PanelEpgChannel {
+    id: string;
+    epg?: string;
+    name?: string;
+}
+
+/** Program returned by api/epg.php (epoch seconds). */
+export interface PanelEpgProgram {
+    s: number;
+    e: number;
+    t: string;
+    d?: string;
+}

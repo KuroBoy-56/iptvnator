@@ -111,4 +111,22 @@ describe('PanelSyncService', () => {
             .filter((b) => b?.action === 'save');
         expect(saves.map((b) => b.position)).toEqual([100, 104]);
     });
+
+    it('sends the EPG fallback to epg.php in batches of 400 channels', async () => {
+        const epgBodies: { channels: unknown[]; token: string }[] = [];
+        global.fetch = jest.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+            const body = init?.body ? JSON.parse(String(init.body)) : null;
+            if (body?.action === 'auth') return jsonResponse({ success: true, token: 'tok' });
+            if (String(url).endsWith('epg.php')) {
+                epgBodies.push(body);
+                return jsonResponse({ epg: { [body.channels[0].id]: [{ s: 1, e: 2, t: 'x' }] } });
+            }
+            return jsonResponse(snapshot);
+        }) as typeof fetch;
+        const channels = Array.from({ length: 401 }, (_, i) => ({ id: String(i), name: `C${i}` }));
+        const epg = await service().fetchFallbackEpg(channels, creds);
+        expect(epgBodies.map((b) => b.channels.length)).toEqual([400, 1]);
+        expect(epgBodies[0].token).toBe('tok');
+        expect(Object.keys(epg)).toEqual(['0', '400']);
+    });
 });

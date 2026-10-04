@@ -246,6 +246,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         const uncachedEntries: {
             streamId: number;
             epgChannelId?: string | null;
+            name?: string | null;
         }[] = [];
 
         // Apply cached results immediately
@@ -266,6 +267,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 uncachedEntries.push({
                     streamId: channel.xtream_id,
                     epgChannelId: channel.epg_channel_id ?? null,
+                    name: channel.title ?? null,
                 });
             }
         }

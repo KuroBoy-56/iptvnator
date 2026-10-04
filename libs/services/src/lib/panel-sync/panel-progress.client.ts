@@ -24,7 +24,7 @@ function writeToken(user: string, token: string | null): void {
 }
 
 /**
- * Talks to api/progress.php. The Xtream password is sent only once (action
+ * Talks to the panel API (progress.php, epg.php). The Xtream password is sent only once (action
  * "auth"); afterwards only the signed token is kept and reused.
  */
 export class PanelProgressClient {
@@ -127,6 +127,26 @@ export class PanelProgressClient {
         const user = creds.username?.trim();
         const cached = user ? this.snapshots.get(user) : undefined;
         if (cached) patch(cached.data);
+    }
+
+    /** POSTs JSON with the token to another panel endpoint (e.g. epg.php). */
+    async postJson<T>(
+        file: string,
+        creds: SyncUserCredentials,
+        body: Record<string, unknown>
+    ): Promise<T | null> {
+        try {
+            const res = await this.withToken(creds, (token) =>
+                this.fetchFn(panelEndpoint(file), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...body, token }),
+                })
+            );
+            return res?.ok ? ((await res.json().catch(() => null)) as T | null) : null;
+        } catch {
+            return null;
+        }
     }
 
     async post(creds: SyncUserCredentials, body: Record<string, unknown>): Promise<boolean> {

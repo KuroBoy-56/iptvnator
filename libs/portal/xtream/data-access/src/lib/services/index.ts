@@ -4,3 +4,4 @@ export * from './favorites.service';
 export * from './xtream-api.service';
 export * from './xtream-url.service';
 export * from './xtream-xmltv-fallback.service';
+export * from './xtream-panel-epg-fallback.service';
