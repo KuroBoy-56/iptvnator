@@ -37,8 +37,8 @@ Core implementation:
 
 Current workspace routes:
 
-1. `/` -> `/workspace`
-2. `/workspace` -> `/workspace/dashboard`
+1. `/` -> `/login` (panel device login; see `panel-integration.md`)
+2. `/workspace` -> `/workspace/dashboard` (behind `AuthGuard`)
 3. `/workspace/dashboard`
 4. `/workspace/sources`
 5. `/workspace/playlists/:id/:view`
@@ -47,8 +47,9 @@ Current workspace routes:
 8. `/workspace/search`
 9. `/workspace/downloads`
 10. `/workspace/settings`
-11. `/workspace/xtreams/:id/...`
-12. `/workspace/stalker/:id/...`
+11. `/workspace/sports` (panel sports agenda; rail link `sports_soccer`)
+12. `/workspace/xtreams/:id/...`
+13. `/workspace/stalker/:id/...`
 
 Compatibility redirect:
 

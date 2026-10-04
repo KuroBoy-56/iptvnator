@@ -22,6 +22,22 @@ The application is a cross-platform, open-source project built with Electron and
 
 ![IPTVnator: Channels list, player and epg list](./apps/website/public/screenshots/screenshot-player.webp)
 
+## LatMpx TV+ panel integration
+
+This build is tied to the operator panel (see [docs/architecture/panel-integration.md](docs/architecture/panel-integration.md)):
+
+- Device login like the Android app (device id, activation, Auto-Demo) and a secure DNS picker on the login screen and in Settings
+- Watch progress and favorites live on the panel (`api/progress.php`); MPV/VLC save progress and resume from it
+- Fallback EPG from the panel for channels without a provider guide
+- Sports section with the panel agenda and a "TV en vivo" button that opens the matching live channel
+- Dark theme with the web player's red accent
+
+Panel login needs the AES master key at build time. It is never committed:
+set `PANEL_MASTER_KEY` (64 hex chars) in the environment for development, or
+run `PANEL_MASTER_KEY=... node tools/panel/write-panel-key.mjs` before
+`nx build electron-backend` to generate the git-ignored
+`apps/electron-backend/src/assets/panel-key.json`.
+
 ## Features
 
 **Playlists & sources**

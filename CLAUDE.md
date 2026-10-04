@@ -43,6 +43,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 IPTVnator is a cross-platform IPTV player application built with Angular and Electron, supporting M3U/M3U8 playlists, Xtream Codes API, and Stalker portals.
 
+This fork ships as "LatMpx TV+" and is tied to the operator panel: panel device login (`/login`), panel-backed progress/favorites sync, panel fallback EPG and a sports section. There is no Firebase. See `docs/architecture/panel-integration.md`.
+
 **Dual Environment Support**: The application is designed to work in both Electron and as a Progressive Web App (PWA). The architecture uses a factory pattern to inject environment-specific services at runtime, ensuring the same codebase works in both contexts.
 
 ## Development Commands
@@ -216,7 +218,7 @@ Never add new files to the baseline.
 
 This is an Nx monorepo with the following structure:
 
-- **apps/web** - Angular application (frontend, shared by Electron and PWA)
+- **apps/web** - Angular application (frontend, shared by Electron and PWA); panel login UI in `src/app/panel-login/` + `login.component.*`, sports section in `src/app/sports/`, panel cache rebuild in `src/app/services/panel-cache-sync.service.ts`
 - **apps/electron-backend** - Electron main process
 - **apps/web-backend** - HTTP backend for the self-hosted PWA (`/parse`, `/parse-xml`, `/xtream`, `/stalker` CORS proxy endpoints)
 - **apps/remote-control-web** - Mobile remote-control web app served by the Electron backend
@@ -236,7 +238,7 @@ This is an Nx monorepo with the following structure:
     - **portal/catalog/feature** - Portal catalog UI
     - **portal/downloads/feature** - Download manager UI
     - **portal/shared/{data-access,ui,util}** - Cross-portal shared code
-    - **services** - Abstract DataService contract and shared app services (incl. the TMDB metadata enrichment module in `lib/tmdb/`)
+    - **services** - Abstract DataService contract and shared app services (incl. the TMDB metadata enrichment module in `lib/tmdb/` and the panel sync client/sports matcher in `lib/panel-sync/`)
     - **shared/interfaces** - TypeScript interfaces and types (incl. `ElectronBridgeApi`)
     - **shared/database** - Canonical Drizzle schema and DB connection (used by the Electron backend)
     - **shared/m3u-utils** - M3U playlist utilities
@@ -422,7 +424,7 @@ State management via NgRx (`libs/m3u-state/`):
 
 See `docs/architecture/m3u-playlist-module.md` for complete documentation.
 
-**Routing**: Lazy-loaded routes in `apps/web/src/app/app.routes.ts`. All user-facing routes are nested under the workspace shell (`/workspace/...`); `/` redirects into the workspace.
+**Routing**: Lazy-loaded routes in `apps/web/src/app/app.routes.ts`. All user-facing routes are nested under the workspace shell (`/workspace/...`) behind `AuthGuard`; `/` redirects to `/login` (panel device login), which enters the workspace once the panel session is active.
 
 - Dashboard: `/workspace/dashboard`; sources overview: `/workspace/sources`
 - M3U player: `/workspace/playlists/:id` (children: `favorites`, `recent`, `:view`) — routes in `libs/playlist/m3u/feature-player`
@@ -431,6 +433,7 @@ See `docs/architecture/m3u-playlist-module.md` for complete documentation.
 - Global collections: `/workspace/global-favorites`, `/workspace/global-recent`
 - Global search: `/workspace/search` (Electron-only; a guard redirects the PWA to `/workspace/sources`)
 - Downloads: `/workspace/downloads`
+- Sports (panel agenda + "TV en vivo"): `/workspace/sports` — `apps/web/src/app/sports/`
 - Settings: `/workspace/settings` (`/settings` redirects there)
 
 **Service Architecture** (Factory Pattern):
@@ -597,6 +600,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
     - `player.events.ts` - External player IPC registration; MPV/VLC lifecycle logic lives in `mpv-session.service.ts`, `vlc-session.service.ts`, and shared `external-player-*` helpers
     - `settings.events.ts` - App settings
     - `electron.events.ts` - App version, etc.
+- **Panel** (`apps/electron-backend/src/app/panel/`): device id, AES-GCM login crypto (`PANEL_LOGIN_REQUEST`), master-key loading (`PANEL_MASTER_KEY` env or git-ignored `assets/panel-key.json` written by `tools/panel/write-panel-key.mjs`; never commit the key), secure DNS (`SECURE_DNS_GET/SET`, `app.configureHostResolver`); bridge in `panel.preload.ts`, contract `PanelBridgeApi`
 
 **Workers** (`apps/electron-backend/src/app/workers/`):
 
@@ -662,6 +666,15 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 
 - Per-playlist favorites and global favorites
 - Recently viewed tracks watch history
+
+**Panel integration** (see `docs/architecture/panel-integration.md`):
+
+- Login: `/login` uses `check_mac` / `fetch_dns` / `submit_url` / `auto_demo` against panel `login.php` (encrypted in the Electron main process); the line becomes one Xtream playlist plus `session_*` localStorage keys
+- Sync: `PanelSyncService` (`libs/services/src/lib/panel-sync/`) — token-only auth against `api/progress.php`; the panel is the source of truth for progress and favorites, local DB rows are a cache rebuilt by `PanelCacheSyncService`; MPV/VLC progress is saved via `external-playback.service.ts`
+- EPG: provider first, then `XtreamPanelEpgFallbackService` batches (≤400 channels) to `api/epg.php`
+- Sports: `api/sports.php` agenda; `findSportsChannel` applies the panel `match` rules to live channels
+- Secure DNS picker only on the login screen and in Settings; does not cover external MPV/VLC
+- Theme: dark by default with the web player palette and `#e50914` accent (`apps/web/src/m3-theme.scss`)
 
 **Internationalization**:
 
