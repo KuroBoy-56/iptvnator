@@ -8,6 +8,7 @@ import {
     PlaybackPositionData,
     XTREAM_DATA_SOURCE,
 } from '@iptvnator/portal/xtream/data-access';
+import { getSessionPassword } from '@iptvnator/shared/interfaces';
 
 @Injectable({
     providedIn: 'root',
@@ -21,7 +22,7 @@ export class AppPortalPlaybackPositionsService
     private getUserIdObj() {
         return {
             username: localStorage.getItem('session_user') || '',
-            password: localStorage.getItem('session_pass') || '',
+            password: getSessionPassword(),
             server: localStorage.getItem('session_server') || ''
         };
     }

@@ -4,7 +4,14 @@ import { firstValueFrom } from 'rxjs';
 import { v4 as uuid } from 'uuid';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { PanelSyncService, PlaylistDeleteActionService } from '@iptvnator/services';
-import { normalizeXtreamServerUrl, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    clearSessionCredentials,
+    normalizeXtreamServerUrl,
+    Playlist,
+    PlaylistMeta,
+    setSessionAlertAccounts,
+    setSessionPassword,
+} from '@iptvnator/shared/interfaces';
 import { PanelAccount } from './panel-login.service';
 
 const DEFAULT_TITLE = 'LatMpx TV+';
@@ -67,15 +74,15 @@ export class PanelSessionService {
             localStorage.setItem('session_token', `panel-${id}`);
             localStorage.setItem('session_date', String(Date.now()));
             localStorage.setItem('session_user', account.username);
-            localStorage.setItem('session_pass', account.password);
             localStorage.setItem('session_server', server);
-            localStorage.setItem(
-                'alert_accounts',
-                JSON.stringify([{ user: account.username, pass: account.password, dns: server, title }])
-            );
+            // Older versions stored the password here; it now stays in memory only.
+            localStorage.removeItem('session_pass');
+            localStorage.removeItem('alert_accounts');
         } catch {
             // Storage unavailable: the session still works for this run.
         }
+        setSessionPassword(account.password);
+        setSessionAlertAccounts([{ user: account.username, pass: account.password, dns: server, title }]);
 
         void this.panelSync.refresh({ username: account.username, password: account.password, server });
     }
@@ -91,6 +98,7 @@ export class PanelSessionService {
         } catch {
             // Nothing stored.
         }
+        clearSessionCredentials();
     }
 
     private async removeOtherLines(playlists: PlaylistMeta[], keepId: string | undefined): Promise<void> {

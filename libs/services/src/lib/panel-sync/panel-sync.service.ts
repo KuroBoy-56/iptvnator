@@ -20,6 +20,7 @@ import {
 } from './panel-sync.types';
 import { PanelSportsAgenda } from './panel-sports.types';
 import { lookupSeriesInfo } from './series-info.lookup';
+import { getSessionPassword } from '@iptvnator/shared/interfaces';
 
 const MIN_SAVE_SECONDS = 5;
 /** api/epg.php accepts at most this many channels per request. */
@@ -37,7 +38,7 @@ export function sessionCredentials(): SyncUserCredentials {
     try {
         return {
             username: localStorage.getItem('session_user') || '',
-            password: localStorage.getItem('session_pass') || '',
+            password: getSessionPassword(),
             server: localStorage.getItem('session_server') || '',
         };
     } catch {

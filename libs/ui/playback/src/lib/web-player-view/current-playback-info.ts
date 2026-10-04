@@ -1,4 +1,4 @@
-import { Channel, ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
+import { Channel, ResolvedPortalPlayback, getSessionPassword } from '@iptvnator/shared/interfaces';
 
 export interface CurrentPlaybackInfo {
     userId: { username: string; password: string; server: string };
@@ -48,7 +48,7 @@ export function buildCurrentPlaybackInfo(
     return {
         userId: {
             username: storageValue('session_user', 'default_user'),
-            password: storageValue('session_pass'),
+            password: getSessionPassword(),
             server: storageValue('session_server'),
         },
         title: playback.title,

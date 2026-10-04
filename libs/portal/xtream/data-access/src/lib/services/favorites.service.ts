@@ -5,6 +5,7 @@ import { FavoriteItem } from './favorite-item.interface';
 import { PanelSyncService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
+import { getSessionPassword } from '@iptvnator/shared/interfaces';
 
 function normalizeCategoryId(categoryId: string | number): number {
     const numericCategoryId = Number(categoryId);
@@ -35,7 +36,7 @@ export class FavoritesService {
 
         return {
             username: localStorage.getItem('session_user') || '',
-            password: localStorage.getItem('session_pass') || '',
+            password: getSessionPassword(),
             server: localStorage.getItem('session_server') || ''
         };
     }

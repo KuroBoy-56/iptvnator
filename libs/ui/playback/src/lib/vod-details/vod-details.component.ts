@@ -18,6 +18,7 @@ import {
     getVodNumericId,
     normalizeVodDetails,
     youtubeEmbedUrl,
+    getSessionPassword,
 } from '@iptvnator/shared/interfaces';
 import {
     CrossPortalSimilarItem,
@@ -120,7 +121,7 @@ export class VodDetailsComponent {
             const itemAny = item as any;
 
             const username = localStorage.getItem('session_user') || '';
-            const password = localStorage.getItem('session_pass') || '';
+            const password = getSessionPassword();
             const server = localStorage.getItem('session_server') || '';
 
             const userIdObj = { username, password, server };

@@ -108,7 +108,8 @@ import {
     STORE_KEY,
     Settings,
     VideoPlayer,
-    normalizeXtreamServerUrl
+    normalizeXtreamServerUrl,
+    getSessionPassword,
 } from '@iptvnator/shared/interfaces';
 import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions';
 
@@ -312,7 +313,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                     const activePl = playlists.find(p => p._id === this.activePlaylistId());
                     const activeUser = activePl?.username || localStorage.getItem('session_user') || 'default_user';
                     const serverUrl = activePl?.serverUrl || localStorage.getItem('session_server') || ''; 
-                    const userPass = activePl?.password || localStorage.getItem('session_pass') || ''; 
+                    const userPass = activePl?.password || getSessionPassword(); 
 
                     let finalStreamUrl = streamUrl;
                     if (serverUrl && activeUser && userPass && itemId && (!finalStreamUrl || finalStreamUrl.trim() === '')) {

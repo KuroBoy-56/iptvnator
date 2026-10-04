@@ -18,6 +18,7 @@ import { WorkspaceShellRouteStateService } from './services/workspace-shell-rout
 import { WorkspaceShellSearchSyncService } from './services/workspace-shell-search-sync.service';
 import { WorkspaceShellSearchService } from './services/workspace-shell-search.service';
 import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
+import { getSessionAlertAccounts } from '@iptvnator/shared/interfaces';
 
 @Component({
     selector: 'app-workspace-shell',
@@ -53,17 +54,8 @@ export class WorkspaceShellComponent implements OnInit {
     );
 
     async ngOnInit(): Promise<void> {
-        const accountsStr = localStorage.getItem('alert_accounts');
-        if (!accountsStr) return;
-
-        let accounts: any[] = [];
-        try {
-            accounts = JSON.parse(accountsStr);
-        } catch (e) {
-            return;
-        }
-
-        if (!accounts || accounts.length === 0) return;
+        const accounts = getSessionAlertAccounts();
+        if (accounts.length === 0) return;
 
         let welcomeHtml = null;
         let warningHtml = null;

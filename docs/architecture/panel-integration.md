@@ -49,7 +49,10 @@ the Android app:
    the line into the app session:
    - It creates or updates one Xtream playlist, named "LatMpx TV+" or "DEMO".
    - It removes lines the panel no longer assigns to the device.
-   - It sets the `session_*` keys that `AuthGuard` and the panel sync read.
+   - It sets the non-secret `session_*` keys (token marker, date, user, server) that `AuthGuard` reads.
+   - The line password and the alert accounts stay in memory only
+     (`session-credentials.util.ts` in `@iptvnator/shared/interfaces`), never in
+     `localStorage`. The login screen sets them again on every start.
 
 ### Panel master key (`PANEL_MASTER_KEY`)
 
