@@ -15,6 +15,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
+import { TmdbPosterDirective } from '@iptvnator/ui/components';
 
 export interface DashboardRailAction {
     id: string;
@@ -87,6 +88,7 @@ export interface DashboardRailActionSelection {
         MatIcon,
         MatMenuModule,
         RouterLink,
+        TmdbPosterDirective,
         TranslatePipe,
     ],
     templateUrl: './dashboard-rail.component.html',

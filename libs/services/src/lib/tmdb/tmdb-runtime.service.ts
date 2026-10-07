@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { SettingsStore } from '../settings-store.service';
+import { readPanelTmdbKey } from '../panel-sync/panel-tmdb-key';
 import { DEFAULT_TMDB_API_KEY, toTmdbLanguage } from './tmdb-config';
 
 /**
@@ -11,14 +12,18 @@ import { DEFAULT_TMDB_API_KEY, toTmdbLanguage } from './tmdb-config';
 export class TmdbRuntimeService {
     private readonly settingsStore = inject(SettingsStore);
 
+    /** On when enabled in settings, and always when the panel provides a key. */
     isEnabled(): boolean {
+        if (readPanelTmdbKey()) return true;
         return Boolean(this.settingsStore.tmdb?.()?.enabled && this.apiKey());
     }
 
-    /** User-provided key from settings, else the embedded default */
+    /** User-provided key from settings, else the panel's key, else the embedded default */
     apiKey(): string {
         return (
-            this.settingsStore.tmdb?.()?.apiKey?.trim() || DEFAULT_TMDB_API_KEY
+            this.settingsStore.tmdb?.()?.apiKey?.trim() ||
+            readPanelTmdbKey() ||
+            DEFAULT_TMDB_API_KEY
         );
     }
 

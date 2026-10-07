@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore } from '@ngrx/signals';
 import { XTREAM_DATA_SOURCE } from './data-sources/xtream-data-source.interface';
 import { withFavorites } from './with-favorites.feature';
+import { FavoritesService } from './services/favorites.service';
 
 jest.mock('@iptvnator/portal/shared/util', () => ({
     createLogger: () => ({
@@ -23,6 +24,7 @@ describe('withFavorites', () => {
         isFavorite: jest.Mock;
         removeFavorite: jest.Mock;
     };
+    let panelFavorites: { syncPanelFavorite: jest.Mock };
 
     beforeEach(() => {
         dataSource = {
@@ -32,9 +34,12 @@ describe('withFavorites', () => {
             removeFavorite: jest.fn().mockResolvedValue(undefined),
         };
 
+        panelFavorites = { syncPanelFavorite: jest.fn().mockResolvedValue(undefined) };
+
         TestBed.configureTestingModule({
             providers: [
                 TestFavoritesStore,
+                { provide: FavoritesService, useValue: panelFavorites },
                 {
                     provide: XTREAM_DATA_SOURCE,
                     useValue: dataSource,
@@ -246,5 +251,26 @@ describe('withFavorites', () => {
 
         expect(dataSource.isFavorite).not.toHaveBeenCalled();
         expect(store.isFavorite()).toBe(false);
+    });
+
+    it('mirrors the toggle to the panel with the Xtream ID, not the DB row ID', async () => {
+        dataSource.getContentByXtreamId.mockResolvedValue({
+            id: 3941697,
+            title: 'Krypton',
+            poster_url: 'https://p/k.jpg',
+            category_id: 12,
+            type: 'series',
+            xtream_id: 290,
+        });
+
+        await store.toggleFavorite(290, 'playlist-1', 'series');
+        expect(panelFavorites.syncPanelFavorite).toHaveBeenCalledWith(true, 290, 'playlist-1', 'series', {
+            title: 'Krypton',
+            poster: 'https://p/k.jpg',
+            categoryId: 12,
+        });
+
+        await store.toggleFavorite(290, 'playlist-1', 'series');
+        expect(panelFavorites.syncPanelFavorite).toHaveBeenLastCalledWith(false, 290, 'playlist-1', 'series');
     });
 });

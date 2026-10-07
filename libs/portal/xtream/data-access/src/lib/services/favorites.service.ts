@@ -113,6 +113,33 @@ export class FavoritesService {
         } catch { /* best effort */ }
     }
 
+    /**
+     * Mirrors a favorite toggle to the panel ("Mi lista"). The panel keys
+     * favorites by the provider stream/series id, so pass the Xtream id here,
+     * never the local DB row id.
+     */
+    async syncPanelFavorite(
+        added: boolean,
+        xtreamId: number,
+        playlistId: string,
+        type: 'live' | 'movie' | 'series',
+        meta: { title?: string; poster?: string; categoryId?: string | number } = {}
+    ): Promise<void> {
+        try {
+            const userIdObj = await this.getUserIdObj(playlistId);
+            const bucket = type === 'movie' ? 'Movie' : type === 'series' ? 'Series' : 'LiveTv';
+            if (added) {
+                await this.panelSync.addFavorite(userIdObj, bucket, String(xtreamId), Math.floor(Date.now() / 1000), {
+                    title: meta.title || '',
+                    poster: meta.poster || '',
+                    categoryId: meta.categoryId != null ? String(meta.categoryId) : '',
+                });
+            } else {
+                await this.panelSync.removeFavorite(userIdObj, bucket, String(xtreamId));
+            }
+        } catch { /* best effort: the local favorite is already saved */ }
+    }
+
     async isFavorite(contentId: number, playlistId: string): Promise<boolean> {
         return await this.dataSource.isFavorite(contentId, playlistId);
     }

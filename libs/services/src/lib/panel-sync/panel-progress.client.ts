@@ -1,5 +1,6 @@
 import { panelEndpoint } from '@iptvnator/shared/interfaces';
 import { PanelSnapshot, SyncUserCredentials } from './panel-sync.types';
+import { rememberPanelTmdbKey } from './panel-tmdb-key';
 
 const TOKEN_PREFIX = 'panel_sync_token:';
 const SNAPSHOT_TTL_MS = 15_000;
@@ -49,6 +50,7 @@ export class PanelProgressClient {
         });
         const body = res.ok ? await res.json().catch(() => null) : null;
         const token = body?.success && typeof body.token === 'string' ? body.token : null;
+        rememberPanelTmdbKey(body?.tmdbKey);
         if (token) {
             this.tokens.set(user, token);
             writeToken(user, token);
@@ -103,6 +105,7 @@ export class PanelProgressClient {
             .then(async (res) => {
                 if (!res?.ok) return null;
                 const body = await res.json().catch(() => null);
+                rememberPanelTmdbKey(body?.tmdbKey);
                 const data: PanelSnapshot = {
                     progress: body?.progress && typeof body.progress === 'object' ? body.progress : {},
                     favorites: Array.isArray(body?.favorites) ? body.favorites : [],

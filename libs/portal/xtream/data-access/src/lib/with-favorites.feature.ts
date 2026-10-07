@@ -7,6 +7,7 @@ import {
 } from '@ngrx/signals';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import { XTREAM_DATA_SOURCE } from './data-sources/xtream-data-source.interface';
+import { FavoritesService } from './services/favorites.service';
 
 export const withFavorites = function () {
     const logger = createLogger('withFavorites');
@@ -14,7 +15,11 @@ export const withFavorites = function () {
         withState({
             isFavorite: false,
         }),
-        withMethods((store, dataSource = inject(XTREAM_DATA_SOURCE)) => ({
+        withMethods((
+            store,
+            dataSource = inject(XTREAM_DATA_SOURCE),
+            favorites = inject(FavoritesService, { optional: true })
+        ) => ({
             async toggleFavorite(
                 xtreamId: number | string,
                 playlistId: string,
@@ -53,6 +58,7 @@ export const withFavorites = function () {
                     // Remove from favorites
                     await dataSource.removeFavorite(contentId, playlistId);
                     patchState(store, { isFavorite: false });
+                    void favorites?.syncPanelFavorite(false, normalizedXtreamId, playlistId, contentType);
                     return false;
                 } else {
                     // Add to favorites
@@ -62,6 +68,11 @@ export const withFavorites = function () {
                         backdropUrl
                     );
                     patchState(store, { isFavorite: true });
+                    void favorites?.syncPanelFavorite(true, normalizedXtreamId, playlistId, contentType, {
+                        title: content?.title || content?.name,
+                        poster: content?.poster_url || content?.stream_icon || backdropUrl,
+                        categoryId: content?.category_id,
+                    });
                     return true;
                 }
             },

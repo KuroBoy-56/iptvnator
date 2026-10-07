@@ -12,13 +12,14 @@ import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { normalizeDateLocale } from '@iptvnator/pipes';
+import { TmdbPosterDirective } from '@iptvnator/ui/components';
 import { TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
 
 @Component({
     selector: 'app-content-card',
     standalone: true,
-    imports: [DatePipe, MatIcon, MatIconButton, MatTooltip],
+    imports: [DatePipe, MatIcon, MatIconButton, MatTooltip, TmdbPosterDirective],
     templateUrl: './content-card.component.html',
     styleUrl: './content-card.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,

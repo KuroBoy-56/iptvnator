@@ -6,3 +6,4 @@ export * from './series-info.lookup';
 export * from './panel-sports.types';
 export * from './provider-api';
 export * from './sports-matcher';
+export * from './panel-tmdb-key';

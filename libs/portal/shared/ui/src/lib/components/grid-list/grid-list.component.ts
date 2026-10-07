@@ -13,6 +13,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
     ProgressCapsuleComponent,
+    TmdbPosterDirective,
     WatchedBadgeComponent,
 } from '@iptvnator/ui/components';
 import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
@@ -117,6 +118,8 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
                                 <img
                                     class="stream-icon"
                                     [src]="poster"
+                                    [appTmdbPoster]="i.title ?? i.o_name ?? i.name"
+                                    [tmdbType]="tmdbType(i)"
                                     (error)="onImageError($event, poster)"
                                     loading="lazy"
                                     alt="logo"
@@ -136,6 +139,8 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
                                 <img
                                     class="stream-icon"
                                     src="./assets/images/default-poster.png"
+                                    [appTmdbPoster]="i.title ?? i.o_name ?? i.name"
+                                    [tmdbType]="tmdbType(i)"
                                     loading="lazy"
                                     alt="logo"
                                 />
@@ -223,6 +228,7 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
         MatTooltip,
         MatPaginatorModule,
         ProgressCapsuleComponent,
+        TmdbPosterDirective,
         WatchedBadgeComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -259,6 +265,15 @@ export class GridListComponent {
         const count = Math.max(8, Math.min(18, preferredCount));
         return Array.from({ length: count }, (_, index) => index);
     });
+
+    protected tmdbType(item: GridListItem): string {
+        const type = this.type();
+        if (type === 'live' || this.variant() === 'logo') return 'live';
+        if (type === 'series' || item.series_id != null || item.is_series === true || item.is_series === 1 || item.is_series === '1') {
+            return 'series';
+        }
+        return 'movie';
+    }
 
     protected hasArtworkFailed(poster: string): boolean {
         return this.failedArtworkUrls().has(poster);

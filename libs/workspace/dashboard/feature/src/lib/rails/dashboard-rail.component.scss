@@ -236,6 +236,17 @@
     }
 }
 
+.rail__art img.rail__art-tmdb {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+
+    // Hidden until the TMDB lookup gives it a source.
+    &:not([src]) {
+        display: none;
+    }
+}
+
 // Live TV channel logos are typically small (100–256px square) and look terrible
 // when stretched to fill a 2:3 portrait card with `object-fit: cover`. The
 // `--live` modifier centers the contained logo over a soft blurred wash sampled

@@ -130,7 +130,15 @@ These are shared with the web player:
   not know it.
 - At 95% watched or more, the entry is deleted.
 - **Favorites:** `fav_add item {id, type: movie|series|live, title, poster,
-  categoryId}`.
+  categoryId}`. `id` is the provider stream/series id (never the local DB row
+  id). The heart/"Mi lista" toggle in the Xtream store (`withFavorites`) calls
+  `FavoritesService.syncPanelFavorite` after the local write; without it the
+  60 s cache sync below would drop the new favorite again.
+- **TMDB key:** `auth` and `GET ?v=2` also return `tmdbKey` (the key set in the
+  panel settings). It is kept in `localStorage.panel_tmdb_key`;
+  `TmdbRuntimeService` uses it when the user has no key of their own and then
+  always enables TMDB. `TmdbPosterDirective` (`img[appTmdbPoster]`) uses it to
+  replace missing or broken covers in grids, cards and dashboard rails.
 
 ### Player integration
 

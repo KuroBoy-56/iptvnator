@@ -175,6 +175,16 @@
                                     <div class="rail__art-fallback">
                                         <mat-icon>{{ card.icon }}</mat-icon>
                                     </div>
+                                    @if (card.contentType && card.contentType !== 'live') {
+                                        <img
+                                            class="rail__art-tmdb"
+                                            alt=""
+                                            loading="lazy"
+                                            decoding="async"
+                                            [appTmdbPoster]="card.title"
+                                            [tmdbType]="card.contentType"
+                                        />
+                                    }
                                 }
 
                                 @if (card.watchProgress !== null && card.watchProgress !== undefined) {

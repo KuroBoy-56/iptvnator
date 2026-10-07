@@ -17,3 +17,4 @@ export * from './lib/resizable/resizable.directive';
 export * from './lib/season-container/season-container.component';
 export * from './lib/watched-badge/watched-badge.component';
 export * from './lib/window-controls/window-controls.component';
+export * from './lib/tmdb-poster/tmdb-poster.directive';
