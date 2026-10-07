@@ -21,6 +21,7 @@ import {
 import { PanelSportsAgenda } from './panel-sports.types';
 import { lookupSeriesInfo } from './series-info.lookup';
 import { getSessionPassword } from '@iptvnator/shared/interfaces';
+import { applyFavoriteOverrides, FavoriteChange, PanelFavoritesOutbox } from './panel-favorites-outbox';
 
 const MIN_SAVE_SECONDS = 5;
 /** api/epg.php accepts at most this many channels per request. */
@@ -55,6 +56,7 @@ export function sessionCredentials(): SyncUserCredentials {
 export class PanelSyncService {
     private readonly client = new PanelProgressClient();
     private readonly lastSaveAt = new Map<string, number>();
+    private readonly outbox = new PanelFavoritesOutbox();
 
     private creds(userIdObj?: SyncUserCredentials | null): SyncUserCredentials {
         return userIdObj?.username ? userIdObj : sessionCredentials();
@@ -165,13 +167,14 @@ export class PanelSyncService {
         if (key) await this.deleteByTitle(creds, key);
     }
 
+    /** Saves a favorite on the panel. A failed request is queued and retried by flushFavorites(). */
     async addFavorite(
         userIdObj: SyncUserCredentials | null | undefined,
         bucket: string,
         id: string | number,
         _timestamp?: number,
         meta: FavoriteSyncMeta = {}
-    ): Promise<void> {
+    ): Promise<boolean> {
         const creds = this.creds(userIdObj);
         const item = {
             id: clean(id),
@@ -181,35 +184,70 @@ export class PanelSyncService {
             categoryId: clean(meta.categoryId),
             url: clean(meta.url),
         };
-        if (!item.id) return;
-        const ok = await this.client.post(creds, { action: 'fav_add', item });
-        if (ok) {
-            this.client.patchSnapshot(creds, (data) => {
-                data.favorites = data.favorites.filter((f) => !(f.id === item.id && f.type === item.type));
-                data.favorites.push({ ...item, addedAt: new Date().toISOString() });
-            });
-        }
+        const user = clean(creds.username);
+        if (!item.id || !user) return false;
+        const change = this.outbox.record({ op: 'add', user, type: item.type, id: item.id, item });
+        return this.send(creds, change);
     }
 
     async removeFavorite(
         userIdObj: SyncUserCredentials | null | undefined,
         bucket: string,
         id: string | number
-    ): Promise<void> {
+    ): Promise<boolean> {
         const creds = this.creds(userIdObj);
-        const type = bucketToFavoriteType(bucket);
+        const user = clean(creds.username);
         const favId = clean(id);
-        const ok = await this.client.post(creds, { action: 'fav_remove', id: favId, type });
-        if (ok) {
-            this.client.patchSnapshot(creds, (data) => {
-                data.favorites = data.favorites.filter((f) => !(f.id === favId && f.type === type));
-            });
+        if (!favId || !user) return false;
+        const change = this.outbox.record({ op: 'remove', user, type: bucketToFavoriteType(bucket), id: favId });
+        return this.send(creds, change);
+    }
+
+    /** Retries favorite changes that did not reach the panel (offline, panel down…). */
+    async flushFavorites(userIdObj?: SyncUserCredentials | null): Promise<void> {
+        const creds = this.creds(userIdObj);
+        for (const change of this.outbox.pending(clean(creds.username))) {
+            if (!(await this.send(creds, change))) return; // still unreachable: keep the rest for later
         }
     }
 
+    /** Panel favorites with this device's fresh, not yet visible changes applied. */
     async getAllFavorites(userIdObj?: SyncUserCredentials | null): Promise<SyncFavoritesTree> {
-        const snapshot = await this.client.getSnapshot(this.creds(userIdObj));
-        return toFavoritesTree(snapshot?.favorites);
+        const creds = this.creds(userIdObj);
+        const snapshot = await this.client.getSnapshot(creds);
+        return toFavoritesTree(applyFavoriteOverrides(snapshot?.favorites ?? [], this.outbox.overrides(clean(creds.username))));
+    }
+
+    /** Is this item in "Mi lista"? null when the panel cannot be read and nothing is known locally. */
+    async isFavorite(
+        userIdObj: SyncUserCredentials | null | undefined,
+        bucket: string,
+        id: string | number
+    ): Promise<boolean | null> {
+        const creds = this.creds(userIdObj);
+        const type = bucketToFavoriteType(bucket);
+        const favId = clean(id);
+        const local = this.outbox.overrides(clean(creds.username)).find((c) => c.type === type && c.id === favId);
+        if (local) return local.op === 'add';
+        const snapshot = await this.client.getSnapshot(creds);
+        return snapshot ? snapshot.favorites.some((f) => f && f.type === type && String(f.id) === favId) : null;
+    }
+
+    private async send(creds: SyncUserCredentials, change: FavoriteChange): Promise<boolean> {
+        const body =
+            change.op === 'add'
+                ? { action: 'fav_add', item: change.item ?? { id: change.id, type: change.type } }
+                : { action: 'fav_remove', id: change.id, type: change.type };
+        const ok = await this.client.post(creds, body);
+        if (!ok) return false;
+        this.outbox.markSent(change);
+        this.client.patchSnapshot(creds, (data) => {
+            data.favorites = data.favorites.filter((f) => !(String(f.id) === change.id && f.type === change.type));
+            if (change.op === 'add') {
+                data.favorites.unshift({ ...(change.item ?? { id: change.id, type: change.type }), addedAt: new Date().toISOString() });
+            }
+        });
+        return true;
     }
 
     /**
@@ -247,9 +285,9 @@ export class PanelSyncService {
         };
     }
 
-    /** Drops the cached snapshot so the next read comes from the panel. */
-    async refresh(userIdObj?: SyncUserCredentials | null): Promise<void> {
-        await this.client.getSnapshot(this.creds(userIdObj), true);
+    /** Reloads the snapshot from the panel; false when the panel could not be read. */
+    async refresh(userIdObj?: SyncUserCredentials | null): Promise<boolean> {
+        return !!(await this.client.getSnapshot(this.creds(userIdObj), true));
     }
 
     private async deleteByTitle(creds: SyncUserCredentials, title: string): Promise<void> {

@@ -44,15 +44,21 @@ export const withFavorites = function () {
                     content?.id ??
                     (!window.electron ? normalizedXtreamId : null);
 
-                if (contentId == null) {
-                    logger.error(
-                        'Content not found for xtream ID',
-                        normalizedXtreamId
-                    );
-                    return false;
-                }
-
                 const currentStatus = store.isFavorite();
+
+                if (contentId == null) {
+                    // Not in the local cache yet (opened from search, the home rails…): the panel is the
+                    // source of truth, so the change is saved there and the cache picks it up on its next sync.
+                    if (!favorites) {
+                        logger.error('Content not found for xtream ID', normalizedXtreamId);
+                        return false;
+                    }
+                    patchState(store, { isFavorite: !currentStatus });
+                    await favorites.syncPanelFavorite(!currentStatus, normalizedXtreamId, playlistId, contentType, {
+                        poster: backdropUrl,
+                    });
+                    return !currentStatus;
+                }
 
                 if (currentStatus) {
                     // Remove from favorites
@@ -101,17 +107,23 @@ export const withFavorites = function () {
                     content?.id ??
                     (!window.electron ? normalizedXtreamId : null);
 
-                if (contentId == null) {
-                    patchState(store, { isFavorite: false });
-                    return;
+                const local =
+                    contentId == null
+                        ? false
+                        : await dataSource.isFavorite(contentId, playlistId);
+                patchState(store, { isFavorite: local });
+
+                // the panel decides (it may have been added or removed on the web or on Android)
+                const remote = await favorites?.panelStatus(normalizedXtreamId, playlistId, contentType);
+                if (remote == null || remote === local) return;
+                patchState(store, { isFavorite: remote });
+                if (contentId == null) return;
+                try {
+                    if (remote) await dataSource.addFavorite(contentId, playlistId);
+                    else await dataSource.removeFavorite(contentId, playlistId);
+                } catch {
+                    // the periodic panel sync repairs the local cache
                 }
-
-                const isFavorite = await dataSource.isFavorite(
-                    contentId,
-                    playlistId
-                );
-
-                patchState(store, { isFavorite });
             },
         }))
     );

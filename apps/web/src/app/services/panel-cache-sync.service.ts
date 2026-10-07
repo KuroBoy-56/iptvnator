@@ -79,7 +79,10 @@ export class PanelCacheSyncService {
             password: playlist.password,
             server: playlist.serverUrl,
         };
-        await this.panelSync.refresh(creds);
+        // favorites toggled while offline (or while the panel was down) are sent first
+        await this.panelSync.flushFavorites(creds);
+        // panel unreachable: keep the local cache as it is (an empty answer would wipe it)
+        if (!(await this.panelSync.refresh(creds))) return;
         const [progress, favorites] = await Promise.all([
             this.panelSync.getAllProgress(creds),
             this.panelSync.getAllFavorites(creds),

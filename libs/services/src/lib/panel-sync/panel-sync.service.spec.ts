@@ -83,6 +83,47 @@ describe('PanelSyncService', () => {
         expect(bodies.find((b) => b.action === 'fav_remove')).toMatchObject({ id: '3', type: 'live' });
     });
 
+    it('keeps a favorite that could not be sent and retries it later', async () => {
+        let panelUp = false;
+        const base = global.fetch as jest.Mock;
+        global.fetch = jest.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+            const body = init?.body ? JSON.parse(String(init.body)) : null;
+            if (!panelUp && body?.action?.startsWith('fav_')) throw new Error('offline');
+            return base(url, init);
+        }) as typeof fetch;
+        const svc = service();
+
+        expect(await svc.addFavorite(creds, 'Series', 290, 0, { title: 'Krypton' })).toBe(false);
+        // the button and the cache rebuild still see it while it is pending
+        expect(await svc.isFavorite(creds, 'Series', 290)).toBe(true);
+        expect((await svc.getAllFavorites(creds)).Series['290']).toBeDefined();
+        // it survives a restart of the app
+        expect(await service().isFavorite(creds, 'Series', 290)).toBe(true);
+
+        panelUp = true;
+        await svc.flushFavorites(creds);
+        const sent = calls.map((c) => c.init?.body && JSON.parse(String(c.init.body))).filter((b) => b?.action === 'fav_add');
+        expect(sent.map((b) => b.item.id)).toEqual(['290']);
+        await svc.flushFavorites(creds);
+        expect(calls.filter((c) => String(c.init?.body ?? '').includes('fav_add'))).toHaveLength(1);
+    });
+
+    it('a fresh removal wins over a panel snapshot that still lists the favorite', async () => {
+        const svc = service();
+        await svc.getAllFavorites(creds); // snapshot with live 3
+        snapshot.favorites = [{ id: '3', type: 'live', title: 'Canal' }]; // panel not updated yet
+        await svc.removeFavorite(creds, 'LiveTv', 3);
+        await svc.refresh(creds);
+        expect((await svc.getAllFavorites(creds)).LiveTv['3']).toBeUndefined();
+        expect(await svc.isFavorite(creds, 'LiveTv', 3)).toBe(false);
+    });
+
+    it('reports an unreadable panel so the local cache is not wiped', async () => {
+        global.fetch = jest.fn(async () => jsonResponse({}, 500)) as typeof fetch;
+        localStorage.setItem('panel_sync_token:line1', 'tok');
+        expect(await service().refresh(creds)).toBe(false);
+    });
+
     it('re-authenticates once when the stored token is rejected', async () => {
         localStorage.setItem('panel_sync_token:line1', 'old');
         let first = true;

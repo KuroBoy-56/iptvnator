@@ -7,3 +7,4 @@ export * from './panel-sports.types';
 export * from './provider-api';
 export * from './sports-matcher';
 export * from './panel-tmdb-key';
+export * from './panel-favorites-outbox';

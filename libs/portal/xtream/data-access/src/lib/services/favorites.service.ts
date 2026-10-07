@@ -140,6 +140,21 @@ export class FavoritesService {
         } catch { /* best effort: the local favorite is already saved */ }
     }
 
+    /** "Mi lista" status on the panel (source of truth); null if the panel cannot be read. */
+    async panelStatus(
+        xtreamId: number,
+        playlistId: string,
+        type: 'live' | 'movie' | 'series'
+    ): Promise<boolean | null> {
+        try {
+            const userIdObj = await this.getUserIdObj(playlistId);
+            const bucket = type === 'movie' ? 'Movie' : type === 'series' ? 'Series' : 'LiveTv';
+            return await this.panelSync.isFavorite(userIdObj, bucket, String(xtreamId));
+        } catch {
+            return null;
+        }
+    }
+
     async isFavorite(contentId: number, playlistId: string): Promise<boolean> {
         return await this.dataSource.isFavorite(contentId, playlistId);
     }

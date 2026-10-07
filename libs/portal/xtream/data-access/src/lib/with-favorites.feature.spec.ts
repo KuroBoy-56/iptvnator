@@ -24,7 +24,7 @@ describe('withFavorites', () => {
         isFavorite: jest.Mock;
         removeFavorite: jest.Mock;
     };
-    let panelFavorites: { syncPanelFavorite: jest.Mock };
+    let panelFavorites: { syncPanelFavorite: jest.Mock; panelStatus: jest.Mock };
 
     beforeEach(() => {
         dataSource = {
@@ -34,7 +34,10 @@ describe('withFavorites', () => {
             removeFavorite: jest.fn().mockResolvedValue(undefined),
         };
 
-        panelFavorites = { syncPanelFavorite: jest.fn().mockResolvedValue(undefined) };
+        panelFavorites = {
+            syncPanelFavorite: jest.fn().mockResolvedValue(undefined),
+            panelStatus: jest.fn().mockResolvedValue(null),
+        };
 
         TestBed.configureTestingModule({
             providers: [
@@ -212,7 +215,7 @@ describe('withFavorites', () => {
         expect(dataSource.addFavorite).not.toHaveBeenCalled();
     });
 
-    it('does not toggle Electron favorites when the cached content is missing', async () => {
+    it('saves Electron favorites on the panel even when the cached content is missing', async () => {
         Object.defineProperty(window, 'electron', {
             configurable: true,
             writable: true,
@@ -220,12 +223,31 @@ describe('withFavorites', () => {
         });
         dataSource.getContentByXtreamId.mockResolvedValue(null);
 
-        const result = await store.toggleFavorite(290, 'playlist-1', 'series');
+        const result = await store.toggleFavorite(290, 'playlist-1', 'series', 'https://p/b.jpg');
 
-        expect(result).toBe(false);
+        expect(result).toBe(true);
+        expect(store.isFavorite()).toBe(true);
         expect(dataSource.addFavorite).not.toHaveBeenCalled();
-        expect(dataSource.removeFavorite).not.toHaveBeenCalled();
-        expect(store.isFavorite()).toBe(false);
+        expect(panelFavorites.syncPanelFavorite).toHaveBeenCalledWith(true, 290, 'playlist-1', 'series', {
+            poster: 'https://p/b.jpg',
+        });
+
+        expect(await store.toggleFavorite(290, 'playlist-1', 'series')).toBe(false);
+        expect(panelFavorites.syncPanelFavorite).toHaveBeenLastCalledWith(false, 290, 'playlist-1', 'series', {
+            poster: undefined,
+        });
+    });
+
+    it('takes the favorite state from the panel and repairs the local cache', async () => {
+        dataSource.getContentByXtreamId.mockResolvedValue({ id: 55, type: 'movie', xtream_id: 7 });
+        dataSource.isFavorite.mockResolvedValue(false);
+        panelFavorites.panelStatus.mockResolvedValue(true);
+
+        await store.checkFavoriteStatus(7, 'playlist-1', 'movie');
+
+        expect(panelFavorites.panelStatus).toHaveBeenCalledWith(7, 'playlist-1', 'movie');
+        expect(store.isFavorite()).toBe(true);
+        expect(dataSource.addFavorite).toHaveBeenCalledWith(55, 'playlist-1');
     });
 
     it('resets favorite state when checking with invalid inputs', async () => {

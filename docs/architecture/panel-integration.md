@@ -132,8 +132,18 @@ These are shared with the web player:
 - **Favorites:** `fav_add item {id, type: movie|series|live, title, poster,
   categoryId}`. `id` is the provider stream/series id (never the local DB row
   id). The heart/"Mi lista" toggle in the Xtream store (`withFavorites`) calls
-  `FavoritesService.syncPanelFavorite` after the local write; without it the
-  60 s cache sync below would drop the new favorite again.
+  `FavoritesService.syncPanelFavorite` after the local write. When the item is
+  not in the local cache yet (opened from search or a home rail), the toggle is
+  saved on the panel only and the cache sync adds the local row later.
+- **Favorites outbox** (`panel-favorites-outbox.ts`, `localStorage.panel_fav_outbox`):
+  every `fav_add`/`fav_remove` is recorded before it is sent. A failed request
+  stays queued and `PanelSyncService.flushFavorites` resends it on the next
+  cache sync, even after a restart. For 2 minutes after a change (and while it
+  is unsent) `getAllFavorites`/`isFavorite` apply it on top of the panel
+  snapshot, so a snapshot that predates the change cannot undo it.
+- `withFavorites.checkFavoriteStatus` asks the panel (`FavoritesService.panelStatus`)
+  and repairs the local row when they disagree, so a favorite added on the web
+  player or Android shows as such on Windows right away.
 - **TMDB key:** `auth` and `GET ?v=2` also return `tmdbKey` (the key set in the
   panel settings). It is kept in `localStorage.panel_tmdb_key`;
   `TmdbRuntimeService` uses it when the user has no key of their own and then
@@ -158,6 +168,9 @@ positions and favorites from the panel every 60 s in Electron:
 
 - It adds and updates entries that exist on the panel.
 - It drops local entries that are missing on the panel.
+- It first resends queued favorite changes, and skips the run entirely when the
+  panel cannot be read (an unreadable panel used to look like an empty list and
+  wiped the local favorites).
 
 ## Fallback EPG
 
