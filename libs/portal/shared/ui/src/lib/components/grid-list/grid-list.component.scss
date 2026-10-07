@@ -14,8 +14,43 @@ mat-card:hover,
 mat-card:focus-within {
     position: relative;
     z-index: 1;
-    transform: scale(1.05);
-    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.5);
+    transform: scale(1.07);
+    box-shadow: none;
+
+    .card-thumbnail-container {
+        box-shadow: 0 18px 38px rgba(0, 0, 0, 0.7);
+    }
+
+    .card-thumbnail-container::after {
+        opacity: 1;
+    }
+
+    .title {
+        color: #fff;
+    }
+}
+
+// Netflix-style hover: dark fade from the bottom with a round play button.
+.card-thumbnail-container::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+    background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Ccircle cx='24' cy='24' r='22' fill='rgba(0,0,0,0.55)' stroke='white' stroke-width='2'/%3E%3Cpath d='M19 15l15 9-15 9z' fill='white'/%3E%3C/svg%3E")
+            center / 30% no-repeat,
+        linear-gradient(
+            180deg,
+            rgba(0, 0, 0, 0) 45%,
+            rgba(0, 0, 0, 0.75) 100%
+        );
+}
+
+.grid-card--logo .card-thumbnail-container::after {
+    background-size: 22%, auto;
 }
 
 // ─── Grid layout ─────────────────────────────────────────────────────────────
@@ -40,9 +75,10 @@ mat-card:focus-within {
             position: relative;
             width: 100%;
             box-sizing: border-box;
-            border-radius: 10px;
+            border-radius: 6px;
             overflow: hidden;
             aspect-ratio: 2 / 3; // maintain poster ratio
+            transition: box-shadow 0.18s ease;
             background: var(--mat-sys-surface-container-high);
         }
 
@@ -50,7 +86,7 @@ mat-card:focus-within {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            border-radius: 10px;
+            border-radius: 6px;
             display: block;
             // No hardcoded light bg — uses parent container bg
             background: transparent;
@@ -97,7 +133,9 @@ mat-card:focus-within {
             margin-top: 8px;
             padding: 0 2px;
             word-break: break-word;
-            text-align: center;
+            text-align: left;
+            font-weight: 500;
+            transition: color 0.18s ease;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
@@ -114,7 +152,7 @@ mat-card:focus-within {
     position: absolute;
     top: 6px;
     left: 6px;
-    z-index: 1;
+    z-index: 2;
     padding: 3px 6px;
     border-radius: 5px;
     font-size: 0.58rem;
@@ -140,12 +178,13 @@ mat-card:focus-within {
 
 // ─── Rating badge ─────────────────────────────────────────────────────────────
 .rating {
+    z-index: 2;
     position: absolute;
     top: 6px;
     right: 6px;
     // Use a solid or highly opaque dark pill to avoid expensive backdrop-filter
-    background: rgba(0, 0, 0, 0.85);
-    color: #4ade80; // green-400, readable across themes
+    background: rgba(0, 0, 0, 0.72);
+    color: #46d369; // Netflix "match" green
     font-size: 0.72rem;
     font-weight: 600;
     border-radius: 6px;

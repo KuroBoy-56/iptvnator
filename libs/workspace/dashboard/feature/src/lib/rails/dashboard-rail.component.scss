@@ -171,14 +171,33 @@
 
         .rail__art {
             box-shadow:
-                0 12px 22px -12px rgba(0, 0, 0, 0.45),
-                0 0 0 1px var(--app-selection-border, rgba(47, 123, 255, 0.4));
+                0 18px 38px -10px rgba(0, 0, 0, 0.7),
+                0 0 0 2px rgba(255, 255, 255, 0.9);
+        }
+
+        .rail__art::after {
+            opacity: 1;
         }
 
         .rail__card-title {
-            color: var(--app-selection-color, #2f7bff);
+            color: #fff;
         }
     }
+}
+
+// Netflix-style hover on cover cards: dark fade with a round play button.
+.rail__art:not(.rail__art--live)::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Ccircle cx='24' cy='24' r='22' fill='rgba(0,0,0,0.55)' stroke='white' stroke-width='2'/%3E%3Cpath d='M19 15l15 9-15 9z' fill='white'/%3E%3C/svg%3E")
+            center / 30% no-repeat,
+        linear-gradient(180deg, rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.75) 100%);
 }
 
 .rail__card-link {
