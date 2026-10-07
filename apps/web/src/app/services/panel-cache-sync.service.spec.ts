@@ -21,13 +21,15 @@ describe('PanelCacheSyncService', () => {
         clearPlaybackPosition: jest.fn().mockResolvedValue(undefined),
     };
     const panel = {
-        refresh: jest.fn().mockResolvedValue(undefined),
+        flushFavorites: jest.fn().mockResolvedValue(undefined),
+        refresh: jest.fn().mockResolvedValue(true),
         getAllProgress: jest.fn(),
         getAllFavorites: jest.fn(),
     };
 
     beforeEach(() => {
         jest.clearAllMocks();
+        panel.refresh.mockResolvedValue(true);
         TestBed.configureTestingModule({
             providers: [
                 provideMockStore({
@@ -43,6 +45,17 @@ describe('PanelCacheSyncService', () => {
                 { provide: PanelSyncService, useValue: panel },
             ],
         });
+    });
+
+    it('sends pending favorites first and keeps the cache when the panel cannot be read', async () => {
+        panel.refresh.mockResolvedValue(false);
+
+        await TestBed.inject(PanelCacheSyncService).syncAll();
+
+        expect(panel.flushFavorites).toHaveBeenCalledWith({ username: 'u', password: 'p', server: 'http://s.test' });
+        expect(panel.getAllFavorites).not.toHaveBeenCalled();
+        expect(db.removeFromFavorites).not.toHaveBeenCalled();
+        expect(positions.clearPlaybackPosition).not.toHaveBeenCalled();
     });
 
     it('rebuilds local favorites and positions from the panel', async () => {

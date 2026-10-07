@@ -188,8 +188,8 @@ Stalker and M3U do not use the panel fallback yet.
 
 ## Sports
 
-Route `/workspace/sports` (`apps/web/src/app/sports/`) has its own rail link
-(`sports_soccer`). It mirrors the web player's sports page:
+Route `/workspace/sports` (`apps/web/src/app/sports/`) is the "Deportes" link
+of the top bar. It mirrors the web player's sports page:
 
 - Day tabs: Hoy / Mañana.
 - Sport chips with emoji and counts.
@@ -218,3 +218,55 @@ uses the Electron Xtream bridge.
 The best channel opens in the Xtream live view, through the
 `openXtreamLiveItemId` history state. When there is no exact match, the first
 event category opens instead.
+
+## Netflix look
+
+The app uses the same design as the web player (`assets/nf/app.css`,
+`homex.php`, `includes/ondemand.php`, `browse.php`) and the TV app.
+
+### Top bar
+
+`WorkspaceNfHeaderComponent`
+(`libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-nf-header/`)
+replaces the old rail and toolbar.
+
+- Links: Inicio, Series, Películas, TV en vivo, Deportes, Explorar. They point
+  to the open Xtream line, or to the first one.
+- Search opens Explorar filtered by title (`explore?q=`), like the web player.
+  Ctrl/Cmd+F focuses it.
+- Clock and a profile menu: Mi cuenta, Actualizar contenido, Descargas, Ajustes.
+- The bar is a window drag region in the frameless Windows/Linux build. It is
+  transparent over a billboard and turns solid on scroll or on other pages.
+
+The category sidebar now only shows for live TV (plus Settings and Sources).
+
+### Pages
+
+They live in `libs/portal/xtream/feature/src/lib/nf/`.
+
+- `home` (Inicio), `NfHomeComponent`:
+  - billboard and platform tiles;
+  - Continuar viendo and Mi lista, read from the panel (`NfLibraryService`);
+  - Top 10 de hoy, Películas agregadas recientemente, Series nuevas;
+  - "Lo mejor de …" platform rows, Series para ti, genre rows, Películas para ti.
+- `vod` and `series` roots, `NfBrowseComponent`: billboard, Categorías select,
+  genre chips, Agregadas recientemente, Top 10, and one row per provider
+  category, rendered progressively.
+- `explore`, `NfExploreComponent`: the poster grid behind every "Ver todo",
+  platform tile, genre chip and search. Its query params are `type`,
+  `platform`, `genre`, `category`, `sort` and `q`.
+
+Shared pieces:
+
+- The billboard (`NfHeroService`) uses provider backdrops. When a title has
+  none, it falls back to the TMDB backdrop (`TmdbPosterService.findBackdrop`).
+- Platforms and genres match category names with the web player's keyword
+  tables (`nf-filters.ts`).
+- Cards open the existing detail pages. Playback, resume and favorites are
+  unchanged.
+
+The `.nf-*` styles are global in `apps/web/src/_netflix.scss`. Platform images
+are in `apps/web/src/assets/images/platforms/`.
+
+The workspace entry (`/workspace`) and the dashboard redirect go to the first
+Xtream line's `home`.

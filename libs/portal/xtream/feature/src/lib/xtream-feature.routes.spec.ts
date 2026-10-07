@@ -9,6 +9,8 @@ describe('createXtreamRoutes', () => {
 
         expect(gateRoute?.children?.map((route) => route.path)).toEqual(
             expect.arrayContaining([
+                'home',
+                'explore',
                 'live',
                 'live/:categoryId',
                 'vod',
@@ -17,6 +19,11 @@ describe('createXtreamRoutes', () => {
                 'recently-added',
             ])
         );
+
+        expect(xtreamRoute.children?.[0]).toMatchObject({
+            path: '',
+            redirectTo: 'home',
+        });
 
         expect(xtreamRoute.children?.find((route) => route.path === 'favorites'))
             .toMatchObject({ path: 'favorites' });

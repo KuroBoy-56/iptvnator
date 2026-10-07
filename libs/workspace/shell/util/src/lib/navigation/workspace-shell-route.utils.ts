@@ -51,8 +51,10 @@ const PORTAL_PROVIDERS: readonly PortalProvider[] = [
 const PORTAL_SECTIONS: readonly PortalRailSection[] = [
     'all',
     'downloads',
+    'explore',
     'favorites',
     'groups',
+    'home',
     'itv',
     'library',
     'live',
@@ -76,9 +78,9 @@ const STALKER_ROUTE_QUERY_SEARCH_SECTIONS = new Set<PortalRailSection>([
     'recent',
 ]);
 
+// Movies and series use the Netflix pages (no sidebar); only live TV keeps
+// the category list.
 const XTREAM_CATEGORY_CONTEXT_SECTIONS = new Set<PortalRailSection>([
-    'vod',
-    'series',
     'live',
 ]);
 

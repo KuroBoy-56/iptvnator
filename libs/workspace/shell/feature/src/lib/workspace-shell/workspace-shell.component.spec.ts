@@ -17,61 +17,23 @@ import {
     WorkspaceHeaderBulkAction,
     WorkspaceShellFacade,
 } from './services/workspace-shell.facade';
+import { WorkspaceNfHeaderComponent } from './components/workspace-nf-header/workspace-nf-header.component';
 import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
 
 @Component({
-    selector: 'app-workspace-shell-rail',
+    selector: 'app-workspace-nf-header',
     template: '',
     standalone: true,
 })
-class MockWorkspaceShellRailComponent {
-    readonly isMacOS = input(false);
-    readonly brandLink = input('/workspace/dashboard');
-    readonly brandTooltipKey = input('WORKSPACE.SHELL.RAIL_DASHBOARD');
-    readonly brandAriaLabelKey = input('WORKSPACE.SHELL.OPEN_DASHBOARD');
-    readonly workspaceLinks = input<unknown[]>([]);
-    readonly primaryContextLinks = input<unknown[]>([]);
-    readonly secondaryContextLinks = input<unknown[]>([]);
-    readonly selectedSection = input<string | null>(null);
-    readonly railProviderClass = input('');
-    readonly isSettingsRoute = input(false);
-}
-
-@Component({
-    selector: 'app-workspace-shell-header',
-    template: '',
-    standalone: true,
-})
-class MockWorkspaceShellHeaderComponent {
-    readonly playlistTitle = input('');
-    readonly playlistSubtitle = input('');
-    readonly canOpenPlaylistInfo = input(false);
-    readonly canOpenAccountInfo = input(false);
-    readonly searchQuery = input('');
-    readonly canUseSearch = input(false);
-    readonly searchPlaceholder = input('');
-    readonly searchScopeLabel = input('');
-    readonly searchStatusLabel = input('');
-    readonly headerShortcut = input<unknown>(null);
-    readonly canRefreshPlaylist = input(false);
-    readonly isRefreshingPlaylist = input(false);
-    readonly isElectron = input(false);
-    readonly hasNoPlaylists = input(false);
-    readonly isDownloadsView = input(false);
-    readonly hasActiveDownloads = input(false);
-    readonly isSettingsRoute = input(false);
-    readonly headerBulkAction = input<WorkspaceHeaderBulkAction | null>(null);
-    readonly searchChanged = output<string>();
-    readonly searchSubmitted = output<string>();
-    readonly commandPaletteRequested = output<void>();
-    readonly shortcutsRequested = output<void>();
-    readonly addPlaylistRequested = output<void>();
-    readonly headerShortcutRequested = output<void>();
-    readonly refreshPlaylistRequested = output<void>();
+class MockWorkspaceNfHeaderComponent {
+    readonly playlistId = input<string | null>(null);
+    readonly solid = input(false);
+    readonly canOpenAccount = input(false);
+    readonly canRefresh = input(false);
+    readonly refreshing = input(false);
+    readonly accountRequested = output<void>();
+    readonly refreshRequested = output<void>();
     readonly downloadsRequested = output<void>();
-    readonly headerBulkActionRequested = output<void>();
-    readonly playlistInfoRequested = output<void>();
-    readonly accountInfoRequested = output<void>();
 
     focusSearchInput = jest.fn();
     containsSearchInput = jest.fn(() => false);
@@ -129,6 +91,10 @@ class MockWorkspaceKeyboardShortcutsService {
 }
 
 class MockWorkspaceShellFacade {
+    readonly currentUrl = signal('/workspace/settings');
+    readonly playlists = signal<
+        { _id: string; serverUrl?: string; username?: string }[]
+    >([]);
     readonly brandLink = signal('/workspace/dashboard');
     readonly brandTooltipKey = signal('WORKSPACE.SHELL.RAIL_DASHBOARD');
     readonly brandAriaLabelKey = signal('WORKSPACE.SHELL.OPEN_DASHBOARD');
@@ -202,95 +168,62 @@ class MockWorkspaceShellFacade {
     cancelXtreamImport = jest.fn();
 }
 
-describe('WorkspaceShellComponent', () => {
-    it('creates and renders the shell composition with mocked children', async () => {
-        const facade = new MockWorkspaceShellFacade();
-
-        await TestBed.configureTestingModule({
-            imports: [WorkspaceShellComponent],
-            providers: [provideRouter([])],
+async function setup(facade = new MockWorkspaceShellFacade()) {
+    await TestBed.configureTestingModule({
+        imports: [WorkspaceShellComponent],
+        providers: [provideRouter([])],
+    })
+        .overrideComponent(WorkspaceShellComponent, {
+            set: {
+                imports: [
+                    RouterOutlet,
+                    MockExternalPlaybackDockComponent,
+                    MockPlaylistDropOverlayComponent,
+                    MockPlaylistDropZoneDirective,
+                    MockWorkspaceShellContextSidebarComponent,
+                    MockWorkspaceNfHeaderComponent,
+                    MockWorkspaceShellImportOverlayComponent,
+                ],
+                providers: [
+                    {
+                        provide: WorkspaceShellFacade,
+                        useValue: facade,
+                    },
+                    {
+                        provide: WorkspaceKeyboardShortcutsService,
+                        useClass: MockWorkspaceKeyboardShortcutsService,
+                    },
+                ],
+            },
         })
-            .overrideComponent(WorkspaceShellComponent, {
-                set: {
-                    imports: [
-                        RouterOutlet,
-                        MockExternalPlaybackDockComponent,
-                        MockPlaylistDropOverlayComponent,
-                        MockPlaylistDropZoneDirective,
-                        MockWorkspaceShellContextSidebarComponent,
-                        MockWorkspaceShellHeaderComponent,
-                        MockWorkspaceShellImportOverlayComponent,
-                        MockWorkspaceShellRailComponent,
-                    ],
-                    providers: [
-                        {
-                            provide: WorkspaceShellFacade,
-                            useValue: facade,
-                        },
-                        {
-                            provide: WorkspaceKeyboardShortcutsService,
-                            useClass: MockWorkspaceKeyboardShortcutsService,
-                        },
-                    ],
-                },
-            })
-            .compileComponents();
+        .compileComponents();
 
-        const fixture = TestBed.createComponent(WorkspaceShellComponent);
-        fixture.detectChanges();
+    const fixture = TestBed.createComponent(WorkspaceShellComponent);
+    fixture.detectChanges();
+    const header = fixture.debugElement.query(
+        By.directive(MockWorkspaceNfHeaderComponent)
+    ).componentInstance as MockWorkspaceNfHeaderComponent;
 
-        expect(fixture.componentInstance).toBeTruthy();
+    return { facade, fixture, header };
+}
+
+describe('WorkspaceShellComponent', () => {
+    it('renders the Netflix header instead of the old rail and toolbar', async () => {
+        const { fixture } = await setup();
+        const el: HTMLElement = fixture.nativeElement;
+
+        expect(el.querySelector('app-workspace-nf-header')).not.toBeNull();
+        expect(el.querySelector('app-workspace-shell-rail')).toBeNull();
+        expect(el.querySelector('app-workspace-shell-header')).toBeNull();
         expect(
-            fixture.nativeElement.querySelector('app-workspace-shell-rail')
+            el.querySelector('app-workspace-shell-context-sidebar')
         ).not.toBeNull();
-        expect(
-            fixture.nativeElement.querySelector('app-workspace-shell-header')
-        ).not.toBeNull();
-        expect(
-            fixture.nativeElement.querySelector(
-                'app-workspace-shell-context-sidebar'
-            )
-        ).not.toBeNull();
-        expect(
-            fixture.nativeElement.querySelector('app-external-playback-dock')
-        ).not.toBeNull();
+        expect(el.querySelector('app-external-playback-dock')).not.toBeNull();
+        expect(WorkspaceNfHeaderComponent).toBeDefined();
     });
 
     it('renders the xtream import overlay child only when the facade flag is true', async () => {
-        const facade = new MockWorkspaceShellFacade();
-
-        await TestBed.configureTestingModule({
-            imports: [WorkspaceShellComponent],
-            providers: [provideRouter([])],
-        })
-            .overrideComponent(WorkspaceShellComponent, {
-                set: {
-                    imports: [
-                        RouterOutlet,
-                        MockExternalPlaybackDockComponent,
-                        MockPlaylistDropOverlayComponent,
-                        MockPlaylistDropZoneDirective,
-                        MockWorkspaceShellContextSidebarComponent,
-                        MockWorkspaceShellHeaderComponent,
-                        MockWorkspaceShellImportOverlayComponent,
-                        MockWorkspaceShellRailComponent,
-                    ],
-                    providers: [
-                        {
-                            provide: WorkspaceShellFacade,
-                            useValue: facade,
-                        },
-                        {
-                            provide: WorkspaceKeyboardShortcutsService,
-                            useClass: MockWorkspaceKeyboardShortcutsService,
-                        },
-                    ],
-                },
-            })
-            .compileComponents();
-
-        const fixture = TestBed.createComponent(WorkspaceShellComponent);
-        fixture.detectChanges();
+        const { facade, fixture } = await setup();
 
         expect(
             fixture.nativeElement.querySelector(
@@ -308,92 +241,38 @@ describe('WorkspaceShellComponent', () => {
         ).not.toBeNull();
     });
 
-    it('opens keyboard shortcuts when the header requests them', async () => {
-        const facade = new MockWorkspaceShellFacade();
+    it('forwards header menu actions to the facade', async () => {
+        const { facade, header } = await setup();
 
-        await TestBed.configureTestingModule({
-            imports: [WorkspaceShellComponent],
-            providers: [provideRouter([])],
-        })
-            .overrideComponent(WorkspaceShellComponent, {
-                set: {
-                    imports: [
-                        RouterOutlet,
-                        MockExternalPlaybackDockComponent,
-                        MockPlaylistDropOverlayComponent,
-                        MockPlaylistDropZoneDirective,
-                        MockWorkspaceShellContextSidebarComponent,
-                        MockWorkspaceShellHeaderComponent,
-                        MockWorkspaceShellImportOverlayComponent,
-                        MockWorkspaceShellRailComponent,
-                    ],
-                    providers: [
-                        {
-                            provide: WorkspaceShellFacade,
-                            useValue: facade,
-                        },
-                        {
-                            provide: WorkspaceKeyboardShortcutsService,
-                            useClass: MockWorkspaceKeyboardShortcutsService,
-                        },
-                    ],
-                },
-            })
-            .compileComponents();
+        header.accountRequested.emit();
+        header.refreshRequested.emit();
+        header.downloadsRequested.emit();
 
-        const fixture = TestBed.createComponent(WorkspaceShellComponent);
-        fixture.detectChanges();
-        const shortcutsService = fixture.debugElement.injector.get(
-            WorkspaceKeyboardShortcutsService
-        ) as unknown as MockWorkspaceKeyboardShortcutsService;
-        const header = fixture.debugElement.query(
-            By.directive(MockWorkspaceShellHeaderComponent)
-        ).componentInstance as MockWorkspaceShellHeaderComponent;
-
-        header.shortcutsRequested.emit();
-
-        expect(shortcutsService.openShortcutsDialog).toHaveBeenCalledTimes(1);
+        expect(facade.openAccountInfo).toHaveBeenCalledTimes(1);
+        expect(facade.refreshCurrentPlaylist).toHaveBeenCalledTimes(1);
+        expect(facade.openDownloadsShortcut).toHaveBeenCalledTimes(1);
     });
 
-    it('opens the routed global search and focuses header search on Ctrl/Cmd+F', async () => {
-        jest.useFakeTimers();
+    it('points the header to the first Xtream line and keeps it transparent over the billboard', async () => {
         const facade = new MockWorkspaceShellFacade();
+        facade.playlists.set([
+            { _id: 'm3u' },
+            { _id: 'xt-1', serverUrl: 'http://line', username: 'u' },
+        ]);
+        facade.currentUrl.set('/workspace/xtreams/xt-1/home');
+        const { fixture, header } = await setup(facade);
 
-        await TestBed.configureTestingModule({
-            imports: [WorkspaceShellComponent],
-            providers: [provideRouter([])],
-        })
-            .overrideComponent(WorkspaceShellComponent, {
-                set: {
-                    imports: [
-                        RouterOutlet,
-                        MockExternalPlaybackDockComponent,
-                        MockPlaylistDropOverlayComponent,
-                        MockPlaylistDropZoneDirective,
-                        MockWorkspaceShellContextSidebarComponent,
-                        MockWorkspaceShellHeaderComponent,
-                        MockWorkspaceShellImportOverlayComponent,
-                        MockWorkspaceShellRailComponent,
-                    ],
-                    providers: [
-                        {
-                            provide: WorkspaceShellFacade,
-                            useValue: facade,
-                        },
-                        {
-                            provide: WorkspaceKeyboardShortcutsService,
-                            useClass: MockWorkspaceKeyboardShortcutsService,
-                        },
-                    ],
-                },
-            })
-            .compileComponents();
+        expect(header.playlistId()).toBe('xt-1');
+        expect(header.solid()).toBe(false);
 
-        const fixture = TestBed.createComponent(WorkspaceShellComponent);
+        facade.currentUrl.set('/workspace/sports');
         fixture.detectChanges();
-        const header = fixture.debugElement.query(
-            By.directive(MockWorkspaceShellHeaderComponent)
-        ).componentInstance as MockWorkspaceShellHeaderComponent;
+
+        expect(header.solid()).toBe(true);
+    });
+
+    it('focuses the header search on Ctrl/Cmd+F', async () => {
+        const { facade, header } = await setup();
         const event = new KeyboardEvent('keydown', {
             key: 'f',
             metaKey: true,
@@ -402,11 +281,9 @@ describe('WorkspaceShellComponent', () => {
         });
 
         document.dispatchEvent(event);
-        jest.runOnlyPendingTimers();
 
         expect(event.defaultPrevented).toBe(true);
-        expect(facade.openGlobalSearch).toHaveBeenCalledWith('');
+        expect(facade.openGlobalSearch).not.toHaveBeenCalled();
         expect(header.focusSearchInput).toHaveBeenCalledWith({ select: true });
-        jest.useRealTimers();
     });
 });

@@ -2,8 +2,10 @@ export type PortalProvider = 'xtreams' | 'stalker' | 'playlists';
 export type PortalRailSection =
     | 'all'
     | 'downloads'
+    | 'explore'
     | 'favorites'
     | 'groups'
+    | 'home'
     | 'itv'
     | 'library'
     | 'live'

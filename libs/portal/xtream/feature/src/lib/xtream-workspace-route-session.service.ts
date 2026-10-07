@@ -62,7 +62,9 @@ function isImportDrivenSection(section: PortalRailSection | null): boolean {
         section === 'live' ||
         section === 'series' ||
         section === 'search' ||
-        section === 'recently-added'
+        section === 'recently-added' ||
+        section === 'home' ||
+        section === 'explore'
     );
 }
 
@@ -89,6 +91,10 @@ function toCachedContentScope(
         case 'search':
         case 'recently-added':
             return section;
+        // Netflix pages (Inicio, Explorar) show movies and series together
+        case 'home':
+        case 'explore':
+            return 'recently-added';
         default:
             return null;
     }

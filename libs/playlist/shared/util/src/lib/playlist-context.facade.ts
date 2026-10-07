@@ -47,6 +47,7 @@ const LEGACY_LAST_SECTION_STORAGE_KEY = 'playlist-switcher:last-sections';
 const LAST_ACTIVE_PLAYLIST_STORAGE_KEY =
     'playlist-switcher:last-active-playlist-id';
 const XTREAM_SECTIONS = [
+    'home',
     'live',
     'vod',
     'series',

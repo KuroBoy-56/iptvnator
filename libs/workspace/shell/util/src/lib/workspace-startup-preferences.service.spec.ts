@@ -51,6 +51,22 @@ describe('WorkspaceStartupPreferencesService', () => {
         );
     });
 
+    it('opens the Netflix home of the first Xtream playlist', async () => {
+        playlistsService.getAllPlaylists.mockReturnValue(
+            of([
+                { _id: 'm3u-1' },
+                { _id: 'xt-1', serverUrl: 'http://line', username: 'u' },
+            ])
+        );
+
+        await expect(service.resolveInitialWorkspacePath()).resolves.toBe(
+            '/workspace/xtreams/xt-1/home'
+        );
+        await expect(service.resolveDashboardPath()).resolves.toBe(
+            '/workspace/xtreams/xt-1/home'
+        );
+    });
+
     it('resolves the first view to sources when dashboard is hidden', async () => {
         settingsStore.showDashboard.set(false);
 

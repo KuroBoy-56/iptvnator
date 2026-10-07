@@ -69,10 +69,29 @@ describe('workspace-shell-route.utils', () => {
                     playlistId: 'pl-1',
                 },
                 section: 'vod',
-                contextPanel: 'category',
+                // movies/series use the Netflix pages, without the category sidebar
+                contextPanel: 'none',
                 searchMode: 'local-filter',
                 usesQuerySearch: true,
                 isPortalFavoritesAllScope: false,
+            })
+        );
+
+        expect(
+            parseWorkspaceShellRoute('/workspace/xtreams/pl-1/live/7')
+        ).toEqual(
+            expect.objectContaining({
+                section: 'live',
+                contextPanel: 'category',
+            })
+        );
+
+        expect(
+            parseWorkspaceShellRoute('/workspace/xtreams/pl-1/home')
+        ).toEqual(
+            expect.objectContaining({
+                section: 'home',
+                contextPanel: 'none',
             })
         );
 

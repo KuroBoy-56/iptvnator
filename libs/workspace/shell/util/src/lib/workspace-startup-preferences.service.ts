@@ -17,7 +17,9 @@ export class WorkspaceStartupPreferencesService {
         await this.settingsStore.loadSettings();
 
         const showDashboard = this.showDashboard();
-        const firstViewPath = this.getFirstAvailableWorkspacePath(showDashboard);
+        const firstViewPath =
+            (await this.resolveXtreamHomePath()) ??
+            this.getFirstAvailableWorkspacePath(showDashboard);
 
         if (this.startupBehavior() !== StartupBehavior.RestoreLastView) {
             return firstViewPath;
@@ -32,9 +34,32 @@ export class WorkspaceStartupPreferencesService {
     async resolveDashboardPath(): Promise<string> {
         await this.settingsStore.loadSettings();
 
+        const home = await this.resolveXtreamHomePath();
+        if (home) {
+            return home;
+        }
+
         return this.showDashboard()
             ? '/workspace/dashboard'
             : '/workspace/sources';
+    }
+
+    /**
+     * "Inicio" (Netflix home) of the panel line: the first Xtream playlist.
+     * Null when there is none, so the old dashboard/sources entry applies.
+     */
+    async resolveXtreamHomePath(): Promise<string | null> {
+        try {
+            const playlists = await firstValueFrom(
+                this.playlistsService.getAllPlaylists()
+            );
+            const xtream = playlists.find(
+                (playlist) => !!playlist.serverUrl && !!playlist.username
+            );
+            return xtream?._id ? `/workspace/xtreams/${xtream._id}/home` : null;
+        } catch {
+            return null;
+        }
     }
 
     getFirstAvailableWorkspacePath(showDashboard = this.showDashboard()): string {

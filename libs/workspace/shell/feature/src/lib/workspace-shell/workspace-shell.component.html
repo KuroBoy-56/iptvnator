@@ -8,50 +8,16 @@
         <app-workspace-shell-import-overlay />
     }
 
-    <app-workspace-shell-rail
-        [isMacOS]="facade.isMacOS"
-        [brandLink]="facade.brandLink()"
-        [brandTooltipKey]="facade.brandTooltipKey()"
-        [brandAriaLabelKey]="facade.brandAriaLabelKey()"
-        [workspaceLinks]="facade.workspaceLinks()"
-        [primaryContextLinks]="facade.primaryContextLinks()"
-        [secondaryContextLinks]="facade.secondaryContextLinks()"
-        [selectedSection]="facade.currentSection()"
-        [railProviderClass]="facade.railProviderClass()"
-        [isSettingsRoute]="facade.isSettingsRoute()"
-    />
-
-    <app-workspace-shell-header
+    <app-workspace-nf-header
         #workspaceHeader
-        [playlistTitle]="facade.playlistTitle()"
-        [playlistSubtitle]="facade.playlistSubtitle()"
-        [canOpenPlaylistInfo]="facade.canOpenPlaylistInfo()"
-        [canOpenAccountInfo]="facade.canOpenAccountInfo()"
-        [searchQuery]="facade.searchQuery()"
-        [canUseSearch]="facade.canUseSearch()"
-        [searchPlaceholder]="facade.searchPlaceholder()"
-        [searchScopeLabel]="facade.searchScopeLabel()"
-        [searchStatusLabel]="facade.searchStatusLabel()"
-        [headerShortcut]="facade.headerShortcut()"
-        [headerBulkAction]="facade.headerBulkAction()"
-        [canRefreshPlaylist]="facade.canRefreshPlaylist()"
-        [isRefreshingPlaylist]="facade.isRefreshingPlaylist()"
-        [isElectron]="facade.isElectron"
-        [hasNoPlaylists]="facade.hasNoPlaylists()"
-        [isDownloadsView]="facade.isDownloadsView()"
-        [hasActiveDownloads]="facade.hasActiveDownloads()"
-        [isSettingsRoute]="facade.isSettingsRoute()"
-        (refreshPlaylistRequested)="facade.refreshCurrentPlaylist()"
-        (searchChanged)="facade.onSearchInput($event)"
-        (searchSubmitted)="facade.onSearchEnter($event)"
-        (commandPaletteRequested)="facade.openCommandPalette()"
-        (shortcutsRequested)="keyboardShortcuts.openShortcutsDialog()"
-        (addPlaylistRequested)="facade.openAddPlaylistDialog()"
-        (headerShortcutRequested)="facade.runHeaderShortcut()"
-        (headerBulkActionRequested)="facade.runHeaderBulkAction()"
+        [playlistId]="homePlaylistId()"
+        [solid]="solidHeader()"
+        [canOpenAccount]="facade.canOpenAccountInfo()"
+        [canRefresh]="facade.canRefreshPlaylist()"
+        [refreshing]="facade.isRefreshingPlaylist()"
+        (accountRequested)="facade.openAccountInfo()"
+        (refreshRequested)="facade.refreshCurrentPlaylist()"
         (downloadsRequested)="facade.openDownloadsShortcut()"
-        (playlistInfoRequested)="facade.openPlaylistInfo()"
-        (accountInfoRequested)="facade.openAccountInfo()"
     />
 
     <div class="workspace-body" [class.single-pane]="!facade.showContextPanel()">
@@ -64,7 +30,11 @@
             />
         }
 
-        <main class="workspace-content">
+        <main
+            class="workspace-content"
+            [class.under-header]="heroPage()"
+            (scroll)="onContentScroll($event)"
+        >
             <router-outlet />
         </main>
     </div>

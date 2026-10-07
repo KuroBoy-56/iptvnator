@@ -39,6 +39,15 @@ const loadRecentlyAddedComponent: ComponentLoader = () =>
         (c) => c.RecentlyAddedComponent
     );
 
+const loadNfHomeComponent: ComponentLoader = () =>
+    import('./nf/nf-home.component').then((c) => c.NfHomeComponent);
+
+const loadNfBrowseComponent: ComponentLoader = () =>
+    import('./nf/nf-browse.component').then((c) => c.NfBrowseComponent);
+
+const loadNfExploreComponent: ComponentLoader = () =>
+    import('./nf/nf-explore.component').then((c) => c.NfExploreComponent);
+
 const loadVodDetailsRouteComponent: ComponentLoader = () =>
     import('./vod-details/vod-details-route.component').then(
         (c) => c.VodDetailsRouteComponent
@@ -62,13 +71,21 @@ export function createXtreamRoutes(): Route[] {
             children: [
                 {
                     path: '',
-                    redirectTo: 'vod',
+                    redirectTo: 'home',
                     pathMatch: 'full',
                 },
                 {
                     path: '',
                     loadComponent: loadXtreamContentGateComponent,
                     children: [
+                        {
+                            path: 'home',
+                            loadComponent: loadNfHomeComponent,
+                        },
+                        {
+                            path: 'explore',
+                            loadComponent: loadNfExploreComponent,
+                        },
                         {
                             path: 'live',
                             loadComponent: loadLiveStreamLayoutComponent,
@@ -83,7 +100,8 @@ export function createXtreamRoutes(): Route[] {
                             children: [
                                 {
                                     path: '',
-                                    loadComponent: loadCategoryContentViewComponent,
+                                    loadComponent: loadNfBrowseComponent,
+                                    data: { nfType: 'movie' },
                                 },
                                 {
                                     path: ':categoryId',
@@ -101,7 +119,8 @@ export function createXtreamRoutes(): Route[] {
                             children: [
                                 {
                                     path: '',
-                                    loadComponent: loadCategoryContentViewComponent,
+                                    loadComponent: loadNfBrowseComponent,
+                                    data: { nfType: 'series' },
                                 },
                                 {
                                     path: ':categoryId',

@@ -1,0 +1,92 @@
+<a class="nf-brand" [routerLink]="links()[0].path">LatMpx <b>TV+</b></a>
+
+<nav>
+    <ul class="nf-nav">
+        @for (link of links(); track link.label) {
+            <li>
+                <a [routerLink]="link.path" routerLinkActive="active">{{
+                    link.label
+                }}</a>
+            </li>
+        }
+    </ul>
+</nav>
+
+<div class="nf-header-right">
+    @if (root()) {
+        <div class="nf-search" [class.open]="searchOpen()">
+            <button
+                class="nf-icon-btn"
+                type="button"
+                aria-label="Buscar"
+                (click)="toggleSearch()"
+            >
+                <mat-icon>search</mat-icon>
+            </button>
+            <input
+                #searchInput
+                type="search"
+                placeholder="Títulos, personas, géneros"
+                aria-label="Buscar"
+                (keydown.enter)="search(searchInput.value)"
+                (keydown.escape)="searchOpen.set(false)"
+                (blur)="blurSearch(searchInput.value)"
+            />
+        </div>
+    }
+
+    <div class="nf-clock" aria-hidden="true">
+        <div class="t">{{ time() }}</div>
+        <div class="d">{{ date() }}</div>
+    </div>
+
+    <div class="nf-profile">
+        <button
+            class="nf-icon-btn"
+            type="button"
+            aria-label="Perfil"
+            [attr.aria-expanded]="menuOpen()"
+            (click)="toggleMenu($event)"
+        >
+            <span class="nf-avatar">{{ (user || 'L').charAt(0) }}</span>
+            <mat-icon>arrow_drop_down</mat-icon>
+        </button>
+        @if (menuOpen()) {
+            <div class="nf-menu" role="menu">
+                @if (user) {
+                    <div class="who">{{ user }}</div>
+                }
+                @if (canOpenAccount()) {
+                    <button type="button" role="menuitem" (click)="account()">
+                        <mat-icon>person</mat-icon>Mi cuenta
+                    </button>
+                }
+                @if (canRefresh()) {
+                    <button
+                        type="button"
+                        role="menuitem"
+                        [disabled]="refreshing()"
+                        (click)="refresh()"
+                    >
+                        <mat-icon>refresh</mat-icon
+                        >{{
+                            refreshing()
+                                ? 'Actualizando…'
+                                : 'Actualizar contenido'
+                        }}
+                    </button>
+                }
+                <button type="button" role="menuitem" (click)="downloads()">
+                    <mat-icon>download</mat-icon>Descargas
+                </button>
+                <button
+                    type="button"
+                    role="menuitem"
+                    (click)="go(['/workspace', 'settings'])"
+                >
+                    <mat-icon>settings</mat-icon>Ajustes
+                </button>
+            </div>
+        }
+    </div>
+</div>

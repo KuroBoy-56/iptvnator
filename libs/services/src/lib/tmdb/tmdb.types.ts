@@ -18,6 +18,7 @@ export interface TmdbSearchResult {
     vote_count?: number;
     vote_average?: number;
     poster_path?: string | null;
+    backdrop_path?: string | null;
 }
 
 /** One dashboard-ready trending title (movie or series) */

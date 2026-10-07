@@ -424,11 +424,11 @@ State management via NgRx (`libs/m3u-state/`):
 
 See `docs/architecture/m3u-playlist-module.md` for complete documentation.
 
-**Routing**: Lazy-loaded routes in `apps/web/src/app/app.routes.ts`. All user-facing routes are nested under the workspace shell (`/workspace/...`) behind `AuthGuard`; `/` redirects to `/login` (panel device login), which enters the workspace once the panel session is active.
+**Routing**: Lazy-loaded routes in `apps/web/src/app/app.routes.ts`. All user-facing routes are nested under the workspace shell (`/workspace/...`) behind `AuthGuard`; `/` redirects to `/login` (panel device login), which enters the workspace once the panel session is active. `/workspace` and `/workspace/dashboard` open the first Xtream playlist's `home` when one exists (`WorkspaceStartupPreferencesService.resolveXtreamHomePath`).
 
 - Dashboard: `/workspace/dashboard`; sources overview: `/workspace/sources`
 - M3U player: `/workspace/playlists/:id` (children: `favorites`, `recent`, `:view`) — routes in `libs/playlist/m3u/feature-player`
-- Xtream Codes: `/workspace/xtreams/:id` (children: `live`, `vod`, `series`, `search`, `actor/:personId`, `recently-added`, `favorites`, `recent`, `downloads`) — `libs/portal/xtream/feature/src/lib/xtream-feature.routes.ts`
+- Xtream Codes: `/workspace/xtreams/:id` (children: `home`, `explore`, `live`, `vod`, `series`, `search`, `actor/:personId`, `recently-added`, `favorites`, `recent`, `downloads`; `''` redirects to `home`) — `libs/portal/xtream/feature/src/lib/xtream-feature.routes.ts`. `home` (Inicio), `explore` (grid with `type`/`platform`/`genre`/`category`/`sort`/`q` query params) and the `vod`/`series` roots are the Netflix pages in `libs/portal/xtream/feature/src/lib/nf/`; `vod/:categoryId` keeps the old category grid
 - Stalker portal: `/workspace/stalker/:id` (children: `itv`, `vod`, `radio`, `series`, `favorites`, `recent`, `search`, `actor/:personId`, `downloads`) — `libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts`
 - Global collections: `/workspace/global-favorites`, `/workspace/global-recent`
 - Global search: `/workspace/search` (Electron-only; a guard redirects the PWA to `/workspace/sources`)
@@ -675,6 +675,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - Sports: `api/sports.php` agenda; `findSportsChannel` applies the panel `match` rules to live channels
 - Secure DNS picker only on the login screen and in Settings; does not cover external MPV/VLC
 - Theme: dark by default with the web player palette and `#e50914` accent (`apps/web/src/m3-theme.scss`)
+- Netflix UI (same design as the web player and TV app): the workspace shell shows a top bar (`workspace-nf-header`: Inicio, Series, Películas, TV en vivo, Deportes, Explorar, search → `explore?q=`, clock, profile menu) instead of the rail/toolbar; the context sidebar only appears for live TV, settings and sources. Pages: `NfHomeComponent` (billboard, platform tiles, Continuar viendo / Mi lista from the panel, Top 10, platform and genre rows), `NfBrowseComponent` (Películas/Series), `NfExploreComponent` (grid). Global `.nf-*` styles live in `apps/web/src/_netflix.scss`; platform/genre keyword tables in `nf/nf-filters.ts` mirror the web player's `includes/core.php`
 
 **Internationalization**:
 

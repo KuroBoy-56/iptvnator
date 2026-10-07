@@ -12,7 +12,7 @@
     --sp-card2: #232323;
     --sp-live: var(--nf-red, #e50914);
     --sp-mute: #9a9a9a;
-    padding: 24px clamp(16px, 3vw, 48px) 48px;
+    padding: 24px var(--nf-pad, 4%) 48px;
     color: var(--nf-text, #e5e5e5);
     min-height: 70vh;
 }
