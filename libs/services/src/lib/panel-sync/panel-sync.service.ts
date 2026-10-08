@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { PanelProgressClient } from './panel-progress.client';
+import { lineKey, PanelProgressClient } from './panel-progress.client';
 import {
     bucketToFavoriteType,
     findPosition,
@@ -184,7 +184,7 @@ export class PanelSyncService {
             categoryId: clean(meta.categoryId),
             url: clean(meta.url),
         };
-        const user = clean(creds.username);
+        const user = lineKey(creds);
         if (!item.id || !user) return false;
         const change = this.outbox.record({ op: 'add', user, type: item.type, id: item.id, item });
         return this.send(creds, change);
@@ -196,7 +196,7 @@ export class PanelSyncService {
         id: string | number
     ): Promise<boolean> {
         const creds = this.creds(userIdObj);
-        const user = clean(creds.username);
+        const user = lineKey(creds);
         const favId = clean(id);
         if (!favId || !user) return false;
         const change = this.outbox.record({ op: 'remove', user, type: bucketToFavoriteType(bucket), id: favId });
@@ -206,7 +206,7 @@ export class PanelSyncService {
     /** Retries favorite changes that did not reach the panel (offline, panel down…). */
     async flushFavorites(userIdObj?: SyncUserCredentials | null): Promise<void> {
         const creds = this.creds(userIdObj);
-        for (const change of this.outbox.pending(clean(creds.username))) {
+        for (const change of this.outbox.pending(lineKey(creds))) {
             if (!(await this.send(creds, change))) return; // still unreachable: keep the rest for later
         }
     }
@@ -215,7 +215,7 @@ export class PanelSyncService {
     async getAllFavorites(userIdObj?: SyncUserCredentials | null): Promise<SyncFavoritesTree> {
         const creds = this.creds(userIdObj);
         const snapshot = await this.client.getSnapshot(creds);
-        return toFavoritesTree(applyFavoriteOverrides(snapshot?.favorites ?? [], this.outbox.overrides(clean(creds.username))));
+        return toFavoritesTree(applyFavoriteOverrides(snapshot?.favorites ?? [], this.outbox.overrides(lineKey(creds))));
     }
 
     /** Is this item in "Mi lista"? null when the panel cannot be read and nothing is known locally. */
@@ -227,7 +227,7 @@ export class PanelSyncService {
         const creds = this.creds(userIdObj);
         const type = bucketToFavoriteType(bucket);
         const favId = clean(id);
-        const local = this.outbox.overrides(clean(creds.username)).find((c) => c.type === type && c.id === favId);
+        const local = this.outbox.overrides(lineKey(creds)).find((c) => c.type === type && c.id === favId);
         if (local) return local.op === 'add';
         const snapshot = await this.client.getSnapshot(creds);
         return snapshot ? snapshot.favorites.some((f) => f && f.type === type && String(f.id) === favId) : null;

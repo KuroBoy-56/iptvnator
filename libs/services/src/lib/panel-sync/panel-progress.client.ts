@@ -2,10 +2,19 @@ import { panelEndpoint } from '@iptvnator/shared/interfaces';
 import { PanelSnapshot, SyncUserCredentials } from './panel-sync.types';
 import { rememberPanelTmdbKey } from './panel-tmdb-key';
 
-const TOKEN_PREFIX = 'panel_sync_token:';
+// v2: tokens carry the line's server, so progress and favorites are kept per user + DNS.
+const TOKEN_PREFIX = 'panel_sync_token2:';
 const SNAPSHOT_TTL_MS = 15_000;
 
 type FetchFn = typeof fetch;
+
+/** Cache key for a line: the same username on two servers is two different accounts. */
+export function lineKey(creds: SyncUserCredentials): string {
+    const user = creds.username?.trim();
+    if (!user) return '';
+    const server = (creds.server ?? '').trim().replace(/\/+$/, '').toLowerCase();
+    return server ? `${user}@${server}` : user;
+}
 
 function readToken(user: string): string | null {
     try {
@@ -46,23 +55,23 @@ export class PanelProgressClient {
         const res = await this.fetchFn(this.url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'auth', user, pass }),
+            body: JSON.stringify({ action: 'auth', user, pass, dns: creds.server?.trim() ?? '' }),
         });
         const body = res.ok ? await res.json().catch(() => null) : null;
         const token = body?.success && typeof body.token === 'string' ? body.token : null;
         rememberPanelTmdbKey(body?.tmdbKey);
         if (token) {
-            this.tokens.set(user, token);
-            writeToken(user, token);
+            this.tokens.set(lineKey(creds), token);
+            writeToken(lineKey(creds), token);
         }
         return token;
     }
 
     private async token(creds: SyncUserCredentials, refresh = false): Promise<string | null> {
-        const user = creds.username?.trim();
-        if (!user) return null;
+        const key = lineKey(creds);
+        if (!key) return null;
         if (!refresh) {
-            const known = this.tokens.get(user) ?? readToken(user);
+            const known = this.tokens.get(key) ?? readToken(key);
             if (known) return known;
         }
         return this.authenticate(creds);
@@ -77,9 +86,9 @@ export class PanelProgressClient {
         if (!token) return null;
         let res = await send(token);
         if (res.status === 401) {
-            const user = creds.username?.trim() ?? '';
-            this.tokens.delete(user);
-            writeToken(user, null);
+            const key = lineKey(creds);
+            this.tokens.delete(key);
+            writeToken(key, null);
             token = await this.token(creds, true);
             if (!token) return null;
             res = await send(token);
@@ -88,7 +97,7 @@ export class PanelProgressClient {
     }
 
     async getSnapshot(creds: SyncUserCredentials, force = false): Promise<PanelSnapshot | null> {
-        const user = creds.username?.trim();
+        const user = lineKey(creds);
         if (!user) return null;
         const cached = this.snapshots.get(user);
         if (!force && cached && Date.now() - cached.at < SNAPSHOT_TTL_MS) {
@@ -121,13 +130,13 @@ export class PanelProgressClient {
 
     /** Cached snapshot without a network round-trip (may be stale or null). */
     peekSnapshot(creds: SyncUserCredentials): PanelSnapshot | null {
-        const user = creds.username?.trim();
+        const user = lineKey(creds);
         return user ? this.snapshots.get(user)?.data ?? null : null;
     }
 
     /** Applies a local change to the cached snapshot so reads stay coherent. */
     patchSnapshot(creds: SyncUserCredentials, patch: (data: PanelSnapshot) => void): void {
-        const user = creds.username?.trim();
+        const user = lineKey(creds);
         const cached = user ? this.snapshots.get(user) : undefined;
         if (cached) patch(cached.data);
     }

@@ -13,7 +13,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 describe('PanelSyncService', () => {
     let calls: Call[];
     let snapshot: { progress: Record<string, unknown>; favorites: unknown[] };
-    const creds = { username: 'line1', password: 'secret', server: '' };
+    const creds = { username: 'line1', password: 'secret', server: 'http://dns.test:8080' };
 
     beforeEach(() => {
         localStorage.clear();
@@ -44,10 +44,10 @@ describe('PanelSyncService', () => {
         expect(tree.Movie['10'].timeline).toBe(100);
         const auth = calls.filter((c) => c.init?.method === 'POST');
         expect(auth).toHaveLength(1);
-        expect(JSON.parse(String(auth[0].init?.body))).toEqual({ action: 'auth', user: 'line1', pass: 'secret' });
+        expect(JSON.parse(String(auth[0].init?.body))).toEqual({ action: 'auth', user: 'line1', pass: 'secret', dns: 'http://dns.test:8080' });
         expect(calls[1].url).toContain('progress.php?v=2');
         expect((calls[1].init?.headers as Record<string, string>)['Authorization']).toBe('Bearer tok');
-        expect(localStorage.getItem('panel_sync_token:line1')).toBe('tok');
+        expect(localStorage.getItem('panel_sync_token2:line1@http://dns.test:8080')).toBe('tok');
         expect(JSON.stringify(localStorage)).not.toContain('secret');
     });
 
@@ -120,12 +120,12 @@ describe('PanelSyncService', () => {
 
     it('reports an unreadable panel so the local cache is not wiped', async () => {
         global.fetch = jest.fn(async () => jsonResponse({}, 500)) as typeof fetch;
-        localStorage.setItem('panel_sync_token:line1', 'tok');
+        localStorage.setItem('panel_sync_token2:line1@http://dns.test:8080', 'tok');
         expect(await service().refresh(creds)).toBe(false);
     });
 
     it('re-authenticates once when the stored token is rejected', async () => {
-        localStorage.setItem('panel_sync_token:line1', 'old');
+        localStorage.setItem('panel_sync_token2:line1@http://dns.test:8080', 'old');
         let first = true;
         global.fetch = jest.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
             calls.push({ url: String(url), init });
@@ -138,7 +138,7 @@ describe('PanelSyncService', () => {
         }) as typeof fetch;
         const favs = await service().getAllFavorites(creds);
         expect(favs.LiveTv['3'].title).toBe('Canal');
-        expect(localStorage.getItem('panel_sync_token:line1')).toBe('new');
+        expect(localStorage.getItem('panel_sync_token2:line1@http://dns.test:8080')).toBe('new');
     });
 
     it('throttles periodic saves but always sends a forced save', async () => {
