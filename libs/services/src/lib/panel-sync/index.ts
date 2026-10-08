@@ -8,3 +8,4 @@ export * from './provider-api';
 export * from './sports-matcher';
 export * from './panel-tmdb-key';
 export * from './panel-favorites-outbox';
+export * from './panel-branding.service';

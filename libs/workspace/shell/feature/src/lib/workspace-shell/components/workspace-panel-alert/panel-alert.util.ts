@@ -2,7 +2,9 @@ import {
     getPanelApiBase,
     getSessionAlertAccounts,
     panelEndpoint,
+    readTenantFeatures,
     SessionAlertAccount,
+    withTenantQuery,
 } from '@iptvnator/shared/interfaces';
 
 /** Alert configured in the panel's "Alertas" page (api/alerta.php?format=json). */
@@ -46,7 +48,8 @@ function alertUrl(acc: SessionAlertAccount): string {
         dns: acc.dns,
         title: acc.title ?? '',
     });
-    return `${panelEndpoint('alerta.php')}?${q.toString()}`;
+    // + &t=<code>&app=windows with a distributor (its own texts)
+    return withTenantQuery(`${panelEndpoint('alerta.php')}?${q.toString()}`);
 }
 
 /**
@@ -56,6 +59,8 @@ function alertUrl(acc: SessionAlertAccount): string {
 export async function fetchPanelAlert(
     fetcher: typeof fetch = fetch
 ): Promise<PanelAlert | null> {
+    // the distributor turned panel alerts off
+    if (!readTenantFeatures().alerts) return null;
     const panelRoot = getPanelApiBase().replace(/api\/$/, '');
     let welcome: PanelAlert | null = null;
     for (const acc of getSessionAlertAccounts()) {

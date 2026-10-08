@@ -58,3 +58,36 @@ describe('panelLoginRequest', () => {
         expect(result.code).toBe('NETWORK');
     });
 });
+
+describe('panelLoginRequest with a distributor', () => {
+    it('adds tenant + app to the payload only when a code is given', async () => {
+        const { fetch, calls } = fakeFetch(200, '{"exists":false}');
+        await panelLoginRequest('check_mac', { tenant: '123456' }, { fetch, masterKey, deviceId: 'ID' });
+        const plain = JSON.parse(decryptPayload(calls[0].body.get('data') ?? '', masterKey) ?? '{}');
+        expect(plain).toEqual({ mac_address: 'ID', tenant: '123456', app: 'windows' });
+    });
+
+    it('sends {code, app, device} for tenant_config and decrypts the answer', async () => {
+        const config = { status: 'ok', tenant: { code: '123456', name: 'Mi TV' }, features: { demo: true } };
+        const { fetch, calls } = fakeFetch(200, encryptPayload(JSON.stringify(config), masterKey));
+        const result = await panelLoginRequest('tenant_config', { tenant: '123456' }, { fetch, masterKey, deviceId: 'DEV' });
+
+        expect(calls[0].body.get('action')).toBe('tenant_config');
+        const plain = JSON.parse(decryptPayload(calls[0].body.get('data') ?? '', masterKey) ?? '{}');
+        expect(plain).toEqual({ code: '123456', app: 'windows', device: 'DEV' });
+        expect(result).toEqual({ ok: true, status: 200, data: config });
+    });
+
+    it('returns the plain JSON tenant error with its code', async () => {
+        const { fetch } = fakeFetch(404, '{"error":"Número de distribuidor no válido.","code":"tenant_invalid"}');
+        const result = await panelLoginRequest('tenant_config', { tenant: '000000' }, { fetch, masterKey, deviceId: 'ID' });
+        expect(result).toMatchObject({ ok: false, status: 404, code: 'HTTP', data: { code: 'tenant_invalid' } });
+    });
+
+    it('rejects a malformed code without calling the panel', async () => {
+        const { fetch, calls } = fakeFetch(200, '{}');
+        const result = await panelLoginRequest('tenant_config', { tenant: '12ab' }, { fetch, masterKey, deviceId: 'ID' });
+        expect(result.ok).toBe(false);
+        expect(calls).toHaveLength(0);
+    });
+});

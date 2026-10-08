@@ -1,6 +1,7 @@
 import {
     normalizeXtreamServerUrl,
     PanelBridgeApi,
+    readTenantCode,
 } from '@iptvnator/shared/interfaces';
 
 /**
@@ -13,7 +14,11 @@ export async function panelDnsServers(): Promise<string[]> {
         .electron;
     if (typeof bridge?.panelLoginRequest !== 'function') return [];
     try {
-        const res = await bridge.panelLoginRequest<unknown>('fetch_dns');
+        // the chosen distributor's DNS list (the owner's with "Omitir")
+        const tenant = readTenantCode();
+        const res = tenant
+            ? await bridge.panelLoginRequest<unknown>('fetch_dns', { tenant })
+            : await bridge.panelLoginRequest<unknown>('fetch_dns');
         const list = res.ok && Array.isArray(res.data) ? res.data : [];
         const servers = new Set<string>();
         for (const entry of list) {

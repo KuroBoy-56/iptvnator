@@ -1,6 +1,9 @@
 import {
     clearSessionCredentials,
+    clearTenant,
     getPanelApiBase,
+    saveTenantCode,
+    saveTenantSkip,
     setSessionAlertAccounts,
 } from '@iptvnator/shared/interfaces';
 import { fetchPanelAlert, parsePanelAlert } from './panel-alert.util';
@@ -85,5 +88,41 @@ describe('fetchPanelAlert', () => {
         expect(await fetchPanelAlert(jest.fn())).toBeNull();
         setSessionAlertAccounts([{ user: 'a', pass: 'p', dns: 'http://a', title: '' }]);
         expect(await fetchPanelAlert(jest.fn(() => Promise.reject(new Error('net'))))).toBeNull();
+    });
+
+    describe('with a distributor', () => {
+        const cache = (alerts: boolean) => ({
+            code: '123456', name: 'X', logoUrl: null, logoRev: 0, palette: null, expiresAt: 0,
+            expiresDate: null, features: { demo: true, alerts, sports: true }, rev: 1,
+            recheckAfter: 21600, lastOkCheck: Date.now(),
+        });
+        afterEach(() => clearTenant());
+
+        it('adds t + app to the alerta.php query', async () => {
+            saveTenantCode(cache(true));
+            setSessionAlertAccounts([{ user: 'u', pass: 'p', dns: 'http://dns', title: '' }]);
+            const fetcher = jest.fn(() => reply({ type: 'welcome', title: 'W' }));
+            await fetchPanelAlert(fetcher as unknown as typeof fetch);
+            const url = new URL((fetcher.mock.calls[0] as unknown[])[0] as string);
+            expect(url.searchParams.get('t')).toBe('123456');
+            expect(url.searchParams.get('app')).toBe('windows');
+        });
+
+        it('skips the alert when the distributor turned alerts off', async () => {
+            saveTenantCode(cache(false));
+            setSessionAlertAccounts([{ user: 'u', pass: 'p', dns: 'http://dns', title: '' }]);
+            const fetcher = jest.fn(() => reply({ type: 'welcome', title: 'W' }));
+            expect(await fetchPanelAlert(fetcher as unknown as typeof fetch)).toBeNull();
+            expect(fetcher).not.toHaveBeenCalled();
+        });
+
+        it('sends no tenant with Omitir', async () => {
+            saveTenantSkip();
+            setSessionAlertAccounts([{ user: 'u', pass: 'p', dns: 'http://dns', title: '' }]);
+            const fetcher = jest.fn(() => reply({ type: 'welcome', title: 'W' }));
+            await fetchPanelAlert(fetcher as unknown as typeof fetch);
+            const url = new URL((fetcher.mock.calls[0] as unknown[])[0] as string);
+            expect(url.searchParams.has('t')).toBe(false);
+        });
     });
 });

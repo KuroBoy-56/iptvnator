@@ -1,4 +1,11 @@
-import { panelEndpoint } from '@iptvnator/shared/interfaces';
+import {
+    notifyTenantError,
+    PANEL_TENANT_FATAL,
+    panelEndpoint,
+    panelTenantFields,
+    tenantErrorCode,
+    tenantStorageSuffix,
+} from '@iptvnator/shared/interfaces';
 import { PanelSnapshot, SyncUserCredentials } from './panel-sync.types';
 import { rememberPanelTmdbKey } from './panel-tmdb-key';
 
@@ -19,6 +26,23 @@ export function lineKey(creds: SyncUserCredentials): string {
         .replace(/\/+$/, '')
         .toLowerCase();
     return server ? `${user}@${server}` : user;
+}
+
+/**
+ * Token cache key: the line plus the distributor code, so switching
+ * distributor never reuses another one's token ('' suffix with Omitir).
+ */
+export function tokenKey(creds: SyncUserCredentials): string {
+    const line = lineKey(creds);
+    return line ? line + tenantStorageSuffix() : '';
+}
+
+/** A panel 401/403 caused by the distributor (expired, suspended…) goes to the guardian. */
+async function reportTenantError(res: Response): Promise<void> {
+    if (res.status !== 401 && res.status !== 403 && res.status !== 404) return;
+    const body = await res.clone().json().catch(() => null);
+    const code = tenantErrorCode(body);
+    if (code && PANEL_TENANT_FATAL.includes(code)) notifyTenantError(code);
 }
 
 function readToken(user: string): string | null {
@@ -60,20 +84,21 @@ export class PanelProgressClient {
         const res = await this.fetchFn(this.url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'auth', user, pass, dns: creds.server?.trim() ?? '' }),
+            body: JSON.stringify({ action: 'auth', user, pass, dns: creds.server?.trim() ?? '', ...panelTenantFields() }),
         });
+        if (!res.ok) await reportTenantError(res);
         const body = res.ok ? await res.json().catch(() => null) : null;
         const token = body?.success && typeof body.token === 'string' ? body.token : null;
         rememberPanelTmdbKey(body?.tmdbKey);
         if (token) {
-            this.tokens.set(lineKey(creds), token);
-            writeToken(lineKey(creds), token);
+            this.tokens.set(tokenKey(creds), token);
+            writeToken(tokenKey(creds), token);
         }
         return token;
     }
 
     private async token(creds: SyncUserCredentials, refresh = false): Promise<string | null> {
-        const key = lineKey(creds);
+        const key = tokenKey(creds);
         if (!key) return null;
         if (!refresh) {
             const known = this.tokens.get(key) ?? readToken(key);
@@ -90,13 +115,15 @@ export class PanelProgressClient {
         let token = await this.token(creds);
         if (!token) return null;
         let res = await send(token);
-        if (res.status === 401) {
-            const key = lineKey(creds);
+        // 403 = the token's distributor is no longer valid: one re-auth, then the guardian decides
+        if (res.status === 401 || (res.status === 403 && panelTenantFields().tenant)) {
+            const key = tokenKey(creds);
             this.tokens.delete(key);
             writeToken(key, null);
             token = await this.token(creds, true);
             if (!token) return null;
             res = await send(token);
+            if (!res.ok) await reportTenantError(res);
         }
         return res;
     }

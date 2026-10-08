@@ -1,3 +1,4 @@
+import { clearTenant, PANEL_TENANT_ERROR_EVENT, saveTenantCode } from '@iptvnator/shared/interfaces';
 import { lineKey } from './panel-progress.client';
 import { PanelSyncService } from './panel-sync.service';
 
@@ -50,6 +51,39 @@ describe('PanelSyncService', () => {
         expect((calls[1].init?.headers as Record<string, string>)['Authorization']).toBe('Bearer tok');
         expect(localStorage.getItem('panel_sync_token2:line1@dns.test:8080')).toBe('tok');
         expect(JSON.stringify(localStorage)).not.toContain('secret');
+    });
+
+    describe('with a distributor', () => {
+        beforeEach(() =>
+            saveTenantCode({
+                code: '123456', name: null, logoUrl: null, logoRev: 0, palette: null, expiresAt: 0, expiresDate: null,
+                features: { demo: true, alerts: true, sports: true }, rev: 1, recheckAfter: 21600, lastOkCheck: Date.now(),
+            })
+        );
+        afterEach(() => clearTenant());
+
+        it('authenticates with tenant + app and keeps the token per distributor', async () => {
+            localStorage.setItem('panel_sync_token2:line1@dns.test:8080', 'owner-token');
+            await service().getAllProgress(creds);
+            const auth = calls.find((c) => c.init?.method === 'POST');
+            expect(JSON.parse(String(auth?.init?.body))).toEqual({
+                action: 'auth', user: 'line1', pass: 'secret', dns: 'http://dns.test:8080', tenant: '123456', app: 'windows',
+            });
+            expect(localStorage.getItem('panel_sync_token2:line1@dns.test:8080@t123456')).toBe('tok');
+            expect(localStorage.getItem('panel_sync_token2:line1@dns.test:8080')).toBe('owner-token');
+        });
+
+        it('reports a distributor rejected by progress.php to the guardian', async () => {
+            const seen: unknown[] = [];
+            const listener = (e: Event) => seen.push((e as CustomEvent).detail);
+            window.addEventListener(PANEL_TENANT_ERROR_EVENT, listener);
+            global.fetch = jest.fn(async () =>
+                ({ ok: false, status: 403, json: async () => ({ error: 'x', code: 'tenant_expired' }), clone() { return this; } }) as unknown as Response
+            ) as typeof fetch;
+            expect(await service().refresh(creds)).toBe(false);
+            window.removeEventListener(PANEL_TENANT_ERROR_EVENT, listener);
+            expect(seen).toContain('tenant_expired');
+        });
     });
 
     it('keys a line by user + host, whatever the scheme', () => {
