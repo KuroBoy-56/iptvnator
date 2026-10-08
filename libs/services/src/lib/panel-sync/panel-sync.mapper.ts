@@ -10,8 +10,15 @@ import {
 /** Share of the runtime after which an item counts as watched. */
 export const WATCHED_RATIO = 0.95;
 
-function toEpochSeconds(iso?: string): number {
-    const ms = iso ? Date.parse(iso) : NaN;
+/** ISO / "Y-m-d H:i:s" strings, or epoch seconds/milliseconds → epoch seconds. */
+function toEpochSeconds(value?: string | number | null): number {
+    if (value == null || value === '') return 0;
+    if (typeof value === 'number' || /^\d+(\.\d+)?$/.test(String(value).trim())) {
+        const n = Number(value);
+        if (!Number.isFinite(n) || n <= 0) return 0;
+        return Math.floor(n > 1e12 ? n / 1000 : n);
+    }
+    const ms = Date.parse(String(value).trim().replace(' ', 'T'));
     return Number.isFinite(ms) ? Math.floor(ms / 1000) : 0;
 }
 
@@ -49,11 +56,25 @@ export function toProgressTree(
     return tree;
 }
 
-const BUCKET_BY_TYPE: Record<PanelFavoriteType, SyncFavoriteBucket> = {
+// The web player, Android and older panel rows do not all spell the type the same way.
+const BUCKET_BY_TYPE: Record<string, SyncFavoriteBucket> = {
     movie: 'Movie',
+    movies: 'Movie',
+    vod: 'Movie',
+    pelicula: 'Movie',
     series: 'Series',
+    serie: 'Series',
+    tv: 'Series',
     live: 'LiveTv',
+    livetv: 'LiveTv',
+    channel: 'LiveTv',
+    canal: 'LiveTv',
 };
+
+/** Panel favorite type (any spelling) → app bucket, or null when unknown. */
+export function favoriteBucket(type: unknown): SyncFavoriteBucket | null {
+    return BUCKET_BY_TYPE[String(type ?? '').trim().toLowerCase()] ?? null;
+}
 
 /** App bucket name ('Movie' | 'Series' | 'LiveTv') -> panel favorite type. */
 export function bucketToFavoriteType(bucket: string): PanelFavoriteType {
@@ -68,13 +89,14 @@ export function toFavoritesTree(
 ): SyncFavoritesTree {
     const tree: SyncFavoritesTree = { Movie: {}, Series: {}, LiveTv: {} };
     for (const fav of favorites ?? []) {
-        const bucket = fav && BUCKET_BY_TYPE[fav.type];
-        if (!bucket || !fav.id) continue;
-        tree[bucket][String(fav.id)] = {
+        const bucket = fav ? favoriteBucket(fav.type) : null;
+        const id = fav ? String(fav.id ?? '').trim() : '';
+        if (!bucket || !id) continue;
+        tree[bucket][id] = {
             title: fav.title || '',
             thumbnail: fav.poster || '',
-            categoryId: fav.categoryId || '0',
-            timestamp: toEpochSeconds(fav.addedAt),
+            categoryId: fav.categoryId ? String(fav.categoryId) : '0',
+            timestamp: toEpochSeconds(fav.addedAt) || toEpochSeconds(fav.ts),
         };
     }
     return tree;

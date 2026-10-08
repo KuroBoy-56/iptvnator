@@ -121,7 +121,7 @@ export function createSettingsFromFormValue(
         dashboardRails: normalizeDashboardRailsSettings(value.dashboardRails),
         startupBehavior: value.startupBehavior ?? StartupBehavior.FirstView,
         showExternalPlaybackBar: value.showExternalPlaybackBar ?? true,
-        theme: value.theme ?? Theme.SystemTheme,
+        theme: value.theme ?? Theme.DarkTheme,
         mpvPlayerPath: normalizeExternalPlayerPath(value.mpvPlayerPath),
         mpvPlayerArguments: normalizeExternalPlayerArguments(
             value.mpvPlayerArguments

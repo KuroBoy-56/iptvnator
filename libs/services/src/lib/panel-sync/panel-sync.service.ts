@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { lineKey, PanelProgressClient } from './panel-progress.client';
 import {
     bucketToFavoriteType,
+    favoriteBucket,
     findPosition,
     findProgressKey,
     isWatched,
@@ -10,6 +11,8 @@ import {
 } from './panel-sync.mapper';
 import {
     FavoriteSyncMeta,
+    PanelFavorite,
+    PanelFavoriteType,
     PanelEpgChannel,
     PanelEpgProgram,
     PanelProgressEntry,
@@ -32,6 +35,11 @@ export const PANEL_SAVE_INTERVAL_MS = 20_000;
 function clean(value: unknown): string {
     const text = value == null ? '' : String(value).trim();
     return text === 'null' || text === 'undefined' ? '' : text;
+}
+
+/** Same favorite whatever spelling of the type the panel row uses ("vod" vs "movie"…). */
+function sameFavorite(f: PanelFavorite | null | undefined, type: PanelFavoriteType, id: string): boolean {
+    return !!f && String(f.id ?? '').trim() === id && favoriteBucket(f.type) === favoriteBucket(type);
 }
 
 /** Xtream session of the logged-in line, used when callers pass none. */
@@ -230,7 +238,7 @@ export class PanelSyncService {
         const local = this.outbox.overrides(lineKey(creds)).find((c) => c.type === type && c.id === favId);
         if (local) return local.op === 'add';
         const snapshot = await this.client.getSnapshot(creds);
-        return snapshot ? snapshot.favorites.some((f) => f && f.type === type && String(f.id) === favId) : null;
+        return snapshot ? snapshot.favorites.some((f) => sameFavorite(f, type, favId)) : null;
     }
 
     private async send(creds: SyncUserCredentials, change: FavoriteChange): Promise<boolean> {
@@ -242,7 +250,7 @@ export class PanelSyncService {
         if (!ok) return false;
         this.outbox.markSent(change);
         this.client.patchSnapshot(creds, (data) => {
-            data.favorites = data.favorites.filter((f) => !(String(f.id) === change.id && f.type === change.type));
+            data.favorites = data.favorites.filter((f) => !sameFavorite(f, change.type, change.id));
             if (change.op === 'add') {
                 data.favorites.unshift({ ...(change.item ?? { id: change.id, type: change.type }), addedAt: new Date().toISOString() });
             }

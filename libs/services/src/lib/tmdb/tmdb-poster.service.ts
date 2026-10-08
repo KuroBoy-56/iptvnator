@@ -9,6 +9,7 @@ import {
 } from './tmdb-matcher';
 import { TmdbRuntimeService } from './tmdb-runtime.service';
 import { TmdbSearchResult } from './tmdb.types';
+import { PANEL_TMDB_KEY_EVENT } from '../panel-sync/panel-tmdb-key';
 
 const CACHE_KEY = 'tmdb_poster_cache_v1';
 const MAX_CACHE_ENTRIES = 3000;
@@ -29,6 +30,25 @@ export class TmdbPosterService {
     private readonly queue: (() => void)[] = [];
     private running = 0;
     private cache: PosterCache | null = null;
+
+    /**
+     * Resolves once a TMDB key is known. On a fresh install the panel key
+     * arrives with the first progress.php answer, after the first covers are
+     * drawn; waiting here lets those covers still get their TMDB fallback.
+     */
+    whenKeyAvailable(timeoutMs = 60_000): Promise<boolean> {
+        if (this.runtime.apiKey()) return Promise.resolve(true);
+        if (typeof window === 'undefined') return Promise.resolve(false);
+        return new Promise((resolve) => {
+            const done = () => {
+                clearTimeout(timer);
+                window.removeEventListener(PANEL_TMDB_KEY_EVENT, done);
+                resolve(!!this.runtime.apiKey());
+            };
+            const timer = setTimeout(done, timeoutMs);
+            window.addEventListener(PANEL_TMDB_KEY_EVENT, done);
+        });
+    }
 
     /** TMDB poster URL for a provider title, or null. */
     find(title: string | null | undefined, type: TmdbMediaType): Promise<string | null> {

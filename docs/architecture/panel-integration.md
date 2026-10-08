@@ -109,8 +109,11 @@ so the in-app DNS choice does not apply to them.
 ### Authentication
 
 `PanelProgressClient` authenticates once with the Xtream user and password
-(`action: auth`) and keeps only the returned token, in `localStorage` under
-`panel_sync_token:<user>`. On a 401 it re-authenticates once.
+(`action: auth`, plus the line's `dns`) and keeps only the returned token, in
+`localStorage` under `panel_sync_token2:<lineKey>`. `lineKey` is
+`user@host[:port]`: lowercase, with no scheme and no trailing slash, so the same
+line over http or https shares one token, snapshot and favorites outbox. On a
+401 it re-authenticates once.
 
 ### Reads and writes
 
@@ -141,6 +144,18 @@ These are shared with the web player:
   cache sync, even after a restart. For 2 minutes after a change (and while it
   is unsent) `getAllFavorites`/`isFavorite` apply it on top of the panel
   snapshot, so a snapshot that predates the change cannot undo it.
+- Panel favorite types are read whatever their spelling (`movie`/`vod`/`movies`,
+  `series`/`serie`, `live`/`channel`). Timestamps are read from `addedAt`
+  (ISO or `Y-m-d H:i:s`), then from `ts` (epoch seconds or ms). See
+  `favoriteBucket` and `toFavoritesTree` in `panel-sync.mapper.ts`.
+- **"Mi lista" page** (`favorites` routes, `UnifiedFavoritesDataService`):
+  `panelFavoritesToItems` (`libs/portal/shared/data-access/src/lib/collection/panel-favorite-items.ts`)
+  matches each panel favorite with the line's catalog
+  (`XTREAM_DATA_SOURCE.getContentByXtreamId`). The item then carries the local
+  row id as `contentId` (open, play, remove), the real title, the cover and the
+  category. Only items missing from the catalog fall back to the panel's
+  title and poster, then to provider enrichment. Before this, `contentId` was
+  the provider id and items showed as "Película 123" with no cover.
 - `withFavorites.checkFavoriteStatus` asks the panel (`FavoritesService.panelStatus`)
   and repairs the local row when they disagree, so a favorite added on the web
   player or Android shows as such on Windows right away.
@@ -148,7 +163,11 @@ These are shared with the web player:
   panel settings). It is kept in `localStorage.panel_tmdb_key`;
   `TmdbRuntimeService` uses it when the user has no key of their own and then
   always enables TMDB. `TmdbPosterDirective` (`img[appTmdbPoster]`) uses it to
-  replace missing or broken covers in grids, cards and dashboard rails.
+  replace missing or broken covers in grids, cards and dashboard rails. The
+  detail hero (`ContentHeroComponent`, `mediaType` input passed by
+  `PortalDetailShellComponent`) uses it the same way. On a first start, covers
+  drawn before the key arrives wait for the `panel-tmdb-key` window event
+  (`TmdbPosterService.whenKeyAvailable`).
 
 ### Player integration
 
@@ -270,3 +289,46 @@ are in `apps/web/src/assets/images/platforms/`.
 
 The workspace entry (`/workspace`) and the dashboard redirect go to the first
 Xtream line's `home`.
+
+### Theme
+
+The app is dark only. `SettingsService.changeTheme` always applies
+`dark-theme`, whatever theme an older version saved, and `index.html` starts
+with it. The Settings theme picker was removed. The workspace shell paints
+`#141414` with off-white text, so a light Material theme used to give white
+surfaces with white text in live TV, Settings, detail pages and dialogs
+(Mi cuenta). `m3-theme.scss` also sets neutral `#181818` dialog, menu, select
+and card container tokens for the dark theme.
+
+The renderer-drawn window controls (`app-window-controls`, Windows/Linux) use
+white glyphs over the dark top bar. The top bar reserves room for them
+(`body.frameless-platform .nf-header`).
+
+### Actualizar contenido
+
+The profile menu's "Actualizar contenido" deletes the line's cached content and
+lands on Inicio, which imports it again. The import overlay
+(`app-workspace-shell-import-overlay`) shows on every page of the line while
+an import or refresh runs, not only on the old category pages. It sits above
+the top bar, so navigation is blocked until the import ends. If the import
+fails, the overlay closes and the error state is shown.
+
+## Provider DNS scheme (http vs https)
+
+The panel can hand out a line's DNS as `https://` even when the provider only
+answers on http, and requests to `https://host:443` then end in `ETIMEDOUT`.
+Two layers handle this:
+
+- **Login:** `PanelSessionService.start` runs `resolveReachableServer`
+  (`apps/web/src/app/panel-login/server-scheme.util.ts`). It probes
+  `player_api.php` over https and, if that does not answer, over http. The
+  working scheme is remembered per host (`localStorage.panel_server_scheme:<host>`)
+  and saved as the playlist's `serverUrl`. Lines match by host, whatever the
+  scheme.
+- **Electron `XTREAM_REQUEST`:** after a connection failure on https (timeout,
+  refused, TLS error), the request is retried once over http. The host is
+  remembered for the run (`xtream-scheme-fallback.ts`).
+
+Failed provider requests are only logged. The old native "CAZADOR DE ERRORES"
+error box is gone, so background calls such as `get_account_info` no longer
+block the app.

@@ -45,39 +45,7 @@
         </div>
     </div>
 
-    <div class="setting-item setting-item--full-control">
-        <div class="setting-item__meta">
-            <h4>{{ 'SETTINGS.THEME' | translate }}</h4>
-            <p>{{ 'SETTINGS.THEME_DESCRIPTION' | translate }}</p>
-        </div>
-        <div class="setting-item__control">
-            <div
-                class="theme-switcher"
-                role="radiogroup"
-                [attr.aria-label]="'SETTINGS.THEME' | translate"
-                data-test-id="select-theme"
-            >
-                @for (themeOption of themeOptions(); track themeOption.value) {
-                    <button
-                        type="button"
-                        class="theme-switcher__option"
-                        [class.theme-switcher__option--selected]="
-                            form().value.theme === themeOption.value
-                        "
-                        [attr.aria-checked]="
-                            form().value.theme === themeOption.value
-                        "
-                        [attr.data-test-id]="themeOption.value"
-                        role="radio"
-                        (click)="selectTheme.emit(themeOption.value)"
-                    >
-                        <mat-icon>{{ themeOption.icon }}</mat-icon>
-                        <span>{{ themeOption.labelKey | translate }}</span>
-                    </button>
-                }
-            </div>
-        </div>
-    </div>
+    <!-- LatMpx TV+ is dark only (Netflix palette): no theme picker. -->
 
     <div class="setting-item setting-item--full-control">
         <div class="setting-item__meta">

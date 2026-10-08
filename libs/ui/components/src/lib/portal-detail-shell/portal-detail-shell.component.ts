@@ -48,6 +48,8 @@ export class PortalDetailShellComponent {
     readonly description = input<string>();
     readonly posterUrl = input<string>();
     readonly backdropUrl = input<string>();
+    /** movie | series — picks the TMDB search used for a missing cover. */
+    readonly mediaType = input<string>('movie');
     readonly isLoading = input(false);
     readonly errorMessage = input<string>();
     /** True while inline playback is active — flips the layout to watch state. */

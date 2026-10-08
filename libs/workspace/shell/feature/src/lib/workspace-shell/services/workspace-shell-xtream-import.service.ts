@@ -74,7 +74,6 @@ export class WorkspaceShellXtreamImportService {
     readonly showXtreamImportOverlay = computed(() => {
         const route = this.routeState.currentRoute();
         const context = this.routeState.currentContext();
-        const section = this.routeState.currentSection();
         const hasRefreshPreparation = Boolean(this.refreshPreparation());
 
         if (route.kind === 'dashboard') {
@@ -88,14 +87,10 @@ export class WorkspaceShellXtreamImportService {
         const isPreparingCurrentPlaylist =
             this.isRefreshPreparationRunningForPlaylist(context.playlistId);
 
-        return (
-            (this.isImportRunning() || isPreparingCurrentPlaylist) &&
-            (section === 'vod' ||
-                section === 'live' ||
-                section === 'series' ||
-                section === 'search' ||
-                section === 'recently-added')
-        );
+        // Any page of the line: the Netflix pages (Inicio, Películas, Series,
+        // Explorar) read the same catalog, and "Actualizar contenido" lands on
+        // Inicio. The overlay blocks navigation until the import finishes.
+        return this.isImportRunning() || isPreparingCurrentPlaylist;
     });
 
     readonly xtreamImportTitleLabel = computed(() => {

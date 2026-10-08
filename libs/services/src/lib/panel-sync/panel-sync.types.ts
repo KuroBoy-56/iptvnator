@@ -29,6 +29,8 @@ export interface PanelFavorite {
     categoryId?: string;
     url?: string;
     addedAt?: string;
+    /** Epoch seconds (or ms) the panel stamps on each favorite. */
+    ts?: number | string;
 }
 
 /** GET api/progress.php?v=2 response (progress is keyed by title). */

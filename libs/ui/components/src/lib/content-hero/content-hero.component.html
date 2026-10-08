@@ -91,14 +91,12 @@
         <!-- Backdrop Image -->
         <div
             class="hero__backdrop"
-            [class.hero__backdrop--blurred]="
-                !backdropUrl() && posterUrl() && !posterError()
-            "
+            [class.hero__backdrop--blurred]="!backdropUrl() && displayPoster()"
             [style.backgroundImage]="
-                backdropUrl() && !posterError()
+                backdropUrl()
                     ? 'url(' + backdropUrl() + ')'
-                    : posterUrl() && !posterError()
-                      ? 'url(' + posterUrl() + ')'
+                    : displayPoster()
+                      ? 'url(' + displayPoster() + ')'
                       : fallbackBackdropBackground()
             "
         ></div>
@@ -110,10 +108,10 @@
         <div class="hero__content">
             <!-- Poster Card -->
             <div class="poster">
-                @if (posterUrl() && !posterError()) {
+                @if (displayPoster()) {
                     <img
                         class="poster__image"
-                        [src]="posterUrl()"
+                        [src]="displayPoster()"
                         (error)="onPosterError()"
                         alt="Poster"
                     />

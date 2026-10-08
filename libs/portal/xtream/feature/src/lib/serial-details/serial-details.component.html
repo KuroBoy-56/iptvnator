@@ -5,6 +5,7 @@
         [title]="info.name"
         [description]="info.plot"
         [posterUrl]="info.cover"
+        mediaType="series"
         [backdropUrl]="getBackdropUrl(info)"
         [playbackActive]="!!inlinePlayback()"
         (backClicked)="goBack()"

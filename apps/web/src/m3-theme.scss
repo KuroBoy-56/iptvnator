@@ -142,6 +142,29 @@ html {
         --app-header-bg: #000000;
         --app-content-bg: #141414;
         --mat-sys-surface: #141414;
+        // Neutral (not red-tinted) surfaces for dialogs, menus, selects and
+        // cards, so overlays like "Mi cuenta" match the web player palette.
+        --mat-sys-surface-container-lowest: #0b0b0b;
+        --mat-sys-surface-container-low: #141414;
+        --mat-sys-surface-container: #181818;
+        --mat-sys-surface-container-high: #1f1f1f;
+        --mat-sys-surface-container-highest: #2a2a2a;
+        --mat-sys-on-surface: #e5e5e5;
+        --mat-sys-on-surface-variant: #b3b3b3;
+        --mat-dialog-container-color: #181818;
+        --mat-dialog-subhead-color: #e5e5e5;
+        --mat-dialog-supporting-text-color: #b3b3b3;
+        --mat-menu-container-color: #181818;
+        --mat-select-panel-background-color: #181818;
+        --mat-autocomplete-background-color: #181818;
+        --mat-bottom-sheet-container-background-color: #181818;
+        --mat-datepicker-calendar-container-background-color: #181818;
+        --mat-expansion-container-background-color: #181818;
+        --mat-card-elevated-container-color: #181818;
+        --mat-card-filled-container-color: #1f1f1f;
+        --mat-card-outlined-container-color: #181818;
+        --mat-sidenav-container-background-color: #141414;
+        --mat-sidenav-content-background-color: #141414;
         --app-rail-border: transparent;
         --app-on-surface: #e6e1e5;
         --app-hover-overlay: rgba(255, 255, 255, 0.08);

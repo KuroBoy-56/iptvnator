@@ -34,6 +34,7 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamContentItem,
 } from '@iptvnator/portal/xtream/data-access';
+import { panelFavoritesToItems } from './panel-favorite-items';
 
 const GLOBAL_FAVORITES_ORDER_KEY = 'global-favorites-channel-order-v1';
 const globalUnifiedCache = new Map<string, any>();
@@ -708,75 +709,10 @@ export class UnifiedFavoritesDataService {
         
         if (this.panelSync) {
             try {
-                const win = window as any;
-                const ipc = win.electron?.ipcRenderer;
-                const xtreamPlaylists = allMeta.filter((p: any) => !!p.serverUrl);
-                
-                for (const pl of xtreamPlaylists) {
-                    const plAny = pl as any;
-                    const userIdObj = { username: plAny.username, password: plAny.password, server: plAny.serverUrl };
-                    const cloudFavorites = await (this.panelSync as any).getAllFavorites(userIdObj);
-                    
-                    if (cloudFavorites) {
-                        for (const type of ['Movie', 'Series', 'LiveTv']) {
-                            if (!cloudFavorites[type]) continue;
-                            for (const itemId of Object.keys(cloudFavorites[type])) {
-                                const data = cloudFavorites[type][itemId];
-                                let thumb = undefined;
-                                let favTitle = undefined;
-                                const finalCategoryId = '0';
-                                
-                                if (typeof data === 'object' && data !== null) {
-                                    thumb = data.thumbnail && data.thumbnail !== 'null' ? data.thumbnail : undefined;
-                                    if (data.title && data.title !== 'null') favTitle = data.title;
-                                }
-                                
-                                const xtreamId = Number(itemId);
-                                const cType = type === 'Movie' ? 'movie' : type === 'Series' ? 'series' : 'live';
-
-                                if (cType === 'live') {
-                                    const liveChannelsMap = win.__liveChannelsCache?.[pl._id];
-                                    if (liveChannelsMap) {
-                                        const liveInfo = liveChannelsMap.get(String(xtreamId));
-                                        if (liveInfo) {
-                                            favTitle = liveInfo.name;
-                                            thumb = liveInfo.logo;
-                                        }
-                                    }
-                                }
-
-                                if (!favTitle || favTitle === 'Favorito' || favTitle === '' || favTitle === 'Contenido') {
-                                    if (type === 'LiveTv') favTitle = `Canal ${xtreamId}`;
-                                    else if (type === 'Movie') favTitle = `Película ${xtreamId}`;
-                                    else if (type === 'Series') favTitle = `Serie ${xtreamId}`;
-                                    else favTitle = 'Favorito';
-                                }
-
-                                const addedSeconds = typeof data === 'number' ? data : Number(data?.timestamp) || 0;
-                                const addedDate = addedSeconds > 0 ? new Date(addedSeconds * 1000).toISOString() : new Date().toISOString();
-
-                                results.push({
-                                    uid: buildXtreamCollectionUid(pl._id, cType, xtreamId),
-                                    name: favTitle,
-                                    contentType: cType,
-                                    sourceType: 'xtream',
-                                    playlistId: pl._id,
-                                    playlistName: pl.title || 'Xtream',
-                                    logo: cType === 'live' ? (thumb ?? null) : null,
-                                    posterUrl: cType !== 'live' ? (thumb ?? null) : null,
-                                    xtreamId: xtreamId,
-                                    categoryId: finalCategoryId,
-                                    tvgId: cType === 'live' ? String(xtreamId) : undefined,
-                                    contentId: xtreamId,
-                                    addedAt: addedDate,
-                                    position: 0,
-                                });
-                            }
-                        }
-                    }
+                for (const pl of allMeta.filter((p) => !!p.serverUrl)) {
+                    results.push(...(await this.getPanelXtreamFavorites(pl)));
                 }
-                
-                return await this.enrichUnifiedItems(results);
+                return results;
             } catch { /* best effort */ }
         }
 
@@ -806,69 +742,7 @@ export class UnifiedFavoritesDataService {
             
             if (this.panelSync && metaAny?.serverUrl) {
                 try {
-                    const win = window as any;
-                    const ipc = win.electron?.ipcRenderer;
-                    const userIdObj = { username: metaAny.username, password: metaAny.password, server: metaAny.serverUrl };
-                    const cloudFavorites = await (this.panelSync as any).getAllFavorites(userIdObj);
-                    
-                    if (cloudFavorites) {
-                        for (const type of ['Movie', 'Series', 'LiveTv']) {
-                            if (!cloudFavorites[type]) continue;
-                            for (const itemId of Object.keys(cloudFavorites[type])) {
-                                const data = cloudFavorites[type][itemId];
-                                let thumb = undefined;
-                                let favTitle = undefined;
-                                const finalCategoryId = '0';
-                                
-                                if (typeof data === 'object' && data !== null) {
-                                    thumb = data.thumbnail && data.thumbnail !== 'null' ? data.thumbnail : undefined;
-                                    if (data.title && data.title !== 'null') favTitle = data.title;
-                                }
-                                
-                                const xtreamId = Number(itemId);
-                                const cType = type === 'Movie' ? 'movie' : type === 'Series' ? 'series' : 'live';
-
-                                if (cType === 'live') {
-                                    const liveChannelsMap = win.__liveChannelsCache?.[playlistId];
-                                    if (liveChannelsMap) {
-                                        const liveInfo = liveChannelsMap.get(String(xtreamId));
-                                        if (liveInfo) {
-                                            favTitle = liveInfo.name;
-                                            thumb = liveInfo.logo;
-                                        }
-                                    }
-                                }
-
-                                if (!favTitle || favTitle === 'Favorito' || favTitle === '' || favTitle === 'Contenido') {
-                                    if (type === 'LiveTv') favTitle = `Canal ${xtreamId}`;
-                                    else if (type === 'Movie') favTitle = `Película ${xtreamId}`;
-                                    else if (type === 'Series') favTitle = `Serie ${xtreamId}`;
-                                    else favTitle = 'Favorito';
-                                }
-
-                                const addedSeconds = typeof data === 'number' ? data : Number(data?.timestamp) || 0;
-                                const addedDate = addedSeconds > 0 ? new Date(addedSeconds * 1000).toISOString() : new Date().toISOString();
-
-                                results.push({
-                                    uid: buildXtreamCollectionUid(playlistId, cType, xtreamId),
-                                    name: favTitle,
-                                    contentType: cType,
-                                    sourceType: 'xtream',
-                                    playlistId: playlistId,
-                                    playlistName: meta?.title || 'Xtream',
-                                    logo: cType === 'live' ? (thumb ?? null) : null,
-                                    posterUrl: cType !== 'live' ? (thumb ?? null) : null,
-                                    xtreamId: xtreamId,
-                                    categoryId: finalCategoryId,
-                                    tvgId: cType === 'live' ? String(xtreamId) : undefined,
-                                    contentId: xtreamId,
-                                    addedAt: addedDate,
-                                    position: 0,
-                                });
-                            }
-                        }
-                    }
-                    return await this.enrichUnifiedItems(results);
+                    return await this.getPanelXtreamFavorites(meta as PlaylistMeta);
                 } catch { /* best effort */ }
             }
 
@@ -915,6 +789,22 @@ export class UnifiedFavoritesDataService {
         );
 
         return content?.id ?? null;
+    }
+
+    /** "Mi lista" of one line, read from the panel and matched with the local catalog. */
+    private async getPanelXtreamFavorites(pl: PlaylistMeta): Promise<UnifiedCollectionItem[]> {
+        const plAny = pl as PlaylistMeta & { username?: string; password?: string; serverUrl?: string };
+        const tree = await this.panelSync?.getAllFavorites({
+            username: plAny.username,
+            password: plAny.password,
+            server: plAny.serverUrl,
+        });
+        const entries = await panelFavoritesToItems(tree, { id: pl._id, name: pl.title || 'Xtream' }, (xtreamId, type) =>
+            this.xtreamDataSource.getContentByXtreamId(xtreamId, pl._id, type)
+        );
+        const unresolved = entries.filter((e) => !e.resolved).map((e) => e.item);
+        if (unresolved.length) await this.enrichUnifiedItems(unresolved);
+        return entries.map((e) => e.item);
     }
 
     private mapXtreamRow(row: XtreamFavoriteRow): UnifiedCollectionItem {

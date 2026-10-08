@@ -21,11 +21,6 @@ interface ParsedVersion {
     prerelease: boolean;
 }
 
-type LegacyMediaQueryList = MediaQueryList & {
-    addListener?: (listener: (event: MediaQueryListEvent) => void) => void;
-    removeListener?: (listener: (event: MediaQueryListEvent) => void) => void;
-};
-
 function parseVersion(input: string): ParsedVersion | null {
     const normalized = input.trim().replace(/^v/i, '');
     const match = normalized.match(
@@ -65,84 +60,16 @@ function compareVersions(a: ParsedVersion, b: ParsedVersion): number {
 export class SettingsService {
     private http = inject(HttpClient);
     private storage = inject(StorageMap);
-    private readonly systemThemeMediaQuery =
-        typeof window !== 'undefined' && 'matchMedia' in window
-            ? window.matchMedia('(prefers-color-scheme: dark)')
-            : null;
-    private readonly systemThemeChangeHandler = (
-        event: MediaQueryListEvent
-    ): void => {
-        this.applyResolvedTheme(
-            event.matches ? Theme.DarkTheme : Theme.LightTheme
-        );
-    };
-    private isSystemThemeSyncActive = false;
 
     /**
-     * Changes the visual theme of the application
-     * @param selectedTheme theme to set
+     * LatMpx TV+ has a single look: the dark Netflix palette of the web
+     * player. The workspace shell paints #141414 with off-white text, so a
+     * light Material theme (an old saved "Light" setting, or "System" on a
+     * light Windows desktop) produced white surfaces with white text in live
+     * TV, settings and detail pages. Any saved value now resolves to dark.
      */
-    changeTheme(selectedTheme: Theme): void {
-        this.stopSystemThemeSync();
-
-        if (selectedTheme === Theme.SystemTheme) {
-            this.startSystemThemeSync();
-            this.applyResolvedTheme(
-                this.systemThemeMediaQuery?.matches
-                    ? Theme.DarkTheme
-                    : Theme.LightTheme
-            );
-            return;
-        }
-
-        this.applyResolvedTheme(selectedTheme);
-    }
-
-    private applyResolvedTheme(selectedTheme: Theme): void {
-        if (selectedTheme === Theme.DarkTheme) {
-            document.body.classList.add('dark-theme');
-            return;
-        }
-
-        document.body.classList.remove('dark-theme');
-    }
-
-    private startSystemThemeSync(): void {
-        if (!this.systemThemeMediaQuery || this.isSystemThemeSyncActive) {
-            return;
-        }
-
-        const mediaQuery = this.systemThemeMediaQuery as LegacyMediaQueryList;
-
-        if (mediaQuery.addEventListener) {
-            mediaQuery.addEventListener(
-                'change',
-                this.systemThemeChangeHandler
-            );
-        } else {
-            mediaQuery.addListener?.(this.systemThemeChangeHandler);
-        }
-
-        this.isSystemThemeSyncActive = true;
-    }
-
-    private stopSystemThemeSync(): void {
-        if (!this.systemThemeMediaQuery || !this.isSystemThemeSyncActive) {
-            return;
-        }
-
-        const mediaQuery = this.systemThemeMediaQuery as LegacyMediaQueryList;
-
-        if (mediaQuery.removeEventListener) {
-            mediaQuery.removeEventListener(
-                'change',
-                this.systemThemeChangeHandler
-            );
-        } else {
-            mediaQuery.removeListener?.(this.systemThemeChangeHandler);
-        }
-
-        this.isSystemThemeSyncActive = false;
+    changeTheme(_selectedTheme?: Theme): void {
+        document.body.classList.add('dark-theme');
     }
 
     /**

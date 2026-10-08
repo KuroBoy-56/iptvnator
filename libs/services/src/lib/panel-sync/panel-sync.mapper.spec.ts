@@ -34,6 +34,20 @@ describe('panel sync mapper', () => {
         expect(tree.LiveTv['3'].categoryId).toBe('7');
     });
 
+    it('reads favorites whatever type spelling and timestamp format the panel returns', () => {
+        const tree = toFavoritesTree([
+            { id: 7 as unknown as string, type: 'vod' as never, title: 'Old movie', ts: 1_700_000_000 },
+            { id: '8', type: 'Series' as never, addedAt: '2026-10-08 00:39:41' },
+            { id: '9', type: 'live', ts: '1700000000000' },
+            { id: '', type: 'movie' },
+            { id: '10', type: 'unknown' as never },
+        ]);
+        expect(tree.Movie['7']).toEqual(expect.objectContaining({ title: 'Old movie', timestamp: 1_700_000_000 }));
+        expect(tree.Series['8'].timestamp).toBe(Math.floor(Date.parse('2026-10-08T00:39:41') / 1000));
+        expect(tree.LiveTv['9'].timestamp).toBe(1_700_000_000);
+        expect(Object.keys(tree.Movie)).toEqual(['7']);
+    });
+
     it('finds keys and positions by id', () => {
         expect(findProgressKey(progress, 'movie', '10')).toBe('Movie A');
         expect(findProgressKey(progress, 'series', '50')).toBe('Show B');

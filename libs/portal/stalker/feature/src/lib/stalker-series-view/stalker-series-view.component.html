@@ -3,6 +3,7 @@
         [title]="serial.info.name"
         [description]="serial.info.description"
         [posterUrl]="serial.info.movie_image"
+        mediaType="series"
         [backdropUrl]="serial.info.tmdb_backdrop"
         [playbackActive]="!!inlinePlayback()"
         (backClicked)="goBack()"

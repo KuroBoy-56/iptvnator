@@ -13,6 +13,7 @@ import {
     setSessionPassword,
 } from '@iptvnator/shared/interfaces';
 import { PanelAccount } from './panel-login.service';
+import { resolveReachableServer, sameServerHost } from './server-scheme.util';
 
 const DEFAULT_TITLE = 'LatMpx TV+';
 const DEMO_TITLE = 'DEMO';
@@ -21,10 +22,6 @@ function same(a?: string, b?: string): boolean {
     return (a ?? '').trim().toLowerCase() === (b ?? '').trim().toLowerCase();
 }
 
-function sameServer(a?: string, b?: string): boolean {
-    const clean = (v?: string) => (v ?? '').trim().replace(/\/+$/, '').toLowerCase();
-    return clean(a) === clean(b);
-}
 
 /**
  * Turns the panel's active line into the app session: one Xtream playlist,
@@ -38,11 +35,14 @@ export class PanelSessionService {
     private readonly panelSync = inject(PanelSyncService);
 
     async start(account: PanelAccount): Promise<void> {
-        const server = normalizeXtreamServerUrl(account.server).trim();
+        const server = await resolveReachableServer(
+            normalizeXtreamServerUrl(account.server).trim(),
+            window.electron?.xtreamProbeUrl
+        );
         const playlists = await firstValueFrom(this.store.select(selectAllPlaylistsMeta));
         const title = account.isDemo ? DEMO_TITLE : DEFAULT_TITLE;
         const existing = playlists.find(
-            (p) => same(p.username, account.username) && same(p.password, account.password) && sameServer(p.serverUrl, server)
+            (p) => same(p.username, account.username) && same(p.password, account.password) && sameServerHost(p.serverUrl, server)
         );
 
         await this.removeOtherLines(playlists, existing?._id);
@@ -62,9 +62,10 @@ export class PanelSessionService {
                     } as unknown as Playlist,
                 })
             );
-        } else if (existing.title !== title) {
+        } else if (existing.title !== title || existing.serverUrl !== server) {
+            // also moves an existing line to the scheme that answers (https → http)
             this.store.dispatch(
-                PlaylistActions.updatePlaylistMeta({ playlist: { _id: id, title } as PlaylistMeta })
+                PlaylistActions.updatePlaylistMeta({ playlist: { _id: id, title, serverUrl: server } as PlaylistMeta })
             );
         }
 

@@ -12,7 +12,12 @@ type FetchFn = typeof fetch;
 export function lineKey(creds: SyncUserCredentials): string {
     const user = creds.username?.trim();
     if (!user) return '';
-    const server = (creds.server ?? '').trim().replace(/\/+$/, '').toLowerCase();
+    // scheme-insensitive: the same line may be reached over http or https
+    const server = (creds.server ?? '')
+        .trim()
+        .replace(/^https?:\/\//i, '')
+        .replace(/\/+$/, '')
+        .toLowerCase();
     return server ? `${user}@${server}` : user;
 }
 

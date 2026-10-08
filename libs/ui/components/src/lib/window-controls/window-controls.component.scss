@@ -37,8 +37,11 @@
     border: none;
     border-radius: 0;
     background: transparent;
-    color: var(--app-on-surface, #1d1b1e);
-    opacity: 0.85;
+    // The app is dark only (Netflix top bar, #000/#141414): white glyphs,
+    // with a soft shadow so they stay visible over bright billboard images.
+    color: #ffffff;
+    opacity: 0.9;
+    filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.8));
     // Native caption buttons use the arrow cursor, not the hand.
     cursor: default;
 
@@ -59,20 +62,16 @@
     }
 
     &:hover {
-        background: var(--app-hover-overlay, rgba(0, 0, 0, 0.06));
+        background: rgba(255, 255, 255, 0.12);
         opacity: 1;
     }
 
     &:active {
-        background: color-mix(
-            in srgb,
-            var(--app-on-surface, #1d1b1e) 14%,
-            transparent
-        );
+        background: rgba(255, 255, 255, 0.2);
     }
 
     &:focus-visible {
-        outline: 2px solid var(--mat-sys-primary);
+        outline: 2px solid #e50914;
         outline-offset: -2px;
     }
 

@@ -1,3 +1,4 @@
+import { favoriteBucket } from './panel-sync.mapper';
 import { PanelFavorite, PanelFavoriteType } from './panel-sync.types';
 
 const STORAGE_KEY = 'panel_fav_outbox';
@@ -102,8 +103,9 @@ export function applyFavoriteOverrides(
     overrides: FavoriteChange[]
 ): PanelFavorite[] {
     if (!overrides.length) return favorites;
-    const touched = new Set(overrides.map((c) => `${c.type}:${c.id}`));
-    const out = favorites.filter((f) => !touched.has(`${f.type}:${f.id}`));
+    const keyOf = (type: unknown, id: unknown) => `${favoriteBucket(type) ?? type}:${String(id ?? '').trim()}`;
+    const touched = new Set(overrides.map((c) => keyOf(c.type, c.id)));
+    const out = favorites.filter((f) => f && !touched.has(keyOf(f.type, f.id)));
     for (const c of overrides) {
         if (c.op === 'add') {
             out.unshift({ ...(c.item ?? { id: c.id, type: c.type }), addedAt: new Date(c.at).toISOString() });

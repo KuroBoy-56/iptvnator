@@ -1269,16 +1269,12 @@ describe('SettingsComponent', () => {
         expect(router.navigateByUrl).toHaveBeenCalledWith('/');
     });
 
-    it('updates the selected theme through the general section and marks the form dirty', () => {
-        const darkThemeButton = (
-            fixture.nativeElement as HTMLElement
-        ).querySelector('[data-test-id="DARK_THEME"]') as HTMLButtonElement;
-
-        darkThemeButton.click();
-        fixture.detectChanges();
-
-        expect(component.settingsForm.value.theme).toBe(Theme.DarkTheme);
-        expect(component.settingsForm.dirty).toBeTruthy();
+    it('does not offer a theme picker (the app is dark only)', () => {
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector(
+                '[data-test-id="select-theme"]'
+            )
+        ).toBeNull();
     });
 
     it('updates cover size through the general section output', () => {

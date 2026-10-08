@@ -4,7 +4,9 @@ import {
     computed,
     effect,
     inject,
+    Injector,
     input,
+    linkedSignal,
     output,
     signal,
     untracked,
@@ -15,6 +17,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
+import { TmdbPosterService } from '@iptvnator/services';
 
 @Component({
     selector: 'app-content-hero',
@@ -37,9 +40,19 @@ export class ContentHeroComponent {
     readonly backdropUrl = input<string>();
     readonly isLoading = input(false);
     readonly errorMessage = input<string>();
+    /** movie | series — used for the TMDB cover fallback. */
+    readonly mediaType = input<string>('movie');
 
     readonly backClicked = output<void>();
-    readonly posterError = signal(false);
+    /** The provider cover failed to load (reset when the cover changes). */
+    readonly posterError = linkedSignal({ source: this.posterUrl, computation: () => false });
+    /** TMDB cover (panel key) used when the provider has none or it is broken. */
+    readonly tmdbPoster = signal<string | null>(null);
+    readonly displayPoster = computed(() => {
+        const own = this.posterUrl();
+        return own && !this.posterError() ? own : this.tmdbPoster();
+    });
+    private readonly injector = inject(Injector);
 
     readonly descriptionEl = viewChild<ElementRef<HTMLElement>>('descriptionEl');
     readonly isDescriptionExpanded = signal(false);
@@ -63,11 +76,32 @@ export class ContentHeroComponent {
             });
         });
 
+        effect(() => {
+            const title = this.title()?.trim();
+            const needsCover = !this.isLoading() && (!this.posterUrl() || this.posterError());
+            const type = (this.mediaType() ?? '').toLowerCase();
+            untracked(() => this.tmdbPoster.set(null));
+            if (!title || !needsCover || type === 'live') return;
+            untracked(() => void this.loadTmdbPoster(title, type === 'series' || type === 'tv' ? 'tv' : 'movie'));
+        });
+
         this.destroyRef.onDestroy(() => this.resizeObserver?.disconnect());
     }
 
     onPosterError(): void {
-        this.posterError.set(true);
+        if (this.posterUrl() && !this.posterError()) this.posterError.set(true);
+        else this.tmdbPoster.set(null);
+    }
+
+    private async loadTmdbPoster(title: string, type: 'movie' | 'tv'): Promise<void> {
+        try {
+            const posters = this.injector.get(TmdbPosterService);
+            if (!(await posters.whenKeyAvailable())) return;
+            const url = await posters.find(title, type);
+            if (url && this.title()?.trim() === title) this.tmdbPoster.set(url);
+        } catch {
+            // TMDB unavailable: keep the placeholder
+        }
     }
 
     readonly formattedTitle = computed(() => {

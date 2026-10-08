@@ -88,37 +88,14 @@ describe('Service: Settings', () => {
             jest.clearAllMocks();
         });
 
-        it('should switch to the dark theme', inject(
-            [SettingsService],
-            (service: SettingsService) => {
-                service.changeTheme(Theme.DarkTheme);
-                expect(spyOnRemove).toHaveBeenCalledTimes(0);
-                expect(spyOnAdd).toHaveBeenCalledTimes(1);
-            }
-        ));
-
-        it('should switch to the light theme', inject(
-            [SettingsService],
-            (service: SettingsService) => {
-                service.changeTheme(Theme.LightTheme);
-                expect(spyOnRemove).toHaveBeenCalledTimes(1);
-                expect(spyOnAdd).toHaveBeenCalledTimes(0);
-            }
-        ));
-
-        it('should follow the system theme', inject(
-            [SettingsService],
-            (service: SettingsService) => {
-                service.changeTheme(Theme.SystemTheme);
-
+        it.each([Theme.DarkTheme, Theme.LightTheme, Theme.SystemTheme])(
+            'always applies the dark theme (saved %s)',
+            (theme) => {
+                const service = TestBed.inject(SettingsService);
+                service.changeTheme(theme);
                 expect(spyOnAdd).toHaveBeenCalledWith('dark-theme');
-
-                systemThemeListeners[0]?.({
-                    matches: false,
-                } as MediaQueryListEvent);
-
-                expect(spyOnRemove).toHaveBeenCalledWith('dark-theme');
+                expect(spyOnRemove).not.toHaveBeenCalledWith('dark-theme');
             }
-        ));
+        );
     });
 });

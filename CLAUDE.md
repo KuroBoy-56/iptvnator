@@ -670,11 +670,11 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 **Panel integration** (see `docs/architecture/panel-integration.md`):
 
 - Login: `/login` uses `check_mac` / `fetch_dns` / `submit_url` / `auto_demo` against panel `login.php` (encrypted in the Electron main process); the line becomes one Xtream playlist plus `session_*` localStorage keys
-- Sync: `PanelSyncService` (`libs/services/src/lib/panel-sync/`) — token-only auth against `api/progress.php`; the panel is the source of truth for progress and favorites, local DB rows are a cache rebuilt by `PanelCacheSyncService`; MPV/VLC progress is saved via `external-playback.service.ts`
+- Sync: `PanelSyncService` (`libs/services/src/lib/panel-sync/`) — token-only auth against `api/progress.php`, keyed per line (`user@host`, scheme-insensitive); "Mi lista" items are matched with the local catalog by `panelFavoritesToItems` (`libs/portal/shared/data-access`); the panel is the source of truth for progress and favorites, local DB rows are a cache rebuilt by `PanelCacheSyncService`; MPV/VLC progress is saved via `external-playback.service.ts`
 - EPG: provider first, then `XtreamPanelEpgFallbackService` batches (≤400 channels) to `api/epg.php`
 - Sports: `api/sports.php` agenda; `findSportsChannel` applies the panel `match` rules to live channels
 - Secure DNS picker only on the login screen and in Settings; does not cover external MPV/VLC
-- Theme: dark by default with the web player palette and `#e50914` accent (`apps/web/src/m3-theme.scss`)
+- Theme: dark only (no theme picker; `SettingsService.changeTheme` always applies `dark-theme`) with the web player palette and `#e50914` accent (`apps/web/src/m3-theme.scss`)
 - Netflix UI (same design as the web player and TV app): the workspace shell shows a top bar (`workspace-nf-header`: Inicio, Series, Películas, TV en vivo, Deportes, Explorar, search → `explore?q=`, clock, profile menu) instead of the rail/toolbar; the context sidebar only appears for live TV, settings and sources. Pages: `NfHomeComponent` (billboard, platform tiles, Continuar viendo / Mi lista from the panel, Top 10, platform and genre rows), `NfBrowseComponent` (Películas/Series), `NfExploreComponent` (grid). Global `.nf-*` styles live in `apps/web/src/_netflix.scss`; platform/genre keyword tables in `nf/nf-filters.ts` mirror the web player's `includes/core.php`
 
 **Internationalization**:

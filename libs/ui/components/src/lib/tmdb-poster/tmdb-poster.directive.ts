@@ -38,6 +38,8 @@ export class TmdbPosterDirective implements AfterViewInit {
         const type = (this.tmdbType() ?? '').toLowerCase();
         if (this.tried || type === 'live' || type === 'radio') return;
         this.tried = true;
+        // the panel's TMDB key may not have arrived yet (first start)
+        if (!(await this.posters.whenKeyAvailable())) return;
         const url = await this.posters.find(
             this.appTmdbPoster(),
             type === 'series' || type === 'tv' ? 'tv' : 'movie'

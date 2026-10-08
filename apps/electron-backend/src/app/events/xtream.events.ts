@@ -4,7 +4,7 @@
  */
 
 import axios, { AxiosRequestConfig } from 'axios';
-import { ipcMain, dialog } from 'electron'; 
+import { ipcMain } from 'electron';
 import * as https from 'https';
 import {
     PortalDebugEvent,
@@ -14,6 +14,12 @@ import {
 import { emitPortalDebugEvent } from './portal-debug.events';
 import { UnsafeUrlError } from './url-safety';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
+import {
+    isConnectFailure,
+    preferKnownScheme,
+    rememberPlainHttp,
+    toPlainHttp,
+} from './xtream-scheme-fallback';
 
 export default class XtreamEvents {
     static bootstrapXtreamEvents(): Electron.IpcMain {
@@ -109,7 +115,7 @@ ipcMain.handle(
         try {
             const { url, params, requestId, sessionId } = payload;
 
-            const apiUrl = buildXtreamApiUrl(url, params);
+            const apiUrl = preferKnownScheme(buildXtreamApiUrl(url, params));
             requestUrlForLog = apiUrl.toString();
 
             const controller = new AbortController();
@@ -135,11 +141,25 @@ ipcMain.handle(
                 httpsAgent: new https.Agent({ rejectUnauthorized: false }) 
             };
 
-            const response = await requestWithValidatedRedirects<unknown>(
-                apiUrl.toString(),
-                config,
-                { allowPrivateNetworks: true }
-            );
+            let response;
+            try {
+                response = await requestWithValidatedRedirects<unknown>(
+                    apiUrl.toString(),
+                    config,
+                    { allowPrivateNetworks: true }
+                );
+            } catch (error) {
+                // Many providers only answer on http even when the DNS is handed out as https.
+                const plain = toPlainHttp(apiUrl);
+                if (!plain || !isConnectFailure(error) || controller.signal.aborted) throw error;
+                response = await requestWithValidatedRedirects<unknown>(
+                    plain.toString(),
+                    { ...config, url: plain.toString() },
+                    { allowPrivateNetworks: true }
+                );
+                rememberPlainHttp(apiUrl);
+                requestUrlForLog = plain.toString();
+            }
 
             if (response.status >= 400) {
                 throw {
@@ -175,21 +195,9 @@ ipcMain.handle(
             };
         } catch (error) {
             
-            try {
-                let detalles = `Mensaje de error: ${error instanceof Error ? error.message : JSON.stringify(error)}\n\n`;
-                if (axios.isAxiosError(error)) {
-                    detalles += `Código Axios: ${error.code}\n`;
-                    detalles += `Status HTTP: ${error.response?.status || 'Ninguno'}\n`;
-                    detalles += `URL de la petición: ${error.config?.url || payload.url}\n`;
-                    
-                    let serverResp = error.response?.data;
-                    if (typeof serverResp === 'object') {
-                        serverResp = JSON.stringify(serverResp).substring(0, 200); 
-                    }
-                    detalles += `Respuesta del Servidor: ${serverResp || 'Vacia'}`;
-                }
-                dialog.showErrorBox('🕵️ CAZADOR DE ERRORES LATMPX', `La descarga falló en el ejecutable por esto:\n\n${detalles}`);
-            } catch(e) {}
+            // No blocking native dialog here: background requests (account info,
+            // EPG…) failing must not interrupt the app. The renderer shows its own
+            // error state and the details go to the log below.
 
             const requestId = payload.requestId;
             if (requestId) {
