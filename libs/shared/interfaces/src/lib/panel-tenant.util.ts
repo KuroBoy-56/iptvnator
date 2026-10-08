@@ -1,3 +1,5 @@
+import { dispatchTenantEvent, tenantStorage } from './panel-tenant-env';
+
 /**
  * Distributor ("tenant") of the panel, chosen once on the first launch.
  *
@@ -104,7 +106,7 @@ export function tenantErrorCode(body: unknown): PanelTenantErrorCode | null {
 
 function get(key: string): string | null {
     try {
-        return localStorage.getItem(key);
+        return tenantStorage().getItem(key);
     } catch {
         return null;
     }
@@ -112,15 +114,16 @@ function get(key: string): string | null {
 
 function set(key: string, value: string | null): void {
     try {
-        if (value === null) localStorage.removeItem(key);
-        else localStorage.setItem(key, value);
+        const storage = tenantStorage();
+        if (value === null) storage.removeItem(key);
+        else storage.setItem(key, value);
     } catch {
         // Storage unavailable: the choice lasts for this run only.
     }
 }
 
 function changed(): void {
-    globalThis.dispatchEvent?.(new Event(PANEL_TENANT_CHANGED_EVENT));
+    dispatchTenantEvent(PANEL_TENANT_CHANGED_EVENT);
 }
 
 export function readTenantChoice(): PanelTenantChoice {
@@ -197,7 +200,7 @@ export function clearTenant(): void {
 
 /** Reports a tenant error answered by progress/epg/sports (the guardian handles it). */
 export function notifyTenantError(code: PanelTenantErrorCode): void {
-    globalThis.dispatchEvent?.(new CustomEvent(PANEL_TENANT_ERROR_EVENT, { detail: code }));
+    dispatchTenantEvent(PANEL_TENANT_ERROR_EVENT, code);
 }
 
 function bool(value: unknown, fallback: boolean): boolean {
@@ -269,13 +272,14 @@ export function tenantExpiredMessage(cache: Pick<PanelTenantCache, 'expiresAt' |
 export function forgetTenantStorage(code: string): void {
     if (!isTenantCode(code)) return;
     try {
+        const storage = tenantStorage();
         const suffix = `@t${code}`;
         const keys: string[] = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
+        for (let i = 0; i < storage.length; i++) {
+            const key = storage.key(i);
             if (key?.includes(suffix)) keys.push(key);
         }
-        keys.forEach((key) => localStorage.removeItem(key));
+        keys.forEach((key) => storage.removeItem(key));
     } catch {
         // Storage unavailable: nothing was cached.
     }

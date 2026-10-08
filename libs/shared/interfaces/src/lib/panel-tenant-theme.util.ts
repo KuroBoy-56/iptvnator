@@ -1,3 +1,4 @@
+import { TenantDocument, TenantStyleNode, tenantGlobals, tenantStorage } from './panel-tenant-env';
 import { PANEL_TENANT_KEYS, PanelTenantPalette } from './panel-tenant.util';
 
 /** Distributor palette plus the colours the app derives from it. */
@@ -99,22 +100,23 @@ export function buildTenantThemeCss(palette: PanelTenantPalette | null): string 
  * Applies (or removes, with null) the distributor palette and remembers the
  * CSS so assets/panel-branding-boot.js paints it before Angular starts.
  */
-export function applyTenantTheme(palette: PanelTenantPalette | null, doc: Document = document): void {
+export function applyTenantTheme(palette: PanelTenantPalette | null, doc: TenantDocument | undefined = tenantGlobals().document): void {
     const css = buildTenantThemeCss(palette);
-    let style = doc.getElementById(STYLE_ID) as HTMLStyleElement | null;
+    let style = (doc?.getElementById(STYLE_ID) ?? null) as TenantStyleNode | null;
     if (!css) {
         style?.remove();
     } else {
-        if (!style) {
-            style = doc.createElement('style');
+        if (!style && doc) {
+            style = doc.createElement('style') as TenantStyleNode;
             style.id = STYLE_ID;
             doc.head.appendChild(style);
         }
-        style.textContent = css;
+        if (style) style.textContent = css;
     }
     try {
-        if (css) localStorage.setItem(PANEL_TENANT_KEYS.themeCss, css);
-        else localStorage.removeItem(PANEL_TENANT_KEYS.themeCss);
+        const storage = tenantStorage();
+        if (css) storage.setItem(PANEL_TENANT_KEYS.themeCss, css);
+        else storage.removeItem(PANEL_TENANT_KEYS.themeCss);
     } catch {
         // Storage unavailable: the colours apply once Angular starts.
     }
