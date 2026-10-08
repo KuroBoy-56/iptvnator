@@ -28,11 +28,7 @@ import { WorkspaceShellRouteStateService } from './services/workspace-shell-rout
 import { WorkspaceShellSearchSyncService } from './services/workspace-shell-search-sync.service';
 import { WorkspaceShellSearchService } from './services/workspace-shell-search.service';
 import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
-import {
-    getPanelApiBase,
-    getSessionAlertAccounts,
-    panelEndpoint,
-} from '@iptvnator/shared/interfaces';
+import { WorkspacePanelAlertComponent } from './components/workspace-panel-alert/workspace-panel-alert.component';
 
 @Component({
     selector: 'app-workspace-shell',
@@ -44,6 +40,7 @@ import {
         WorkspaceShellContextSidebarComponent,
         WorkspaceNfHeaderComponent,
         WorkspaceShellImportOverlayComponent,
+        WorkspacePanelAlertComponent,
     ],
     templateUrl: './workspace-shell.component.html',
     styleUrl: './workspace-shell.component.scss',
@@ -92,41 +89,8 @@ export class WorkspaceShellComponent implements OnInit {
         this.scrolled.set(top > 30);
     }
 
-    async ngOnInit(): Promise<void> {
+    ngOnInit(): void {
         this.resetScrollOnPageChange();
-        const accounts = getSessionAlertAccounts();
-        if (accounts.length === 0) return;
-
-        let welcomeHtml = null;
-        let warningHtml = null;
-
-        for (const acc of accounts) {
-            if (!acc.user || !acc.pass || !acc.dns) continue;
-
-            const alertaUrl = `${this.getAlertaUrl()}?user=${encodeURIComponent(acc.user)}&pass=${encodeURIComponent(acc.pass)}&dns=${encodeURIComponent(acc.dns)}&title=${encodeURIComponent(acc.title)}`;
-
-            try {
-                const res = await fetch(alertaUrl);
-                let html = await res.text();
-
-                if (html && html.includes('tarjeta-alerta')) {
-                    const baseUrl = this.getBaseImageUrl();
-                    html = html.replace(/src=(['"])\.\.\/(img\/alertas\/[^'"]+)(['"])/g, "src=$1" + baseUrl + "$2$3");
-
-                    if (html.includes('¡Bienvenido!')) {
-                        if (!welcomeHtml) welcomeHtml = html;
-                    } else {
-                        warningHtml = html;
-                        break; 
-                    }
-                }
-            } catch { /* best effort */ }
-        }
-
-        const finalHtml = warningHtml || welcomeHtml;
-        if (finalHtml) {
-            this.renderAlertOverlay(finalHtml);
-        }
     }
 
     /** New page starts at the top (query-only changes keep the position). */
@@ -144,61 +108,6 @@ export class WorkspaceShellComponent implements OnInit {
                 if (main) main.scrollTop = 0;
                 this.scrolled.set(false);
             });
-    }
-
-    /** Expiry/welcome card of the current panel (api/alerta.php). */
-    private getAlertaUrl(): string {
-        return panelEndpoint('alerta.php');
-    }
-
-    /** Panel root (".../api/" minus "api/"); alert images live in img/alertas/. */
-    private getBaseImageUrl(): string {
-        return getPanelApiBase().replace(/api\/$/, '');
-    }
-
-    private renderAlertOverlay(html: string): void {
-        const existing = this.document.getElementById('iptv-alert-overlay-container');
-        if (existing) return;
-
-        const container = this.document.createElement('div');
-        container.id = 'iptv-alert-overlay-container';
-        container.style.position = 'fixed';
-        container.style.top = '0';
-        container.style.left = '0';
-        container.style.width = '100vw';
-        container.style.height = '100vh';
-        container.style.zIndex = '2147483647';
-        container.style.backgroundColor = 'rgba(0, 16, 42, 0.85)';
-        container.style.display = 'flex';
-        container.style.justifyContent = 'center';
-        container.style.alignItems = 'center';
-
-        const iframe = this.document.createElement('iframe');
-        iframe.sandbox.add('allow-scripts');
-        iframe.sandbox.add('allow-same-origin');
-        iframe.srcdoc = html;
-        iframe.style.width = '100%';
-        iframe.style.height = '100%';
-        iframe.style.border = 'none';
-        iframe.style.backgroundColor = 'transparent';
-
-        iframe.onload = () => {
-            try {
-                const doc = iframe.contentDocument || iframe.contentWindow?.document;
-                if (doc) {
-                    const btn = doc.querySelector('.btn-entendido') as HTMLElement;
-                    if (btn) {
-                        btn.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            container.remove();
-                        });
-                    }
-                }
-            } catch { /* best effort */ }
-        };
-
-        container.appendChild(iframe);
-        this.document.body.appendChild(container);
     }
 
     @HostListener('document:keydown', ['$event'])

@@ -672,6 +672,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - Login: `/login` uses `check_mac` / `fetch_dns` / `submit_url` / `auto_demo` against panel `login.php` (encrypted in the Electron main process); the line becomes one Xtream playlist plus `session_*` localStorage keys
 - Sync: `PanelSyncService` (`libs/services/src/lib/panel-sync/`) — token-only auth against `api/progress.php`, keyed per line (`user@host`, scheme-insensitive); "Mi lista" items are matched with the local catalog by `panelFavoritesToItems` (`libs/portal/shared/data-access`); the panel is the source of truth for progress and favorites, local DB rows are a cache rebuilt by `PanelCacheSyncService`; MPV/VLC progress is saved via `external-playback.service.ts`
 - EPG: provider first, then `XtreamPanelEpgFallbackService` batches (≤400 channels) to `api/epg.php`
+- Alert: `api/alerta.php?format=json` welcome / expiry notice (panel "Alertas" page) shown once per app start by `WorkspacePanelAlertComponent` in the workspace shell
 - Sports: `api/sports.php` agenda; `findSportsChannel` applies the panel `match` rules to live channels
 - Secure DNS picker only on the login screen and in Settings; does not cover external MPV/VLC
 - Theme: dark only (no theme picker; `SettingsService.changeTheme` always applies `dark-theme`) with the web player palette and `#e50914` accent (`apps/web/src/m3-theme.scss`)

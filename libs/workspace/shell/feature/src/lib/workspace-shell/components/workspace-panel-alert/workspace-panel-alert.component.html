@@ -1,0 +1,27 @@
+@if (alert(); as a) {
+    <div
+        class="panel-alert"
+        [class.is-expiry]="a.expiry"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="panelAlertTitle"
+    >
+        <div class="panel-alert__card">
+            <h2 class="panel-alert__title" id="panelAlertTitle">{{ a.title }}</h2>
+            @if (a.message.trim()) {
+                <p class="panel-alert__message">{{ a.message }}</p>
+            }
+            @if (a.image) {
+                <img class="panel-alert__image" [src]="a.image" alt="" />
+            }
+            <button
+                #okButton
+                type="button"
+                class="panel-alert__button"
+                (click)="close()"
+            >
+                {{ a.button }}
+            </button>
+        </div>
+    </div>
+}

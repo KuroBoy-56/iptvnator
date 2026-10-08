@@ -4,6 +4,7 @@
     #dropZone="playlistDropZone"
 >
     <app-playlist-drop-overlay [state]="dropZone.overlayState()" />
+    <app-workspace-panel-alert />
     @if (facade.showXtreamImportOverlay()) {
         <app-workspace-shell-import-overlay />
     }

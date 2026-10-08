@@ -70,6 +70,13 @@ class MockPlaylistDropOverlayComponent {
     readonly state = input<unknown>({ kind: 'idle' });
 }
 
+@Component({
+    selector: 'app-workspace-panel-alert',
+    template: '',
+    standalone: true,
+})
+class MockWorkspacePanelAlertComponent {}
+
 @Directive({
     selector: '[appPlaylistDropZone]',
     exportAs: 'playlistDropZone',
@@ -183,6 +190,7 @@ async function setup(facade = new MockWorkspaceShellFacade()) {
                     MockWorkspaceShellContextSidebarComponent,
                     MockWorkspaceNfHeaderComponent,
                     MockWorkspaceShellImportOverlayComponent,
+                    MockWorkspacePanelAlertComponent,
                 ],
                 providers: [
                     {
@@ -219,6 +227,7 @@ describe('WorkspaceShellComponent', () => {
             el.querySelector('app-workspace-shell-context-sidebar')
         ).not.toBeNull();
         expect(el.querySelector('app-external-playback-dock')).not.toBeNull();
+        expect(el.querySelector('app-workspace-panel-alert')).not.toBeNull();
         expect(WorkspaceNfHeaderComponent).toBeDefined();
     });
 

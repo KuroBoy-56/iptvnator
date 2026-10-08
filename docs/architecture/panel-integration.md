@@ -15,8 +15,7 @@ holds it as a hex string (XOR + base64 + hex) and decodes it at runtime:
 
 Every panel call goes through these helpers: `login.php` (Electron main),
 `progress.php`, `epg.php`, `sports.php` and `alerta.php` (the welcome / expiry
-card shown by the workspace shell, with images from the panel's
-`img/alertas/`). The Xtream "add playlist" dialog no longer asks the old
+notice, see "Panel alert" below). The Xtream "add playlist" dialog no longer asks the old
 `player_pc_api.php` for the line's DNS: a typed server URL is used as is,
 otherwise the current panel's `fetch_dns` list is probed with the line's
 credentials and the first server that answers `active` wins
@@ -223,6 +222,27 @@ batches requests to `api/epg.php`:
 - Cache: 10 minutes.
 
 Stalker and M3U do not use the panel fallback yet.
+
+## Panel alert (welcome / expiry)
+
+The panel's **Alertas** page (`admin_alertas.php`) configures one general text
+with an optional image (`img/alertas/`) and one text each for 3, 2, 1 and 0
+days left. `WorkspacePanelAlertComponent`
+(`libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-panel-alert/`)
+is mounted by the workspace shell and, once per app start (shell creation,
+so also after a new login), calls
+`alerta.php?format=json&user&pass&dns&title` for each in-memory alert
+account (`getSessionAlertAccounts()`, title = playlist name):
+
+- `type: "expiry"` (3/2/1 days, or 0 / expired): red title, no image. The
+  first expiry among the lines wins.
+- `type: "welcome"` (more than 3 days, no expiry date, or provider down):
+  general text plus the image, resolved as panel root + `image_path`.
+
+The notice is rendered natively from the JSON (text only, `white-space:
+pre-line`), not by loading the panel's HTML card: an `srcdoc` iframe with
+`allow-scripts allow-same-origin` would have run remote markup with the app's
+origin. "Entendido", Esc or Enter close it. Failures show nothing.
 
 ## Sports
 
