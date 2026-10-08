@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import { Router, Routes } from '@angular/router';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { readTenantFeatures } from '@iptvnator/shared/interfaces';
 import { WorkspaceStartupPreferencesService } from '@iptvnator/workspace/shell/util';
 import { LoginComponent } from './login.component';
 import { AuthGuard } from './auth.guard';
@@ -31,6 +32,10 @@ const electronOnlyGlobalSearchGuard = () => {
         inject(Router)
     );
 };
+
+/** The distributor can turn the sports section off. */
+const sportsEnabledGuard = () =>
+    readTenantFeatures().sports ? true : inject(Router).parseUrl('/workspace');
 
 export const routes: Routes = [
     {
@@ -115,6 +120,7 @@ export const routes: Routes = [
             },
             {
                 path: 'sports',
+                canActivate: [sportsEnabledGuard],
                 loadComponent: () =>
                     import('./sports/sports.component').then(
                         (c) => c.SportsComponent

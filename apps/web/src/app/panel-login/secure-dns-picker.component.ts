@@ -57,7 +57,7 @@ function bridge(): Partial<ElectronBridgeApi> | undefined {
             border: 1px solid rgba(255, 255, 255, 0.35); background: rgba(22, 22, 22, 0.7);
             color: #fff; font-weight: 600; font-size: 14px;
         }
-        .dns-trigger.on { border-color: #e50914; background: rgba(229, 9, 20, 0.15); }
+        .dns-trigger.on { border-color: var(--nf-red, #e50914); background: color-mix(in srgb, var(--nf-red, #e50914) 15%, transparent); }
         .dns-menu {
             position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 6px);
             margin: 0; padding: 6px; list-style: none; border-radius: 8px;

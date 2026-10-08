@@ -1,3 +1,10 @@
+import {
+    clearTenant,
+    PANEL_TENANT_ERROR_EVENT,
+    parseTenantConfig,
+    saveTenantCode,
+    saveTenantSkip,
+} from '@iptvnator/shared/interfaces';
 import { isDemoUser, PanelLoginService, parsePanelLineUrl } from './panel-login.service';
 
 describe('PanelLoginService', () => {
@@ -68,5 +75,70 @@ describe('PanelLoginService', () => {
             status: 'error',
             message: 'Esta compilación no tiene la clave del panel (PANEL_MASTER_KEY).',
         });
+    });
+});
+
+describe('PanelLoginService with a distributor', () => {
+    let request: jest.Mock;
+    const service = new PanelLoginService();
+    const config = {
+        status: 'ok',
+        tenant: { code: '123456', name: 'Mi TV', logo_url: null, logo_rev: 0, palette: null, expires_at: 0, expires_date: null, rev: 1 },
+        features: { demo: true, alerts: true, sports: true },
+        recheck_after: 21600,
+    };
+
+    beforeEach(() => {
+        request = jest.fn();
+        Object.defineProperty(window, 'electron', { configurable: true, value: { panelLoginRequest: request } });
+    });
+
+    afterEach(() => {
+        clearTenant();
+        delete (window as unknown as { electron?: unknown }).electron;
+    });
+
+    it('forwards the chosen code with every action and nothing with Omitir', async () => {
+        request.mockResolvedValue({ ok: true, status: 200, data: [] });
+        saveTenantSkip();
+        await service.fetchDns();
+        expect(request).toHaveBeenLastCalledWith('fetch_dns', undefined);
+
+        saveTenantCode(parseTenantConfig(config)!);
+        await service.fetchDns();
+        expect(request).toHaveBeenLastCalledWith('fetch_dns', { tenant: '123456' });
+    });
+
+    it('maps tenant_config answers', async () => {
+        request.mockResolvedValueOnce({ ok: true, status: 200, data: config });
+        await expect(service.tenantConfig('123456')).resolves.toMatchObject({ status: 'ok', cache: { code: '123456', name: 'Mi TV' } });
+        expect(request).toHaveBeenCalledWith('tenant_config', { tenant: '123456' });
+
+        request.mockResolvedValueOnce({ ok: false, status: 404, code: 'HTTP', data: { error: 'x', code: 'tenant_invalid' } });
+        await expect(service.tenantConfig('000000')).resolves.toEqual({
+            status: 'tenant_error',
+            code: 'tenant_invalid',
+            message: 'Número de distribuidor no válido',
+        });
+
+        request.mockResolvedValueOnce({ ok: false, status: 0, code: 'NO_MASTER_KEY' });
+        await expect(service.tenantConfig('123456')).resolves.toEqual({
+            status: 'no_key',
+            message: 'Esta versión de la app no tiene la llave del panel',
+        });
+
+        request.mockResolvedValueOnce({ ok: false, status: 502, code: 'BAD_RESPONSE' });
+        await expect(service.tenantConfig('123456')).resolves.toMatchObject({ status: 'network' });
+    });
+
+    it('reports a fatal tenant error from any action to the guardian', async () => {
+        saveTenantCode(parseTenantConfig(config)!);
+        const seen: unknown[] = [];
+        const listener = (e: Event) => seen.push((e as CustomEvent).detail);
+        window.addEventListener(PANEL_TENANT_ERROR_EVENT, listener);
+        request.mockResolvedValue({ ok: false, status: 403, code: 'HTTP', data: { error: 'x', code: 'tenant_suspended' } });
+        await service.checkDevice();
+        window.removeEventListener(PANEL_TENANT_ERROR_EVENT, listener);
+        expect(seen).toEqual(['tenant_suspended']);
     });
 });

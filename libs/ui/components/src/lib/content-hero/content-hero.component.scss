@@ -36,7 +36,7 @@
     --text-primary: #fff;
     --text-secondary: rgba(255, 255, 255, 0.7);
     --text-muted: rgba(255, 255, 255, 0.5);
-    --accent-color: #e50914;
+    --accent-color: var(--nf-red, #e50914);
     --tag-bg: rgba(255, 255, 255, 0.1);
     --tag-border: rgba(255, 255, 255, 0.2);
     --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);

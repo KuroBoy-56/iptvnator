@@ -1,4 +1,12 @@
-<a class="nf-brand" [routerLink]="links()[0].path">LatMpx <b>TV+</b></a>
+<a class="nf-brand" [routerLink]="links()[0].path" [attr.aria-label]="branding.brandName()">
+    @if (branding.logoUrl() && !logoFailed()) {
+        <img [src]="branding.logoUrl()" [alt]="branding.brandName()" (error)="logoFailed.set(true)" />
+    } @else if (branding.name()) {
+        {{ branding.name() }}
+    } @else {
+        LatMpx <b>TV+</b>
+    }
+</a>
 
 <nav>
     <ul class="nf-nav">

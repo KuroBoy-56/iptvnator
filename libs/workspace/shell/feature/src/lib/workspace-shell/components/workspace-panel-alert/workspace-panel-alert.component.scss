@@ -28,12 +28,12 @@
         inset: 0 0 auto;
         height: 4px;
         border-radius: 14px 14px 0 0;
-        background: linear-gradient(90deg, #e50914, #f5c518);
+        background: linear-gradient(90deg, var(--nf-red, #e50914), #f5c518);
     }
 }
 
 .is-expiry .panel-alert__card::before {
-    background: #e50914;
+    background: var(--nf-red, #e50914);
 }
 
 .panel-alert__title {

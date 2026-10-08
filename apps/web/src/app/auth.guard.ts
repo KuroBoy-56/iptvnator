@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { CanActivate, Router } from '@angular/router';
+import { readTenantChoice } from '@iptvnator/shared/interfaces';
 import { AuthService } from './auth.service';
 
 @Injectable({
@@ -11,7 +12,8 @@ export class AuthGuard implements CanActivate {
 
   async canActivate(): Promise<boolean> {
     // Verificamos si la sesion sigue siendo valida
-    const isValid = await this.authService.verifySessionActive();
+    // no distributor choice yet: the login shows the distributor step first
+    const isValid = readTenantChoice() !== 'none' && (await this.authService.verifySessionActive());
 
     if (!isValid) {
       // Limpiar y botar a la pantalla de login

@@ -5,6 +5,14 @@ import {
     PanelLoginAction,
     PanelLoginPayload,
     PanelLoginResult,
+    PANEL_TENANT_FATAL,
+    PANEL_TENANT_MESSAGES,
+    PanelTenantCache,
+    PanelTenantErrorCode,
+    notifyTenantError,
+    parseTenantConfig,
+    readTenantCode,
+    tenantErrorCode,
 } from '@iptvnator/shared/interfaces';
 
 export interface PanelAccount {
@@ -23,7 +31,14 @@ export type DemoResult =
     | { ok: true; username: string; password: string }
     | { ok: false; message: string; blocked: boolean };
 
+export type TenantCheck =
+    | { status: 'ok'; cache: PanelTenantCache }
+    | { status: 'tenant_error'; code: PanelTenantErrorCode; message: string }
+    | { status: 'no_key'; message: string }
+    | { status: 'network'; message: string };
+
 const DEMO_PREFIX = 'demo_';
+export const NO_PANEL_KEY_MESSAGE = 'Esta versión de la app no tiene la llave del panel';
 
 /** ".../get.php?username=u&password=p&type=…" -> server + credentials. */
 export function parsePanelLineUrl(url: string): Omit<PanelAccount, 'isDemo'> | null {
@@ -73,7 +88,32 @@ export class PanelLoginService {
         if (typeof fn !== 'function') {
             return { ok: false, status: 0, code: 'NETWORK', error: 'El inicio de sesión del panel solo está disponible en la app de escritorio.' };
         }
-        return fn<T>(action, payload);
+        // the chosen distributor goes with every action; none with "Omitir"
+        const tenant = readTenantCode();
+        const res = await fn<T>(action, tenant ? { ...payload, tenant } : payload);
+        const code = tenant && !res.ok ? tenantErrorCode(res.data) : null;
+        if (code && PANEL_TENANT_FATAL.includes(code)) notifyTenantError(code);
+        return res;
+    }
+
+    /** api/login.php tenant_config for a distributor code (the guardian and the distributor step). */
+    async tenantConfig(code: string): Promise<TenantCheck> {
+        const fn = bridge()?.panelLoginRequest;
+        if (typeof fn !== 'function') {
+            return { status: 'network', message: 'El panel solo está disponible en la app de escritorio.' };
+        }
+        let res: PanelLoginResult;
+        try {
+            res = await fn('tenant_config', { tenant: code });
+        } catch {
+            res = { ok: false, status: 0, code: 'NETWORK' };
+        }
+        if (res.code === 'NO_MASTER_KEY') return { status: 'no_key', message: NO_PANEL_KEY_MESSAGE };
+        const cache = res.ok ? parseTenantConfig(res.data) : null;
+        if (cache) return { status: 'ok', cache };
+        const error = tenantErrorCode(res.data);
+        if (error) return { status: 'tenant_error', code: error, message: PANEL_TENANT_MESSAGES[error] };
+        return { status: 'network', message: 'No se pudo conectar con el panel. Revisa tu conexión.' };
     }
 
     async checkDevice(): Promise<DeviceCheck> {
