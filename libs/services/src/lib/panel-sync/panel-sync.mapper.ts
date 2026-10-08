@@ -10,16 +10,27 @@ import {
 /** Share of the runtime after which an item counts as watched. */
 export const WATCHED_RATIO = 0.95;
 
-/** ISO / "Y-m-d H:i:s" strings, or epoch seconds/milliseconds → epoch seconds. */
+/**
+ * ISO / "Y-m-d H:i:s" strings, or epoch seconds / milliseconds / microseconds
+ * (the panel's `ts` is a microsecond-precision float) → epoch seconds, keeping
+ * the fraction so items saved within the same second still sort correctly.
+ */
 function toEpochSeconds(value?: string | number | null): number {
     if (value == null || value === '') return 0;
     if (typeof value === 'number' || /^\d+(\.\d+)?$/.test(String(value).trim())) {
         const n = Number(value);
         if (!Number.isFinite(n) || n <= 0) return 0;
-        return Math.floor(n > 1e12 ? n / 1000 : n);
+        if (n > 1e14) return n / 1e6; // microseconds
+        if (n > 1e11) return n / 1e3; // milliseconds
+        return n;
     }
     const ms = Date.parse(String(value).trim().replace(' ', 'T'));
-    return Number.isFinite(ms) ? Math.floor(ms / 1000) : 0;
+    return Number.isFinite(ms) ? ms / 1000 : 0;
+}
+
+/** Newest-first key of a panel row: `ts`, then the ISO/date field. */
+function rowTimestamp(ts: unknown, fallback?: string): number {
+    return toEpochSeconds(ts as string | number | null | undefined) || toEpochSeconds(fallback);
 }
 
 function isEpisode(entry: PanelProgressEntry): boolean {
@@ -31,13 +42,15 @@ export function toProgressTree(
     progress: Record<string, PanelProgressEntry> | null | undefined
 ): SyncProgressTree {
     const tree: SyncProgressTree = { Movie: {}, Series: {} };
+    let rank = 0;
     for (const [title, entry] of Object.entries(progress ?? {})) {
         if (!entry || !entry.id || !(Number(entry.position) > 0)) continue;
         const leaf = {
             timeline: Math.floor(Number(entry.position)),
             duration: Math.floor(Number(entry.duration) || 0),
             thumbnail: entry.poster || '',
-            timestamp: toEpochSeconds(entry.updatedAt),
+            timestamp: rowTimestamp(entry.ts, entry.updatedAt),
+            rank: rank++,
             title,
             categoryId: entry.categoryId || undefined,
             url: entry.url || undefined,
@@ -88,6 +101,7 @@ export function toFavoritesTree(
     favorites: PanelFavorite[] | null | undefined
 ): SyncFavoritesTree {
     const tree: SyncFavoritesTree = { Movie: {}, Series: {}, LiveTv: {} };
+    let rank = 0;
     for (const fav of favorites ?? []) {
         const bucket = fav ? favoriteBucket(fav.type) : null;
         const id = fav ? String(fav.id ?? '').trim() : '';
@@ -96,7 +110,8 @@ export function toFavoritesTree(
             title: fav.title || '',
             thumbnail: fav.poster || '',
             categoryId: fav.categoryId ? String(fav.categoryId) : '0',
-            timestamp: toEpochSeconds(fav.addedAt) || toEpochSeconds(fav.ts),
+            timestamp: rowTimestamp(fav.ts, fav.addedAt),
+            rank: rank++,
         };
     }
     return tree;
@@ -137,6 +152,14 @@ export function findPosition(
         }
     }
     return 0;
+}
+
+/** Newest first: by timestamp, then by the order the panel returned the rows in. */
+export function panelNewestFirst(
+    a: { timestamp: number; rank?: number },
+    b: { timestamp: number; rank?: number }
+): number {
+    return b.timestamp - a.timestamp || (a.rank ?? 0) - (b.rank ?? 0);
 }
 
 export function isWatched(position: number, duration: number): boolean {

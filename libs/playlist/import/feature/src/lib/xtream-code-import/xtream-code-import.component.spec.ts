@@ -51,7 +51,7 @@ describe('XtreamCodeImportComponent', () => {
         expect(component.form.valid).toBe(false);
 
         await component.testConnection();
-        component.addPlaylist();
+        await component.addPlaylist();
 
         expect(component.isTestingConnection).toBe(false);
         expect(portalStatusService.checkPortalStatus).not.toHaveBeenCalled();
@@ -67,7 +67,7 @@ describe('XtreamCodeImportComponent', () => {
         expect(component.form.get('password')?.value).toBe('pass');
     });
 
-    it('normalizes full Xtream playlist URLs when adding a portal', () => {
+    it('normalizes full Xtream playlist URLs when adding a portal', async () => {
         component.form.patchValue({
             title: 'Portal',
             serverUrl:
@@ -76,7 +76,7 @@ describe('XtreamCodeImportComponent', () => {
             password: ' pass ',
         });
 
-        component.addPlaylist();
+        await component.addPlaylist();
 
         expect(store.dispatch).toHaveBeenCalledWith(
             PlaylistActions.addPlaylist({
@@ -88,5 +88,74 @@ describe('XtreamCodeImportComponent', () => {
                 }),
             })
         );
+    });
+
+    describe('without a server URL', () => {
+        const panelLoginRequest = jest.fn();
+
+        beforeEach(() => {
+            (window as unknown as { electron?: unknown }).electron = {
+                panelLoginRequest,
+            };
+            panelLoginRequest.mockReset();
+        });
+
+        afterEach(() => {
+            delete (window as unknown as { electron?: unknown }).electron;
+        });
+
+        it('looks the line up in the current panel DNS list (no legacy endpoint)', async () => {
+            panelLoginRequest.mockResolvedValue({
+                ok: true,
+                status: 200,
+                data: ['http://dns-a.test:8080', 'https://dns-b.test/', 'nonsense'],
+            });
+            portalStatusService.checkPortalStatus.mockImplementation(
+                async (server: string) =>
+                    server === 'https://dns-b.test' ? 'active' : 'inactive'
+            );
+            const fetchSpy = jest.fn();
+            global.fetch = fetchSpy as unknown as typeof fetch;
+            component.form.patchValue({
+                title: 'Linea',
+                username: 'user',
+                password: 'pass',
+            });
+
+            await component.addPlaylist();
+
+            expect(panelLoginRequest).toHaveBeenCalledWith('fetch_dns');
+            expect(fetchSpy).not.toHaveBeenCalled();
+            expect(portalStatusService.checkPortalStatus).toHaveBeenCalledTimes(2);
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.addPlaylist({
+                    playlist: expect.objectContaining({
+                        serverUrl: 'https://dns-b.test',
+                        username: 'user',
+                        password: 'pass',
+                    }),
+                })
+            );
+        });
+
+        it('reports the line as unavailable when no panel DNS accepts it', async () => {
+            panelLoginRequest.mockResolvedValue({
+                ok: true,
+                status: 200,
+                data: ['http://dns-a.test'],
+            });
+            portalStatusService.checkPortalStatus.mockResolvedValue('inactive');
+            component.form.patchValue({
+                title: 'Linea',
+                username: 'user',
+                password: 'pass',
+            });
+
+            await component.addPlaylist();
+
+            expect(store.dispatch).not.toHaveBeenCalled();
+            expect(component.connectionStatus).toBe('unavailable');
+            expect(component.isTestingConnection).toBe(false);
+        });
     });
 });

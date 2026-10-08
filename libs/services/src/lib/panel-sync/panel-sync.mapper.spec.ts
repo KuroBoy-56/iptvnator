@@ -3,6 +3,7 @@ import {
     findPosition,
     findProgressKey,
     isWatched,
+    panelNewestFirst,
     toFavoritesTree,
     toProgressTree,
 } from './panel-sync.mapper';
@@ -62,5 +63,55 @@ describe('panel sync mapper', () => {
         expect(isWatched(95, 100)).toBe(true);
         expect(isWatched(94, 100)).toBe(false);
         expect(isWatched(10, 0)).toBe(false);
+    });
+
+    it('orders progress newest first by the panel ts, not by id or title', () => {
+        // ids and numeric titles make JS iterate in id order; updatedAt ties within a second
+        const tree = toProgressTree({
+            '300': { position: 10, duration: 100, type: 'movie', id: '5', updatedAt: '2026-10-08 10:00:00', ts: 1791453600.25 },
+            '1917': { position: 10, duration: 100, type: 'movie', id: '9', updatedAt: '2026-10-08 10:00:00', ts: 1791453600.75 },
+            Dune: { position: 10, duration: 100, type: 'movie', id: '1', updatedAt: '2026-10-08 09:00:00', ts: '1791450000123456' },
+            Show: { position: 10, duration: 100, type: 'episode', id: '77', seriesId: '7', ts: 1791453700.5 },
+        });
+        expect(tree.Movie['9'].timestamp).toBeCloseTo(1791453600.75, 3);
+        expect(tree.Movie['1'].timestamp).toBeCloseTo(1791450000.123456, 3);
+        const order = [
+            ...Object.entries(tree.Movie).map(([id, leaf]) => ({ id, ...leaf })),
+            { id: 's7', ...tree.Series['7']['77'] },
+        ]
+            .sort(panelNewestFirst)
+            .map((l) => l.id);
+        expect(order).toEqual(['s7', '9', '5', '1']);
+    });
+
+    it('falls back to updatedAt and then to the panel order', () => {
+        const tree = toProgressTree({
+            'Movie New': { position: 10, duration: 100, type: 'movie', id: '2', updatedAt: '2026-01-02T00:00:00Z' },
+            'Movie Undated A': { position: 10, duration: 100, type: 'movie', id: '1' },
+            'Movie Undated B': { position: 10, duration: 100, type: 'movie', id: '3' },
+        });
+        expect(tree.Movie['2'].timestamp).toBe(Date.parse('2026-01-02T00:00:00Z') / 1000);
+        const order = Object.entries(tree.Movie)
+            .map(([id, leaf]) => ({ id, ...leaf }))
+            .sort(panelNewestFirst)
+            .map((l) => l.id);
+        // undated rows keep the panel's (newest-first) order
+        expect(order).toEqual(['2', '1', '3']);
+    });
+
+    it('orders favorites by ts before addedAt', () => {
+        const tree = toFavoritesTree([
+            { id: '1', type: 'movie', addedAt: '2026-10-08T12:00:00Z', ts: 1_700_000_100.5 },
+            { id: '2', type: 'movie', addedAt: '2026-10-08T12:00:00Z', ts: 1_700_000_200.5 },
+            { id: '3', type: 'series', addedAt: '2026-10-08T12:00:00Z' },
+        ]);
+        expect(tree.Movie['2'].timestamp).toBe(1_700_000_200.5);
+        expect(tree.Movie['1'].rank).toBe(0);
+        expect(tree.Series['3'].rank).toBe(2);
+        const order = [...Object.entries(tree.Movie), ...Object.entries(tree.Series)]
+            .map(([id, leaf]) => ({ id, ...leaf }))
+            .sort(panelNewestFirst)
+            .map((l) => l.id);
+        expect(order).toEqual(['3', '2', '1']);
     });
 });

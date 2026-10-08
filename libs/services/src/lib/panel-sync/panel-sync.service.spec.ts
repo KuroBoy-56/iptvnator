@@ -68,6 +68,26 @@ describe('PanelSyncService', () => {
         expect(save.pass).toBeUndefined();
     });
 
+    it('moves the item just watched to the front of the local snapshot', async () => {
+        snapshot.progress = {
+            'Movie A': { position: 100, duration: 1000, type: 'movie', id: '10', ts: 1_700_000_000 },
+            'Movie B': { position: 100, duration: 1000, type: 'movie', id: '11', ts: 1_750_000_000 },
+        };
+        const svc = service();
+        await svc.saveProgress(creds, { type: 'movie', id: 10, title: 'Movie A' }, 250, 1000);
+        const tree = await svc.getAllProgress(creds);
+        expect(tree.Movie['10'].timestamp).toBeGreaterThan(tree.Movie['11'].timestamp);
+    });
+
+    it('stamps a favorite just added as the newest one', async () => {
+        snapshot.favorites = [{ id: '3', type: 'live', title: 'Canal', ts: 1_750_000_000 }];
+        const svc = service();
+        await svc.getAllFavorites(creds);
+        await svc.addFavorite(creds, 'Movie', 7, 0, { title: 'M' });
+        const tree = await svc.getAllFavorites(creds);
+        expect(tree.Movie['7'].timestamp).toBeGreaterThan(tree.LiveTv['3'].timestamp);
+    });
+
     it('deletes the entry once 95% is watched', async () => {
         await service().saveProgress(creds, { type: 'movie', id: 10, title: 'Movie A' }, 960, 1000);
         const bodies = calls.map((c) => c.init?.body && JSON.parse(String(c.init.body))).filter(Boolean);

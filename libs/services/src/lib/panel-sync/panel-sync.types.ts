@@ -19,6 +19,8 @@ export interface PanelProgressEntry {
     seriesId?: string;
     categoryId?: string;
     updatedAt?: string;
+    /** Server stamp (epoch seconds with microseconds); the newest-first sort key. */
+    ts?: number | string;
 }
 
 export interface PanelFavorite {
@@ -29,7 +31,7 @@ export interface PanelFavorite {
     categoryId?: string;
     url?: string;
     addedAt?: string;
-    /** Epoch seconds (or ms) the panel stamps on each favorite. */
+    /** Server stamp (epoch seconds with microseconds); the newest-first sort key. */
     ts?: number | string;
 }
 
@@ -46,7 +48,10 @@ export interface SyncProgressLeaf {
     timeline: number;
     duration: number;
     thumbnail: string;
+    /** Epoch seconds (fractional): panel `ts`, else `updatedAt`. */
     timestamp: number;
+    /** Position in the panel response (newest first); tie-breaker for `timestamp`. */
+    rank?: number;
     title: string;
     episodeName?: string;
     categoryId?: string;
@@ -66,7 +71,10 @@ export interface SyncFavoriteLeaf {
     title: string;
     thumbnail: string;
     categoryId: string;
+    /** Epoch seconds (fractional): panel `ts`, else `addedAt`. */
     timestamp: number;
+    /** Position in the panel response (newest first); tie-breaker for `timestamp`. */
+    rank?: number;
 }
 
 export type SyncFavoritesTree = Record<

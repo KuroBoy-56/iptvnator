@@ -126,7 +126,8 @@ export class PanelSyncService {
         const ok = await this.client.post(creds, { action: 'save', title, ...entry });
         if (ok) {
             this.client.patchSnapshot(creds, (data) => {
-                data.progress[title] = entry;
+                // the panel stamps its own `ts`; mirror it so the item moves to the front now
+                data.progress[title] = { ...entry, ts: Date.now() / 1000 };
             });
         }
     }
@@ -252,7 +253,11 @@ export class PanelSyncService {
         this.client.patchSnapshot(creds, (data) => {
             data.favorites = data.favorites.filter((f) => !sameFavorite(f, change.type, change.id));
             if (change.op === 'add') {
-                data.favorites.unshift({ ...(change.item ?? { id: change.id, type: change.type }), addedAt: new Date().toISOString() });
+                data.favorites.unshift({
+                    ...(change.item ?? { id: change.id, type: change.type }),
+                    addedAt: new Date().toISOString(),
+                    ts: Date.now() / 1000,
+                });
             }
         });
         return true;

@@ -45,6 +45,11 @@ const loadNfHomeComponent: ComponentLoader = () =>
 const loadNfBrowseComponent: ComponentLoader = () =>
     import('./nf/nf-browse.component').then((c) => c.NfBrowseComponent);
 
+const loadNfLibraryPageComponent: ComponentLoader = () =>
+    import('./nf/nf-library-page.component').then(
+        (c) => c.NfLibraryPageComponent
+    );
+
 const loadNfExploreComponent: ComponentLoader = () =>
     import('./nf/nf-explore.component').then((c) => c.NfExploreComponent);
 
@@ -85,6 +90,16 @@ export function createXtreamRoutes(): Route[] {
                         {
                             path: 'explore',
                             loadComponent: loadNfExploreComponent,
+                        },
+                        {
+                            path: 'continue-watching',
+                            loadComponent: loadNfLibraryPageComponent,
+                            data: { nfList: 'continue' },
+                        },
+                        {
+                            path: 'my-list',
+                            loadComponent: loadNfLibraryPageComponent,
+                            data: { nfList: 'myList' },
                         },
                         {
                             path: 'live',

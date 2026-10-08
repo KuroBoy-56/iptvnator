@@ -1,5 +1,9 @@
 import { Injectable, inject } from '@angular/core';
-import { PanelSyncService, SyncUserCredentials } from '@iptvnator/services';
+import {
+    PanelSyncService,
+    panelNewestFirst,
+    SyncUserCredentials,
+} from '@iptvnator/services';
 import { NfItem } from './nf-item';
 
 export interface NfLibrary {
@@ -8,6 +12,7 @@ export interface NfLibrary {
 }
 
 type Catalog = { movie: Map<number, NfItem>; series: Map<number, NfItem> };
+type Ranked = { item: NfItem; timestamp: number; rank?: number };
 
 function pct(position: number, duration: number): number {
     return duration > 0
@@ -38,7 +43,7 @@ export class NfLibraryService {
             this.panel.getAllFavorites(creds),
         ]);
 
-        const watching: { item: NfItem; at: number }[] = [];
+        const watching: Ranked[] = [];
         for (const [id, leaf] of Object.entries(progress.Movie)) {
             const item = this.match(
                 catalog,
@@ -53,13 +58,13 @@ export class NfLibraryService {
                         ...item,
                         progress: pct(leaf.timeline, leaf.duration),
                     },
-                    at: leaf.timestamp,
+                    timestamp: leaf.timestamp,
+                    rank: leaf.rank,
                 });
         }
         for (const [seriesId, episodes] of Object.entries(progress.Series)) {
-            const last = Object.values(episodes).sort(
-                (a, b) => b.timestamp - a.timestamp
-            )[0];
+            // the series shows its most recently watched episode
+            const last = Object.values(episodes).sort(panelNewestFirst)[0];
             if (!last) continue;
             const item = this.match(
                 catalog,
@@ -74,11 +79,12 @@ export class NfLibraryService {
                         ...item,
                         progress: pct(last.timeline, last.duration),
                     },
-                    at: last.timestamp,
+                    timestamp: last.timestamp,
+                    rank: last.rank,
                 });
         }
 
-        const listed: { item: NfItem; at: number }[] = [];
+        const listed: Ranked[] = [];
         for (const [bucket, type] of [
             ['Movie', 'movie'],
             ['Series', 'series'],
@@ -91,17 +97,21 @@ export class NfLibraryService {
                     leaf.title,
                     leaf.thumbnail
                 );
-                if (item) listed.push({ item, at: leaf.timestamp });
+                if (item)
+                    listed.push({
+                        item,
+                        timestamp: leaf.timestamp,
+                        rank: leaf.rank,
+                    });
             }
         }
 
-        const byRecent = (a: { at: number }, b: { at: number }) => b.at - a.at;
+        // newest first, like the web player: panel `ts`, then panel order
         return {
             continueWatching: watching
-                .sort(byRecent)
-                .map((w) => w.item)
-                .slice(0, 20),
-            myList: listed.sort(byRecent).map((l) => l.item),
+                .sort(panelNewestFirst)
+                .map((w) => w.item),
+            myList: listed.sort(panelNewestFirst).map((l) => l.item),
         };
     }
 

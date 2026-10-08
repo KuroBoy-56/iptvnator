@@ -108,7 +108,7 @@ export function applyFavoriteOverrides(
     const out = favorites.filter((f) => f && !touched.has(keyOf(f.type, f.id)));
     for (const c of overrides) {
         if (c.op === 'add') {
-            out.unshift({ ...(c.item ?? { id: c.id, type: c.type }), addedAt: new Date(c.at).toISOString() });
+            out.unshift({ ...(c.item ?? { id: c.id, type: c.type }), addedAt: new Date(c.at).toISOString(), ts: c.at / 1000 });
         }
     }
     return out;

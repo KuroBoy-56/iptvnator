@@ -13,6 +13,16 @@ holds it as a hex string (XOR + base64 + hex) and decodes it at runtime:
 - `getPanelApiBase()` returns the `.../master/panel/api/` base.
 - `panelEndpoint('progress.php')` builds one endpoint URL.
 
+Every panel call goes through these helpers: `login.php` (Electron main),
+`progress.php`, `epg.php`, `sports.php` and `alerta.php` (the welcome / expiry
+card shown by the workspace shell, with images from the panel's
+`img/alertas/`). The Xtream "add playlist" dialog no longer asks the old
+`player_pc_api.php` for the line's DNS: a typed server URL is used as is,
+otherwise the current panel's `fetch_dns` list is probed with the line's
+credentials and the first server that answers `active` wins
+(`libs/playlist/import/feature/src/lib/xtream-code-import/panel-dns-servers.ts`).
+No other panel host or path is hardcoded.
+
 ## Login (Electron)
 
 Route `/login` (`apps/web/src/app/login.component.*`) works the same way as
@@ -145,9 +155,18 @@ These are shared with the web player:
   is unsent) `getAllFavorites`/`isFavorite` apply it on top of the panel
   snapshot, so a snapshot that predates the change cannot undo it.
 - Panel favorite types are read whatever their spelling (`movie`/`vod`/`movies`,
-  `series`/`serie`, `live`/`channel`). Timestamps are read from `addedAt`
-  (ISO or `Y-m-d H:i:s`), then from `ts` (epoch seconds or ms). See
-  `favoriteBucket` and `toFavoritesTree` in `panel-sync.mapper.ts`.
+  `series`/`serie`, `live`/`channel`). See `favoriteBucket` and
+  `toFavoritesTree` in `panel-sync.mapper.ts`.
+- **Order (newest first, like the web player):** progress and favorites are
+  sorted by the panel's `ts` (epoch seconds with microseconds; ms and µs
+  integers are accepted too), then by `updatedAt` / `addedAt` (ISO or
+  `Y-m-d H:i:s`), then by the order the panel returned the rows in. Every leaf
+  of `toProgressTree` / `toFavoritesTree` carries `timestamp` (fractional
+  seconds) and `rank`; sort with `panelNewestFirst`. `ts` used to be ignored
+  for progress and the timestamps were floored to whole seconds, so
+  "Continuar viendo" fell back to id order whenever `updatedAt` was missing
+  or several items shared a second. Local saves (`save`, `fav_add`) stamp `ts`
+  on the cached snapshot so the item jumps to the front right away.
 - **"Mi lista" page** (`favorites` routes, `UnifiedFavoritesDataService`):
   `panelFavoritesToItems` (`libs/portal/shared/data-access/src/lib/collection/panel-favorite-items.ts`)
   matches each panel favorite with the line's catalog
@@ -265,7 +284,9 @@ They live in `libs/portal/xtream/feature/src/lib/nf/`.
 
 - `home` (Inicio), `NfHomeComponent`:
   - billboard and platform tiles;
-  - Continuar viendo and Mi lista, read from the panel (`NfLibraryService`);
+  - Continuar viendo and Mi lista, read from the panel (`NfLibraryService`),
+    newest first; their "Ver todo" opens `continue-watching` / `my-list`
+    (`NfLibraryPageComponent`), the full list as a poster grid in the same order;
   - Top 10 de hoy, Películas agregadas recientemente, Series nuevas;
   - "Lo mejor de …" platform rows, Series para ti, genre rows, Películas para ti.
 - `vod` and `series` roots, `NfBrowseComponent`: billboard, Categorías select,

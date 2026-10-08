@@ -69,6 +69,8 @@ const PLATFORM_ROWS = 5;
                             title="Continuar viendo"
                             [items]="lib.continueWatching"
                             [playlistId]="catalog.playlistId()"
+                            [more]="libraryLink('continue-watching')"
+                            [limit]="20"
                         />
                     }
                     @if (lib.myList.length) {
@@ -76,6 +78,7 @@ const PLATFORM_ROWS = 5;
                             title="Mi lista"
                             [items]="lib.myList"
                             [playlistId]="catalog.playlistId()"
+                            [more]="libraryLink('my-list')"
                             [limit]="60"
                         />
                     }
@@ -123,6 +126,11 @@ export class NfHomeComponent {
 
     protected get explore(): string[] {
         return ['/workspace', 'xtreams', this.catalog.playlistId(), 'explore'];
+    }
+
+    /** "Ver todo" of the panel rows: the full list, same order. */
+    protected libraryLink(page: 'continue-watching' | 'my-list'): string[] {
+        return ['/workspace', 'xtreams', this.catalog.playlistId(), page];
     }
 
     private readonly allCategories = computed(() => [

@@ -28,7 +28,11 @@ import { WorkspaceShellRouteStateService } from './services/workspace-shell-rout
 import { WorkspaceShellSearchSyncService } from './services/workspace-shell-search-sync.service';
 import { WorkspaceShellSearchService } from './services/workspace-shell-search.service';
 import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
-import { getSessionAlertAccounts } from '@iptvnator/shared/interfaces';
+import {
+    getPanelApiBase,
+    getSessionAlertAccounts,
+    panelEndpoint,
+} from '@iptvnator/shared/interfaces';
 
 @Component({
     selector: 'app-workspace-shell',
@@ -142,24 +146,14 @@ export class WorkspaceShellComponent implements OnInit {
             });
     }
 
+    /** Expiry/welcome card of the current panel (api/alerta.php). */
     private getAlertaUrl(): string {
-        const encrypted = [3, 1, 6, 31, 24, 79, 93, 64, 12, 20, 0, 10, 29, 12, 28, 31, 10, 27, 23, 3, 24, 91, 30, 14, 31, 24, 2, 23, 69, 22, 29, 2, 68, 28, 16, 0, 95, 30, 2, 29, 4, 90, 19, 31, 2, 90, 19, 3, 14, 7, 6, 14, 69, 5, 26, 31];
-        const key = "kuro";
-        let decrypted = "";
-        for (let i = 0; i < encrypted.length; i++) {
-            decrypted += String.fromCharCode(encrypted[i] ^ key.charCodeAt(i % key.length));
-        }
-        return decrypted;
+        return panelEndpoint('alerta.php');
     }
 
+    /** Panel root (".../api/" minus "api/"); alert images live in img/alertas/. */
     private getBaseImageUrl(): string {
-        const encrypted = [3, 1, 6, 31, 24, 79, 93, 64, 12, 20, 0, 10, 29, 12, 28, 31, 10, 27, 23, 3, 24, 91, 30, 14, 31, 24, 2, 23, 69, 22, 29, 2, 68, 28, 16, 0, 95, 30, 2, 29, 4, 90];
-        const key = "kuro";
-        let decrypted = "";
-        for (let i = 0; i < encrypted.length; i++) {
-            decrypted += String.fromCharCode(encrypted[i] ^ key.charCodeAt(i % key.length));
-        }
-        return decrypted;
+        return getPanelApiBase().replace(/api\/$/, '');
     }
 
     private renderAlertOverlay(html: string): void {

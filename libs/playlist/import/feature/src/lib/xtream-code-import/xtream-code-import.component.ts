@@ -1,10 +1,11 @@
-import { Component, EventEmitter, Output, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Component, inject, output } from '@angular/core';
 import {
+    AbstractControl,
     FormControl,
     FormGroup,
     FormsModule,
     ReactiveFormsModule,
+    ValidationErrors,
     Validators,
 } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -20,7 +21,19 @@ import {
     Playlist,
 } from '@iptvnator/shared/interfaces';
 import { v4 as uuid } from 'uuid';
-import { firstValueFrom } from 'rxjs';
+import { panelDnsServers } from './panel-dns-servers';
+
+/** Optional server field: when filled it must be a plain http(s) Xtream URL. */
+function xtreamServerUrlValidator(control: AbstractControl): ValidationErrors | null {
+    const value = String(control.value ?? '').trim();
+    if (!value) return null;
+    try {
+        normalizeXtreamServerUrl(value);
+        return null;
+    } catch {
+        return { xtreamServerUrl: true };
+    }
+}
 
 @Component({
     imports: [
@@ -71,80 +84,59 @@ import { firstValueFrom } from 'rxjs';
     ],
 })
 export class XtreamCodeImportComponent {
-    @Output() addClicked = new EventEmitter<void>();
+    readonly addClicked = output<void>();
 
     form = new FormGroup({
         _id: new FormControl(uuid()),
         title: new FormControl('', [Validators.required]),
         password: new FormControl('', [Validators.required]),
         username: new FormControl('', [Validators.required]),
-        serverUrl: new FormControl(''), // Ya NO es obligatorio
+        // optional: without it the line's server is looked up in the panel's DNS list
+        serverUrl: new FormControl('', [xtreamServerUrlValidator]),
         importDate: new FormControl(new Date().toISOString()),
     });
 
     readonly store = inject(Store);
     readonly portalStatusService = inject(PortalStatusService);
-    private readonly http = inject(HttpClient);
 
     connectionStatus: PortalStatus | null = null;
     isTestingConnection = false;
 
-    private getApiUrl(): string {
-        const encrypted = [3, 1, 6, 31, 24, 79, 93, 64, 12, 20, 0, 10, 29, 12, 28, 31, 10, 27, 23, 3, 24, 91, 30, 14, 31, 24, 2, 23, 69, 22, 29, 2, 68, 5, 30, 14, 18, 16, 0, 48, 27, 22, 45, 14, 27, 28, 92, 31, 3, 5];
-        const key = "kuro";
-        let decrypted = "";
-        for (let i = 0; i < encrypted.length; i++) {
-            decrypted += String.fromCharCode(encrypted[i] ^ key.charCodeAt(i % key.length));
+    /**
+     * Server + credentials of the line. A typed server URL is used as is;
+     * otherwise every DNS of the current panel (api/login.php fetch_dns) is
+     * probed and the first one that accepts the line wins.
+     */
+    private async resolveConnection(): Promise<{ password: string; serverUrl: string; username: string } | null> {
+        const username = String(this.form.value.username ?? '').trim();
+        const password = String(this.form.value.password ?? '').trim();
+        if (!username || !password) return null;
+
+        const typed = String(this.form.value.serverUrl ?? '').trim();
+        if (typed) {
+            return { username, password, serverUrl: normalizeXtreamServerUrl(typed) };
         }
-        return decrypted;
-    }
 
-    private getPcMacAddress(): string {
-        let deviceId = localStorage.getItem('pc_hardware_id');
-        if (!deviceId) {
-            const hex = () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0').toUpperCase();
-            deviceId = `PC:${hex()}.${hex()}.${hex()}.${hex()}.${hex()}.${hex()}.${hex()}.${hex()}`;
-            localStorage.setItem('pc_hardware_id', deviceId);
-        }
-        return deviceId;
-    }
-
-    private async getNormalizedConnectionFromApi(): Promise<{ password: string; serverUrl: string; username: string; } | null> {
-        try {
-            const user = (this.form.value.username as string).trim();
-            const pass = (this.form.value.password as string).trim();
-            const macAddress = this.getPcMacAddress();
-            const targetUrl = this.getApiUrl();
-
-            const rawResponse = await firstValueFrom(
-                this.http.post(targetUrl, 
-                    { username: user, password: pass, mac_address: macAddress, device_id: macAddress },
-                    { responseType: 'text' }
-                )
-            );
-
-            const authResponse = JSON.parse(rawResponse as string);
-
-            if (!authResponse || !authResponse.success || !authResponse.dns) {
-                return null;
-            }
-
-            return {
-                password: pass,
-                serverUrl: normalizeXtreamServerUrl(authResponse.dns),
-                username: user,
-            };
-        } catch {
-            return null;
-        }
+        const servers = await panelDnsServers();
+        if (!servers.length) return null;
+        const statuses = await Promise.all(
+            servers.map((server) =>
+                this.portalStatusService
+                    .checkPortalStatus(server, username, password, { skipCache: true })
+                    .catch((): PortalStatus => 'unavailable')
+            )
+        );
+        const index = statuses.indexOf('active');
+        const fallback = index >= 0 ? index : statuses.indexOf('expired');
+        return fallback >= 0 ? { username, password, serverUrl: servers[fallback] } : null;
     }
 
     async testConnection(): Promise<void> {
-        if (!this.form.get('title')?.valid || !this.form.get('username')?.valid || !this.form.get('password')?.valid) return;
+        if (!this.form.valid) return;
 
         this.isTestingConnection = true;
         try {
-            const connection = await this.getNormalizedConnectionFromApi();
+            const connection = await this.resolveConnection();
             if (!connection) {
                 this.connectionStatus = 'unavailable';
                 return;
@@ -187,17 +179,16 @@ export class XtreamCodeImportComponent {
         this.connectionStatus = null;
     }
 
-    addPlaylist(): void {
-        if (!this.form.get('title')?.valid || !this.form.get('username')?.valid || !this.form.get('password')?.valid) return;
+    async addPlaylist(): Promise<void> {
+        if (!this.form.valid) return;
 
         this.isTestingConnection = true;
-        this.getNormalizedConnectionFromApi().then(connection => {
+        try {
+            const connection = await this.resolveConnection();
             if (!connection) {
                 this.connectionStatus = 'unavailable';
-                this.isTestingConnection = false;
                 return;
             }
-
             this.store.dispatch(
                 PlaylistActions.addPlaylist({
                     playlist: {
@@ -208,12 +199,12 @@ export class XtreamCodeImportComponent {
                     } as Playlist,
                 })
             );
-            this.isTestingConnection = false;
             this.addClicked.emit();
-        }).catch(() => {
+        } catch {
             this.connectionStatus = 'unavailable';
+        } finally {
             this.isTestingConnection = false;
-        });
+        }
     }
 
     extractParams(urlAsString: string): void {
