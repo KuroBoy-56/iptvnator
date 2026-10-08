@@ -13,6 +13,7 @@ import { injectNfCatalog } from './nf-catalog';
 import { nfFindTag, nfNorm, nfTagItems } from './nf-filters';
 import { NfItem, nfLink, newestFirst, topRated } from './nf-item';
 import { NfNearEndDirective } from './nf-near-end.directive';
+import { NfTitleSearchComponent } from './nf-title-search.component';
 
 type ExploreType = 'all' | 'movie' | 'series';
 type ExploreSort = 'recent' | 'rating' | 'az';
@@ -23,7 +24,12 @@ const PAGE = 120;
 @Component({
     selector: 'app-nf-explore',
     standalone: true,
-    imports: [NfCardComponent, NfNearEndDirective, RouterLink],
+    imports: [
+        NfCardComponent,
+        NfNearEndDirective,
+        NfTitleSearchComponent,
+        RouterLink,
+    ],
     template: `
         <div class="nf-page">
             <header class="nf-browse-head" [style.--accent]="accent()">
@@ -34,6 +40,12 @@ const PAGE = 120;
                     {{ heading() }}
                 </h1>
                 <p>{{ subtitle() }}</p>
+                @if (platform()) {
+                    <app-nf-title-search
+                        [label]="heading()"
+                        [(value)]="filter"
+                    />
+                }
             </header>
 
             <div class="nf-filterbar">
@@ -61,13 +73,15 @@ const PAGE = 120;
                         <option value="rating">Mejor valoradas</option>
                         <option value="az">A – Z</option>
                     </select>
-                    <input
-                        class="nf-input"
-                        type="search"
-                        placeholder="Filtrar por título"
-                        [value]="filter()"
-                        (input)="filter.set($any($event.target).value)"
-                    />
+                    @if (!platform()) {
+                        <input
+                            class="nf-input"
+                            type="search"
+                            placeholder="Filtrar por título"
+                            [value]="filter()"
+                            (input)="filter.set($any($event.target).value)"
+                        />
+                    }
                     <span class="nf-count">{{ results().length }} títulos</span>
                 </div>
             </div>
@@ -135,6 +149,10 @@ export class NfExploreComponent {
     });
     protected readonly tag = computed(() =>
         nfFindTag(this.params().get('platform') ?? this.params().get('genre'))
+    );
+    /** Platform page (Netflix, Disney+…): the name filter is the top-right magnifier. */
+    protected readonly platform = computed(
+        () => !!this.params().get('platform') && !this.category()
     );
     protected readonly category = computed(() => {
         const id = this.params().get('category');

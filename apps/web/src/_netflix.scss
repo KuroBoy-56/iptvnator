@@ -1042,6 +1042,69 @@ body.macos-platform .nf-header {
     margin-left: auto;
 }
 
+// Platform page magnifier (top-right of .nf-browse-head)
+.nf-psearch {
+    position: absolute;
+    right: var(--nf-pad);
+    top: calc(var(--nf-header) + 26px);
+    display: flex;
+    align-items: center;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    transition:
+        background 0.2s,
+        border-color 0.2s;
+
+    &.open {
+        background: rgba(0, 0, 0, 0.85);
+        border-color: #fff;
+    }
+}
+
+.nf-psearch-in {
+    width: 260px;
+    padding: 9px 4px 9px 4px;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #fff;
+    font: inherit;
+    font-size: 15px;
+}
+
+.nf-psearch-btn {
+    background: transparent;
+    border: 0;
+    color: #fff;
+    cursor: pointer;
+    padding: 8px;
+    display: flex;
+    border-radius: 4px;
+
+    &:hover,
+    &:focus-visible {
+        background: rgba(255, 255, 255, 0.12);
+        outline: 0;
+    }
+}
+
+@media (max-width: 700px) {
+    .nf-browse-head h1 {
+        padding-right: 46px;
+    }
+
+    .nf-psearch.open {
+        left: var(--nf-pad);
+        z-index: 5;
+
+        .nf-psearch-in {
+            flex: 1;
+            width: auto;
+            min-width: 0;
+        }
+    }
+}
+
 .nf-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));

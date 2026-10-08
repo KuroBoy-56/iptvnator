@@ -273,7 +273,10 @@ They live in `libs/portal/xtream/feature/src/lib/nf/`.
   category, rendered progressively.
 - `explore`, `NfExploreComponent`: the poster grid behind every "Ver todo",
   platform tile, genre chip and search. Its query params are `type`,
-  `platform`, `genre`, `category`, `sort` and `q`.
+  `platform`, `genre`, `category`, `sort` and `q`. On a platform page the
+  inline title filter is replaced by a top-right magnifier
+  (`NfTitleSearchComponent`) that expands a field filtering the grid by
+  name as you type (case- and accent-insensitive, like `browse.php`).
 
 Shared pieces:
 
