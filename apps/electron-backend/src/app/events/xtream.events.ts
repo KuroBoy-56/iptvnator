@@ -85,7 +85,7 @@ function buildXtreamApiUrl(url: string, params: Record<string, string>): URL {
     }
 
     Object.entries(params).forEach(([key, value]) => {
-        apiUrl.searchParams.append(
+        apiUrl.searchParams.set(
             key,
             key === 'username' || key === 'password' ? value.trim() : value
         );
