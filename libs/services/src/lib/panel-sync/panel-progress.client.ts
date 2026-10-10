@@ -1,5 +1,6 @@
 import {
     notifyTenantError,
+    PANEL_APP_ID,
     PANEL_TENANT_FATAL,
     panelEndpoint,
     panelTenantFields,
@@ -84,7 +85,7 @@ export class PanelProgressClient {
         const res = await this.fetchFn(this.url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'auth', user, pass, dns: creds.server?.trim() ?? '', ...panelTenantFields() }),
+            body: JSON.stringify({ action: 'auth', user, pass, dns: creds.server?.trim() ?? '', ...panelTenantFields(), platform: PANEL_APP_ID }),
         });
         if (!res.ok) await reportTenantError(res);
         const body = res.ok ? await res.json().catch(() => null) : null;

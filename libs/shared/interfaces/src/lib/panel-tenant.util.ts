@@ -10,8 +10,21 @@ import { dispatchTenantEvent, tenantStorage } from './panel-tenant-env';
  *   branding (name, logo, palette) comes from api/login.php tenant_config.
  */
 
-/** App id this build sends to the panel. */
-export const PANEL_APP_ID = 'windows';
+/**
+ * App id this build sends to the panel: 'macos' on a Mac, 'windows' everywhere else
+ * (Windows and Linux desktop). Works in the Electron main process (process.platform),
+ * in the renderer (navigator) and in Node builds without the DOM.
+ */
+export function panelAppId(): 'windows' | 'macos' {
+    const proc = (globalThis as { process?: { platform?: string } }).process;
+    if (proc?.platform === 'darwin') return 'macos';
+    const nav = (globalThis as { navigator?: { platform?: string; userAgent?: string } }).navigator;
+    if (nav && /Mac/i.test(String(nav.platform || nav.userAgent || ''))) return 'macos';
+    return 'windows';
+}
+
+/** App id this build sends to the panel (see panelAppId). */
+export const PANEL_APP_ID = panelAppId();
 
 export type PanelTenantChoice = 'none' | 'skip' | 'code';
 

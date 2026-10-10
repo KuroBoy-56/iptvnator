@@ -40,12 +40,25 @@ export interface PanelLoginPayload {
     reseller?: string;
 }
 
+/** One error for the panel («Errores de las apps»): see api/report.php. */
+export interface PanelErrorReport {
+    kind: 'crash' | 'error' | 'playback' | 'network' | 'panel' | 'warning';
+    message: string;
+    detail?: string;
+    screen?: string;
+    user?: string;
+    server?: string;
+    tenant?: string;
+}
+
 /**
  * Bridge methods for panel login and device id (Electron only). DNS is
  * automatic in the main process, so there is no DNS method.
  */
 export interface PanelBridgeApi {
     panelGetDeviceId: () => Promise<string>;
+    /** Sends an error to the panel (encrypted in the main process). */
+    panelReportError?: (report: PanelErrorReport) => Promise<boolean>;
     panelLoginRequest: <T = unknown>(
         action: PanelLoginAction,
         payload?: PanelLoginPayload

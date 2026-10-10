@@ -68,7 +68,7 @@ export function normalizeStalkerVod(item: StalkerVodDetails): NormalizedVodMeta 
  * send: a plain video id (also what TMDB supplies), a full watch URL, or a
  * youtu.be short link. Returns `null` when no id can be extracted. Uses the
  * privacy-enhanced youtube-nocookie host (must stay in sync with the CSP
- * frame-src allowlist in apps/web/src/index.html).
+ * frame-src in apps/web/src/index.html, which allows https frames).
  */
 export function youtubeEmbedUrl(
     trailer: string | null | undefined

@@ -5,6 +5,7 @@ import {
 } from '@angular/common/http';
 import {
     ApplicationConfig,
+    ErrorHandler,
     inject,
     importProvidersFrom,
     provideAppInitializer,
@@ -45,6 +46,7 @@ import { PwaService } from './services/pwa.service';
 import { shouldEnableServiceWorker } from './services/runtime-config';
 import { provideWorkspaceShellActions } from './services/workspace-shell-actions.service';
 import { PanelTenantService } from './panel-login/panel-tenant.service';
+import { PanelErrorHandler } from './services/panel-error-reporter';
 
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
@@ -106,6 +108,8 @@ export function DataFactory() {
 export const appConfig: ApplicationConfig = {
     providers: [
         provideZoneChangeDetection({ eventCoalescing: true }),
+        // runtime errors also go to the panel («Errores de las apps»)
+        { provide: ErrorHandler, useClass: PanelErrorHandler },
         provideRouter(routes, withComponentInputBinding()),
         // distributor branding before the first screen + background guardian
         provideAppInitializer(() => inject(PanelTenantService).start()),

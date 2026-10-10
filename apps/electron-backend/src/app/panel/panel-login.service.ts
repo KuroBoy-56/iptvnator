@@ -88,6 +88,8 @@ export async function panelLoginRequest(
                   tenant: tenant || undefined,
                   app: tenant ? PANEL_APP_ID : undefined,
                   enc: LINE_REPLY.includes(action) ? 1 : undefined,
+                  // device type of this MAC in the panel (Clientes MAC › Dispositivo) and the fake screen
+                  platform: PANEL_APP_ID,
               }
     );
     const body = new URLSearchParams({ action, data: encryptPayload(plain, deps.masterKey) });

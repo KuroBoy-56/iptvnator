@@ -30,7 +30,7 @@ describe('PanelEvents', () => {
     beforeAll(() => PanelEvents.bootstrapPanelEvents());
 
     it('registers no DNS picker channels and drops the old manual choice', () => {
-        expect([...handlers.keys()].sort()).toEqual(['PANEL_GET_DEVICE_ID', PANEL_LOGIN_REQUEST]);
+        expect([...handlers.keys()].sort()).toEqual(['PANEL_GET_DEVICE_ID', PANEL_LOGIN_REQUEST, 'PANEL_REPORT_ERROR']);
         expect(store.delete).toHaveBeenCalledWith('SECURE_DNS_MODE');
         expect(app.configureHostResolver).toHaveBeenCalledWith({ secureDnsMode: 'automatic', secureDnsServers: [] });
     });

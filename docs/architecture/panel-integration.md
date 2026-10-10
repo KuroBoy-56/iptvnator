@@ -53,7 +53,7 @@ the Android app:
      | Response | Behavior |
      | --- | --- |
      | 200 | Logs in with the demo user on the first DNS. |
-     | 403 | Shows the message and disables the button. |
+     | 403 | Shows the message. The button stays enabled: the panel decides on every try, so a demo the owner deleted can be asked for again. |
      | 404 | Unknown reseller code or no demo configured: shows the panel message, the demo stays available. |
      | 429 / 400 | Shows the message. |
 
@@ -92,6 +92,32 @@ Without a key, the app still builds and runs. The login screen shows a clear
 
 The PWA has no login crypto. It keeps working with an existing session and
 degrades gracefully.
+
+### Platform, fake screen and error reports
+
+- **Platform.** Every `login.php` payload and the `progress.php` `auth` body
+  carry `platform`: `windows`, or `macos` on a Mac (`panelAppId()` in
+  `panel-tenant.util.ts`, read from `process.platform` / `navigator`). The
+  panel stores it in the line's "Dispositivo" column (Clientes MAC) and uses it
+  for the dashboard statistics.
+- **Fake screen.** When `platform` is sent, an unregistered device's
+  `check_mac` reply carries `fake_screen` (panel page «Pantalla Falsa»: per app,
+  only new devices). `parseFakeScreen` (`apps/web/src/app/panel-login/fake-screen/`)
+  keeps only http(s) URLs and falls back to the calculator. `FakeScreenComponent`
+  shows a working calculator (no `eval`), a carousel, an image, a looping
+  video, or an https page in a sandboxed iframe (`frame-src https:` in
+  `index.html`; no same-origin, no popups, no top navigation). The panel code
+  followed by `=` opens the login and is remembered as `panel_fake_unlocked`;
+  the login re-checks the device every 30 s, so a device registered meanwhile
+  enters on its own.
+- **Error reports.** `panel-report.service.ts` sends `{app, version, kind,
+  message, detail, screen, device, model, os, user, server, tenant}` to
+  `api/report.php`, encrypted with the same AES-GCM envelope as `login.php`
+  (IPC `PANEL_REPORT_ERROR`). The same message goes at most once a minute. The
+  main process reports `uncaughtExceptionMonitor` and `unhandledRejection`; the
+  renderer's `PanelErrorHandler` (`apps/web/src/app/services/panel-error-reporter.ts`)
+  reports Angular errors. The line password is never part of a report. The
+  owner sees them on the panel page «Errores de las apps».
 
 ## TLS certificates
 
@@ -141,7 +167,7 @@ lines, alerts, TMDB key, sports, name, logo and colours. The panel contract
   `tenant` + `app` in the encrypted payload (`PanelLoginPayload.tenant`,
   added by the renderer from storage; also `panelDnsServers()`), the
   `progress.php` auth body adds `tenant` + `app` (the token then carries them
-  for `epg.php` / `sports.php`), `alerta.php` gets `&t=<code>&app=windows`
+  for `epg.php` / `sports.php`), `alerta.php` gets `&t=<code>&app=windows` (`macos` on a Mac)
   (`withTenantQuery`). Tokens and the panel TMDB key are stored per code
   (`tenantStorageSuffix()` = `@t<code>`) so two distributors never share one.
 - **Features:** `demo=false` hides Auto-Demo, `alerts=false` skips the panel

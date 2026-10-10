@@ -49,7 +49,7 @@ describe('PanelLoginService', () => {
 
     it('reports an inactive device', async () => {
         request.mockResolvedValue({ ok: true, status: 200, data: { exists: false } });
-        await expect(service.checkDevice()).resolves.toEqual({ status: 'inactive' });
+        await expect(service.checkDevice()).resolves.toEqual({ status: 'inactive', fake: null });
     });
 
     it('activates with submit_url', async () => {

@@ -7,8 +7,19 @@ import { LoginPostersService } from './panel-login/login-posters.service';
 import { PanelLoginService } from './panel-login/panel-login.service';
 import { PanelSessionService } from './panel-login/panel-session.service';
 import { PanelTenantService } from './panel-login/panel-tenant.service';
+import { FakeScreenComponent } from './panel-login/fake-screen/fake-screen.component';
+import { PanelFakeScreen } from './panel-login/fake-screen/fake-screen.util';
 
 type MessageKind = 'error' | 'info' | 'success';
+
+const FAKE_UNLOCKED_KEY = 'panel_fake_unlocked';
+function fakeUnlocked(): boolean {
+    try {
+        return localStorage.getItem(FAKE_UNLOCKED_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
 
 /**
  * Login / device activation through the panel (same flow as the Android
@@ -26,7 +37,7 @@ type MessageKind = 'error' | 'info' | 'success';
     templateUrl: './login.component.html',
     styleUrls: ['./login.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [FormsModule],
+    imports: [FormsModule, FakeScreenComponent],
 })
 export class LoginComponent implements OnInit {
     private readonly panel = inject(PanelLoginService);
@@ -42,11 +53,13 @@ export class LoginComponent implements OnInit {
     readonly checking = signal(true);
     readonly busy = signal(false);
     readonly demoBusy = signal(false);
-    readonly demoBlocked = signal(false);
     readonly showPassword = signal(false);
     readonly message = signal<{ text: string; kind: MessageKind } | null>(null);
     readonly dnsList = signal<string[]>([]);
     readonly logoFailed = signal(false);
+    /** fake screen of the panel for a new device: until the code is typed or it gets registered */
+    readonly fakeScreen = signal<PanelFakeScreen | null>(null);
+    private fakePoll: ReturnType<typeof setInterval> | null = null;
     /** No distributor choice yet (first launch, or after a wipe / "Cambiar distribuidor"). */
     readonly needsDistributor = computed(() => this.branding.choice() === 'none');
     readonly distBusy = signal(false);
@@ -114,7 +127,6 @@ export class LoginComponent implements OnInit {
         this.deviceCheckStarted = true;
         this.message.set(null);
         this.checking.set(true);
-        this.demoBlocked.set(false);
         this.dnsList.set([]);
 
         if (!this.panel.available) {
@@ -134,9 +146,38 @@ export class LoginComponent implements OnInit {
             this.say(check.message, 'error');
         } else {
             await this.session.clear();
+            if (check.fake && !fakeUnlocked()) this.showFake(check.fake);
         }
         this.checking.set(false);
         await this.loadDns();
+    }
+
+    private showFake(f: PanelFakeScreen): void {
+        this.fakeScreen.set(f);
+        if (this.fakePoll) return;
+        // every 30 s: once the distributor registers this device the app opens by itself
+        this.fakePoll = setInterval(async () => {
+            const c = await this.panel.checkDevice();
+            if (c.status === 'active') {
+                this.hideFake();
+                await this.enter(c.account);
+            } else if (c.status === 'inactive' && !c.fake) {
+                this.hideFake();
+            }
+        }, 30_000);
+    }
+
+    hideFake(unlocked = false): void {
+        if (unlocked) {
+            try {
+                localStorage.setItem(FAKE_UNLOCKED_KEY, '1');
+            } catch {
+                /* storage blocked */
+            }
+        }
+        if (this.fakePoll) clearInterval(this.fakePoll);
+        this.fakePoll = null;
+        this.fakeScreen.set(null);
     }
 
     private async loadDns(): Promise<string[]> {
@@ -181,14 +222,13 @@ export class LoginComponent implements OnInit {
     }
 
     async autoDemo(): Promise<void> {
-        if (this.demoBlocked()) return;
         this.demoBusy.set(true);
         this.message.set(null);
         // a reseller demo code typed in "Contraseña" registers the demo under that reseller
         const demo = await this.panel.autoDemo(this.password);
         if (!demo.ok) {
             this.demoBusy.set(false);
-            if (demo.blocked) this.demoBlocked.set(true);
+            // no local block: the panel decides on every try (a deleted demo can ask again)
             this.say(demo.message, 'error');
             return;
         }

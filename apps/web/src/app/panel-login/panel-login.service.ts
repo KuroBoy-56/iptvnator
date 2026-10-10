@@ -15,6 +15,7 @@ import {
     readTenantCode,
     tenantErrorCode,
 } from '@iptvnator/shared/interfaces';
+import { PanelFakeScreen, parseFakeScreen } from './fake-screen/fake-screen.util';
 
 export interface PanelAccount {
     server: string;
@@ -25,7 +26,7 @@ export interface PanelAccount {
 
 export type DeviceCheck =
     | { status: 'active'; account: PanelAccount }
-    | { status: 'inactive' }
+    | { status: 'inactive'; fake?: PanelFakeScreen | null }
     | { status: 'error'; message: string };
 
 export type DemoResult =
@@ -121,9 +122,10 @@ export class PanelLoginService {
         const res = await this.request<{ exists?: boolean; username?: string; password?: string; url?: string }>('check_mac');
         if (!res.ok) return { status: 'error', message: res.error ?? 'No se pudo verificar el dispositivo.' };
         const data = res.data;
-        if (!data?.exists || !data.url) return { status: 'inactive' };
+        // fake screen of the panel for new devices («Pantalla Falsa»)
+        if (!data?.exists || !data.url) return { status: 'inactive', fake: parseFakeScreen(data) };
         const line = parsePanelLineUrl(data.url);
-        if (!line) return { status: 'inactive' };
+        if (!line) return { status: 'inactive', fake: parseFakeScreen(data) };
         return { status: 'active', account: { ...line, isDemo: isDemoUser(line.username) } };
     }
 

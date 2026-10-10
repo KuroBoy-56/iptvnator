@@ -46,7 +46,7 @@ describe('PanelSyncService', () => {
         expect(tree.Movie['10'].timeline).toBe(100);
         const auth = calls.filter((c) => c.init?.method === 'POST');
         expect(auth).toHaveLength(1);
-        expect(JSON.parse(String(auth[0].init?.body))).toEqual({ action: 'auth', user: 'line1', pass: 'secret', dns: 'http://dns.test:8080' });
+        expect(JSON.parse(String(auth[0].init?.body))).toEqual({ action: 'auth', user: 'line1', pass: 'secret', dns: 'http://dns.test:8080', platform: 'windows' });
         expect(calls[1].url).toContain('progress.php?v=2');
         expect((calls[1].init?.headers as Record<string, string>)['Authorization']).toBe('Bearer tok');
         expect(localStorage.getItem('panel_sync_token2:line1@dns.test:8080')).toBe('tok');
@@ -67,7 +67,7 @@ describe('PanelSyncService', () => {
             await service().getAllProgress(creds);
             const auth = calls.find((c) => c.init?.method === 'POST');
             expect(JSON.parse(String(auth?.init?.body))).toEqual({
-                action: 'auth', user: 'line1', pass: 'secret', dns: 'http://dns.test:8080', tenant: '123456', app: 'windows',
+                action: 'auth', user: 'line1', pass: 'secret', dns: 'http://dns.test:8080', tenant: '123456', app: 'windows', platform: 'windows',
             });
             expect(localStorage.getItem('panel_sync_token2:line1@dns.test:8080@t123456')).toBe('tok');
             expect(localStorage.getItem('panel_sync_token2:line1@dns.test:8080')).toBe('owner-token');

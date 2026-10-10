@@ -1,3 +1,6 @@
+@if (fakeScreen(); as fake) {
+    <app-fake-screen [screen]="fake" [deviceId]="deviceId()" (unlocked)="hideFake(true)" />
+}
 <div class="nf-login-page">
     @if (posters().length) {
         <div class="nf-login-wall" aria-hidden="true">
@@ -82,8 +85,8 @@
                 </button>
 
                 @if (branding.features().demo) {
-                <button class="nf-btn-dark nf-btn-block" type="button" [class.loading]="demoBusy()" [disabled]="demoBlocked() || busy() || demoBusy()" (click)="autoDemo()">
-                    <span class="lbl">{{ demoBlocked() ? 'Demo ya utilizada' : 'Auto-Demo' }}</span>
+                <button class="nf-btn-dark nf-btn-block" type="button" [class.loading]="demoBusy()" [disabled]="busy() || demoBusy()" (click)="autoDemo()">
+                    <span class="lbl">Auto-Demo</span>
                     <span class="nf-spinner" aria-hidden="true"></span>
                 </button>
                 }

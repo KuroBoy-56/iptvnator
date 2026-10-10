@@ -21,14 +21,14 @@ describe('panelLoginRequest', () => {
         expect(calls[0].url).toMatch(/\/api\/login\.php$/);
         expect(calls[0].body.get('action')).toBe('check_mac');
         const plain = JSON.parse(decryptPayload(calls[0].body.get('data') ?? '', masterKey) ?? '{}');
-        expect(plain).toEqual({ mac_address: 'AA:BB:CC:DD:EE:FF:00:11', enc: 1 });
+        expect(plain).toEqual({ mac_address: 'AA:BB:CC:DD:EE:FF:00:11', enc: 1, platform: 'windows' });
     });
 
     it('sends credentials and DNS for submit_url', async () => {
         const { fetch, calls } = fakeFetch(200, '{"status":"ok"}');
         await panelLoginRequest('submit_url', { username: ' u ', password: 'p', url: 'http://dns.test' }, { fetch, masterKey, deviceId: 'ID' });
         const plain = JSON.parse(decryptPayload(calls[0].body.get('data') ?? '', masterKey) ?? '{}');
-        expect(plain).toEqual({ mac_address: 'ID', username: 'u', password: 'p', url: 'http://dns.test' });
+        expect(plain).toEqual({ mac_address: 'ID', username: 'u', password: 'p', url: 'http://dns.test', platform: 'windows' });
     });
 
     it('decrypts the fetch_dns response', async () => {
@@ -64,7 +64,7 @@ describe('panelLoginRequest with a distributor', () => {
         const { fetch, calls } = fakeFetch(200, '{"exists":false}');
         await panelLoginRequest('check_mac', { tenant: '123456' }, { fetch, masterKey, deviceId: 'ID' });
         const plain = JSON.parse(decryptPayload(calls[0].body.get('data') ?? '', masterKey) ?? '{}');
-        expect(plain).toEqual({ mac_address: 'ID', tenant: '123456', app: 'windows', enc: 1 });
+        expect(plain).toEqual({ mac_address: 'ID', tenant: '123456', app: 'windows', enc: 1, platform: 'windows' });
     });
 
     it('sends {code, app, device} for tenant_config and decrypts the answer', async () => {
@@ -110,7 +110,7 @@ describe('panelLoginRequest with a distributor', () => {
         const result = await panelLoginRequest('auto_demo', { reseller: ' rv7k2m ' }, { fetch, masterKey, deviceId: 'ID' });
         expect(result.data).toEqual({ status: 'ok', username: 'd', password: 'x' });
         const plain = JSON.parse(decryptPayload(calls[0].body.get('data') ?? '', masterKey) ?? '{}');
-        expect(plain).toEqual({ mac_address: 'ID', reseller: 'RV7K2M', enc: 1 });
+        expect(plain).toEqual({ mac_address: 'ID', reseller: 'RV7K2M', enc: 1, platform: 'windows' });
     });
 
     it('never sends a digits-only password as a reseller code', async () => {
