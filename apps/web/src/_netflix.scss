@@ -1,11 +1,19 @@
 // ─── Netflix look (same design as the web player and the Android TV app) ─────
 // Global .nf-* classes shared by the workspace header, home, movies, series,
 // "Mi lista" and sports pages. Ported from the web player's assets/nf/app.css.
+//
+// Distributor palette: these tokens are the built-in theme. With a distributor
+// that has colours, applyTenantTheme() (libs/shared/interfaces
+// panel-tenant-theme.util.ts) injects <style id="panel-tenant-theme"> that
+// redefines --nf-red (accent), --nf-on-accent, --nf-bg, --nf-surface,
+// --nf-card, --nf-text and --nf-gray2 (text at 65%).
 
 :root {
     --nf-red: #e50914;
     --nf-red-h: #f6121d;
+    --nf-on-accent: #fff;
     --nf-bg: #141414;
+    --nf-surface: #181818;
     --nf-card: #2f2f2f;
     --nf-text: #e5e5e5;
     --nf-gray2: #b3b3b3;
@@ -66,6 +74,13 @@ body.macos-platform .nf-header {
 
     b {
         color: #fff;
+    }
+
+    img {
+        display: block;
+        max-height: 40px;
+        max-width: 180px;
+        object-fit: contain;
     }
 }
 
@@ -182,10 +197,10 @@ body.macos-platform .nf-header {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #e50914, #8b0000);
+    background: linear-gradient(135deg, var(--nf-red), color-mix(in srgb, var(--nf-red) 55%, #000));
     font-weight: 800;
     font-size: 15px;
-    color: #fff;
+    color: var(--nf-on-accent);
     text-transform: uppercase;
 }
 

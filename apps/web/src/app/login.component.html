@@ -14,10 +14,45 @@
     <div class="nf-login-shade"></div>
 
     <header class="nf-login-header">
-        <span class="nf-login-brand">LatMpx <b>TV+</b></span>
+        @if (branding.logoUrl() && !logoFailed()) {
+            <img class="nf-login-logo" [src]="branding.logoUrl()" [alt]="branding.brandName()" (error)="logoFailed.set(true)" />
+        } @else if (branding.name()) {
+            <span class="nf-login-brand">{{ branding.name() }}</span>
+        } @else {
+            <span class="nf-login-brand">LatMpx <b>TV+</b></span>
+        }
     </header>
 
     <main class="nf-login-main">
+        @if (needsDistributor()) {
+            <form class="nf-login-box" (ngSubmit)="continueWithCode()" autocomplete="off" novalidate>
+                <h1>Número de distribuidor</h1>
+                @if (distError() ?? tenant.notice(); as msg) {
+                    <div class="nf-login-msg error" role="alert">{{ msg }}</div>
+                }
+                <label class="nf-field">
+                    <input #distInput type="text" name="distCode" placeholder=" " inputmode="numeric" maxlength="6" pattern="[0-9]{6}" autocomplete="off" spellcheck="false" [value]="distCode" (input)="onDistInput($event)" />
+                    <span>6 dígitos</span>
+                </label>
+                <button class="nf-btn-red nf-btn-block" type="submit" [class.loading]="distBusy()" [disabled]="distBusy()">
+                    <span class="lbl">Continuar</span>
+                    <span class="nf-spinner" aria-hidden="true"></span>
+                </button>
+                <button class="nf-btn-dark nf-btn-block" type="button" [disabled]="distBusy()" (click)="skipDistributor()">
+                    <span class="lbl">Omitir</span>
+                </button>
+                <p class="nf-login-hint">Si tu distribuidor te dio un número, escríbelo para usar su servicio. Si no tienes uno, pulsa Omitir.</p>
+            </form>
+        } @else if (tenant.retryMessage(); as retry) {
+            <div class="nf-login-box">
+                <h1>Sin conexión</h1>
+                <div class="nf-login-msg error" role="alert">{{ retry }}</div>
+                <button class="nf-btn-red nf-btn-block" type="button" [class.loading]="distBusy()" [disabled]="distBusy()" (click)="retryTenant()">
+                    <span class="lbl">Reintentar</span>
+                    <span class="nf-spinner" aria-hidden="true"></span>
+                </button>
+            </div>
+        } @else {
         <form class="nf-login-box" (ngSubmit)="login()" autocomplete="on" novalidate>
             <h1>Iniciar sesión</h1>
 
@@ -46,16 +81,21 @@
                     <span class="nf-spinner" aria-hidden="true"></span>
                 </button>
 
+                @if (branding.features().demo) {
                 <button class="nf-btn-dark nf-btn-block" type="button" [class.loading]="demoBusy()" [disabled]="demoBlocked() || busy() || demoBusy()" (click)="autoDemo()">
                     <span class="lbl">{{ demoBlocked() ? 'Demo ya utilizada' : 'Auto-Demo' }}</span>
                     <span class="nf-spinner" aria-hidden="true"></span>
                 </button>
+                }
             }
 
             @if (deviceId()) {
                 <p class="nf-device">ID del dispositivo <code>{{ deviceId() }}</code></p>
             }
-            <p class="nf-login-hint">Ingresa con el usuario y la contraseña de tu suscripción o activa una demo de 24 horas.</p>
+            <p class="nf-login-hint">
+                {{ branding.features().demo ? 'Ingresa con el usuario y la contraseña de tu suscripción o activa una demo de 24 horas.' : 'Ingresa con el usuario y la contraseña de tu suscripción.' }}
+            </p>
         </form>
+        }
     </main>
 </div>

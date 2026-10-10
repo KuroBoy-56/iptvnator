@@ -7,6 +7,7 @@ import {
     ApplicationConfig,
     inject,
     importProvidersFrom,
+    provideAppInitializer,
     provideZoneChangeDetection,
 } from '@angular/core';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
@@ -43,6 +44,7 @@ import { providePortalPlaybackPositions } from './services/portal-playback-posit
 import { PwaService } from './services/pwa.service';
 import { shouldEnableServiceWorker } from './services/runtime-config';
 import { provideWorkspaceShellActions } from './services/workspace-shell-actions.service';
+import { PanelTenantService } from './panel-login/panel-tenant.service';
 
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
@@ -105,6 +107,8 @@ export const appConfig: ApplicationConfig = {
     providers: [
         provideZoneChangeDetection({ eventCoalescing: true }),
         provideRouter(routes, withComponentInputBinding()),
+        // distributor branding before the first screen + background guardian
+        provideAppInitializer(() => inject(PanelTenantService).start()),
         provideAnimations(),
         provideHttpClient(withInterceptorsFromDi()),
         provideStore({

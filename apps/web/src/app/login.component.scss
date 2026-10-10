@@ -1,6 +1,5 @@
 :host {
-    --nf-red: #e50914;
-    --nf-red-h: #f6121d;
+    // --nf-red / --nf-red-h come from _netflix.scss (repainted by the distributor palette)
     display: block;
     font-family: "Netflix Sans", "Helvetica Neue", Helvetica, Roboto, "Segoe UI", Arial, sans-serif;
 }
@@ -49,7 +48,7 @@
     inset: 0;
     z-index: 1;
     background:
-        radial-gradient(circle at 20% 10%, rgba(229, 9, 20, 0.18), transparent 45%),
+        radial-gradient(circle at 20% 10%, color-mix(in srgb, var(--nf-red, #e50914) 18%, transparent), transparent 45%),
         linear-gradient(0deg, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.45) 50%, rgba(0, 0, 0, 0.88) 100%);
 }
 
@@ -66,6 +65,13 @@
     letter-spacing: -0.5px;
 
     b { color: #fff; }
+}
+
+.nf-login-logo {
+    display: block;
+    max-height: 56px;
+    max-width: min(280px, 60vw);
+    object-fit: contain;
 }
 
 .nf-login-main {
@@ -182,7 +188,7 @@
 
 .nf-btn-red {
     background: var(--nf-red);
-    color: #fff;
+    color: var(--nf-on-accent, #fff);
 
     &:hover:not(:disabled) { background: var(--nf-red-h); }
 }

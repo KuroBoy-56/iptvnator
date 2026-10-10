@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { PanelBrandingService } from '@iptvnator/services';
 
 interface NfNavLink {
     label: string;
@@ -51,6 +52,9 @@ export class WorkspaceNfHeaderComponent {
     private readonly searchInput =
         viewChild<ElementRef<HTMLInputElement>>('searchInput');
 
+    /** Distributor name / logo (built-in brand with "Omitir"). */
+    protected readonly branding = inject(PanelBrandingService);
+    protected readonly logoFailed = signal(false);
     protected readonly searchOpen = signal(false);
     protected readonly menuOpen = signal(false);
     protected readonly now = signal(new Date());
@@ -62,21 +66,21 @@ export class WorkspaceNfHeaderComponent {
     });
     protected readonly links = computed<NfNavLink[]>(() => {
         const root = this.root();
-        const sports: NfNavLink = {
-            label: 'Deportes',
-            path: ['/workspace', 'sports'],
-        };
+        // the distributor can turn the sports section off
+        const sports: NfNavLink[] = this.branding.features().sports
+            ? [{ label: 'Deportes', path: ['/workspace', 'sports'] }]
+            : [];
         if (!root)
             return [
                 { label: 'Inicio', path: ['/workspace', 'sources'] },
-                sports,
+                ...sports,
             ];
         return [
             { label: 'Inicio', path: [...root, 'home'] },
             { label: 'Series', path: [...root, 'series'] },
             { label: 'Películas', path: [...root, 'vod'] },
             { label: 'TV en vivo', path: [...root, 'live'] },
-            sports,
+            ...sports,
             { label: 'Explorar', path: [...root, 'explore'] },
         ];
     });

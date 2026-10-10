@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, OnInit, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { PortalStatusService } from '@iptvnator/services';
@@ -6,6 +6,7 @@ import { pickLineServer } from './panel-login/line-server.util';
 import { LoginPostersService } from './panel-login/login-posters.service';
 import { PanelLoginService } from './panel-login/panel-login.service';
 import { PanelSessionService } from './panel-login/panel-session.service';
+import { PanelTenantService } from './panel-login/panel-tenant.service';
 
 type MessageKind = 'error' | 'info' | 'success';
 
@@ -16,6 +17,8 @@ type MessageKind = 'error' | 'info' | 'success';
  * server or DNS selector: the line's server is picked from the panel's DNS
  * list by probing the credentials, and DNS resolution falls back to
  * DNS-over-HTTPS automatically in the Electron main process.
+ * On the very first launch the distributor step comes first ("Número de
+ * distribuidor": Continuar / Omitir); the choice is remembered.
  */
 @Component({
     standalone: true,
@@ -31,6 +34,8 @@ export class LoginComponent implements OnInit {
     private readonly portalStatus = inject(PortalStatusService);
     private readonly posterService = inject(LoginPostersService);
     private readonly router = inject(Router);
+    protected readonly tenant = inject(PanelTenantService);
+    protected readonly branding = this.tenant.branding;
 
     readonly posters = signal<string[]>(this.posterService.cached());
     readonly deviceId = signal('');
@@ -41,12 +46,77 @@ export class LoginComponent implements OnInit {
     readonly showPassword = signal(false);
     readonly message = signal<{ text: string; kind: MessageKind } | null>(null);
     readonly dnsList = signal<string[]>([]);
+    readonly logoFailed = signal(false);
+    /** No distributor choice yet (first launch, or after a wipe / "Cambiar distribuidor"). */
+    readonly needsDistributor = computed(() => this.branding.choice() === 'none');
+    readonly distBusy = signal(false);
+    readonly distError = signal<string | null>(null);
+    private deviceCheckStarted = false;
+    private readonly distInput = viewChild<ElementRef<HTMLInputElement>>('distInput');
 
     username = '';
+    distCode = '';
     password = '';
+
+    constructor() {
+        // the distributor field gets the focus as soon as the step shows
+        effect(() => this.distInput()?.nativeElement.focus());
+    }
 
     async ngOnInit(): Promise<void> {
         void this.posterService.load().then((list) => list.length && this.posters.set(list));
+        if (this.needsDistributor() || this.tenant.retryMessage()) return;
+        await this.startDeviceCheck();
+    }
+
+    /** Keeps only digits (max 6) in the distributor field. */
+    onDistInput(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        this.distCode = input.value.replace(/\D/g, '').slice(0, 6);
+        input.value = this.distCode;
+    }
+
+    /** Distributor step "Continuar". */
+    async continueWithCode(): Promise<void> {
+        if (this.distBusy()) return;
+        this.distBusy.set(true);
+        this.distError.set(null);
+        const error = await this.tenant.submit(this.distCode);
+        this.distBusy.set(false);
+        if (error) {
+            this.distError.set(error);
+            return;
+        }
+        this.distCode = '';
+        await this.startDeviceCheck(true);
+    }
+
+    /** Distributor step "Omitir". */
+    async skipDistributor(): Promise<void> {
+        this.tenant.skip();
+        this.distError.set(null);
+        await this.startDeviceCheck(true);
+    }
+
+    /** Retry screen: the distributor could not be verified for 72 h. */
+    async retryTenant(): Promise<void> {
+        this.distBusy.set(true);
+        const result = await this.tenant.check();
+        this.distBusy.set(false);
+        if (result === 'ok' || result === 'offline') {
+            this.tenant.retryMessage.set(null);
+            await this.startDeviceCheck(true);
+        }
+    }
+
+    private async startDeviceCheck(restart = false): Promise<void> {
+        if (this.deviceCheckStarted && !restart) return;
+        this.deviceCheckStarted = true;
+        this.message.set(null);
+        this.checking.set(true);
+        this.demoBlocked.set(false);
+        this.dnsList.set([]);
+        this.selectedDns = '';
 
         if (!this.panel.available) {
             this.checking.set(false);

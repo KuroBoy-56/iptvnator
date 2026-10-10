@@ -24,6 +24,10 @@
         }
 
         <div class="settings-content">
+            @if (isDesktop) {
+                <app-settings-distributor-section />
+            }
+
             <app-settings-general-section
                 [form]="settingsForm"
                 [activeSection]="activeSection()"

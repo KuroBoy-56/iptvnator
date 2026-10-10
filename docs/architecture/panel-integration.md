@@ -83,6 +83,63 @@ Without a key, the app still builds and runs. The login screen shows a clear
 The PWA has no login crypto. It keeps working with an existing session and
 degrades gracefully.
 
+## Distributor (multi-tenant)
+
+Each panel user is a **distributor** with a 6-digit number, its own DNS list,
+lines, alerts, TMDB key, sports, name, logo and colours. The panel contract
+(api/login.php `tenant_config`, error codes) is in the panel README,
+"Distribuidores". App id: `windows` (`PANEL_APP_ID`).
+
+- **First launch:** `/login` shows the "Número de distribuidor" step
+  (6 digits, Continuar / Omitir) before the device check. `AuthGuard` also
+  sends the user to `/login` while no choice is stored.
+- **Omitir:** stores `panel_dist_choice=skip`; every request is exactly the
+  old one (no `tenant`/`app` field, no `?t=`), built-in brand and colours.
+  Never asked again.
+- **Continuar:** `PanelTenantService.submit()` calls `tenant_config`
+  (`PanelLoginService.tenantConfig()` → Electron main process, data
+  `{code, app, device}`, encrypted answer decrypted like `fetch_dns`). On
+  success the code and the branding cache (`PanelTenantCache`:
+  name, logo, palette, expiry, features, rev, `recheckAfter`, `lastOkCheck`)
+  go to `localStorage` (`panel_dist_choice`, `panel_dist_code`,
+  `panel_dist_cache`). A build without the master key answers "Esta versión de
+  la app no tiene la llave del panel"; Omitir still works.
+- **Guardian** (`apps/web/src/app/panel-login/panel-tenant.service.ts`,
+  started by `provideAppInitializer`): re-checks `tenant_config` at launch, on
+  window focus / visibility and every `recheck_after` seconds (polled every
+  10 min). `tenant_invalid` / `tenant_expired` / `tenant_suspended` /
+  `app_not_linked` (or a local `now > expires_at`) wipe the code, the branding,
+  the session and the per-distributor tokens, and show the step with the
+  Spanish message ("Tu distribuidor venció el DD/MM/AAAA (hora de Panamá)").
+  Network / 5xx keeps the cache for 72 h after the last ok check, then the
+  login shows a "Reintentar" screen. The same fatal codes answered by any
+  login action, `progress.php`, `epg.php` or `sports.php` reach the guardian
+  through the `panel-tenant-error` window event.
+- **Every panel call carries the tenant:** login actions add
+  `tenant` + `app` in the encrypted payload (`PanelLoginPayload.tenant`,
+  added by the renderer from storage; also `panelDnsServers()`), the
+  `progress.php` auth body adds `tenant` + `app` (the token then carries them
+  for `epg.php` / `sports.php`), `alerta.php` gets `&t=<code>&app=windows`
+  (`withTenantQuery`). Tokens and the panel TMDB key are stored per code
+  (`tenantStorageSuffix()` = `@t<code>`) so two distributors never share one.
+- **Features:** `demo=false` hides Auto-Demo, `alerts=false` skips the panel
+  alert, `sports=false` hides "Deportes" and guards `/workspace/sports`.
+- **Branding:** `PanelBrandingService` (`libs/services/src/lib/panel-sync/`)
+  exposes name / logo / features / expiry signals for the login, the top bar
+  and Settings, sets the window title and calls `applyTenantTheme()`
+  (`libs/shared/interfaces/src/lib/panel-tenant-theme.util.ts`). That injects
+  `<style id="panel-tenant-theme">` redefining the `--nf-*` tokens of
+  `_netflix.scss` and the Material/app tokens (accent, `--nf-on-accent` black
+  or white by WCAG luminance, `--nf-gray2` = text at 65 %, `--nf-card` =
+  surface mixed 8 % toward text). The CSS is cached so
+  `assets/panel-branding-boot.js` paints it (and the splash name) before
+  Angular starts. A null name / logo / palette keeps the built-in value; a logo
+  that fails to load falls back to the text brand.
+- **Settings > Distribuidor** (`settings-distributor-section.component.ts`):
+  "Distribuidor: <name> (<code>)", "Vence: DD/MM/AAAA (hora de Panamá)" and
+  "Cambiar distribuidor" (forget it, log out, back to the step; with Omitir it
+  lets the user enter a code).
+
 ## Automatic DNS (no picker)
 
 There is no DNS or server selector anywhere (the login-screen and Settings

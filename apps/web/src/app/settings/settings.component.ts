@@ -49,6 +49,7 @@ import { SettingsStore } from '../services/settings-store.service';
 import { SettingsService } from './../services/settings.service';
 import { SettingsAboutSectionComponent } from './settings-about-section.component';
 import { SettingsBackupSectionComponent } from './settings-backup-section.component';
+import { SettingsDistributorSectionComponent } from './settings-distributor-section.component';
 import { SettingsDashboardSectionComponent } from './settings-dashboard-section.component';
 import {
     SettingsDeleteAllPlaylistsDialogComponent,
@@ -109,6 +110,7 @@ const APP_UPDATE_STATUS_LOAD_RETRY_DELAY_MS = 250;
         SettingsAboutSectionComponent,
         SettingsBackupSectionComponent,
         SettingsDashboardSectionComponent,
+        SettingsDistributorSectionComponent,
         SettingsEpgSectionComponent,
         SettingsGeneralSectionComponent,
         SettingsPlaybackSectionComponent,

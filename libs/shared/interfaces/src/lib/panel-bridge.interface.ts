@@ -3,7 +3,8 @@ export type PanelLoginAction =
     | 'check_mac'
     | 'fetch_dns'
     | 'submit_url'
-    | 'auto_demo';
+    | 'auto_demo'
+    | 'tenant_config';
 
 export type PanelLoginErrorCode =
     | 'NO_MASTER_KEY'
@@ -25,6 +26,12 @@ export interface PanelLoginPayload {
     username?: string;
     password?: string;
     url?: string;
+    /**
+     * Distributor code (6 digits). For tenant_config it is the code to look
+     * up; for the other actions it is sent as "tenant" with "app". Omitted
+     * with "Omitir", so the request is byte-for-byte the old one.
+     */
+    tenant?: string;
 }
 
 /**
