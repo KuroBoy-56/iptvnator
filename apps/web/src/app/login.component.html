@@ -41,17 +41,6 @@
                     </button>
                 </label>
 
-                @if (dnsList().length > 1) {
-                    <label class="nf-select">
-                        <span>Servidor</span>
-                        <select name="dns" [(ngModel)]="selectedDns">
-                            @for (dns of dnsList(); track dns; let i = $index) {
-                                <option [value]="dns">Servidor {{ i + 1 }}</option>
-                            }
-                        </select>
-                    </label>
-                }
-
                 <button class="nf-btn-red nf-btn-block" type="submit" [class.loading]="busy()" [disabled]="busy() || demoBusy()">
                     <span class="lbl">Iniciar sesión</span>
                     <span class="nf-spinner" aria-hidden="true"></span>
@@ -62,10 +51,6 @@
                     <span class="nf-spinner" aria-hidden="true"></span>
                 </button>
             }
-
-            <div class="nf-login-dns">
-                <app-secure-dns-picker />
-            </div>
 
             @if (deviceId()) {
                 <p class="nf-device">ID del dispositivo <code>{{ deviceId() }}</code></p>

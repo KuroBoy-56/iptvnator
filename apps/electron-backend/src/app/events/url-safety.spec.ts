@@ -2,6 +2,7 @@ import {
     assertRemoteUrlAllowed,
     isPrivateOrReservedIp,
     isPrivateNetworkUrlAccessAllowed,
+    setDefaultHostnameResolver,
     UnsafeUrlError,
     validateRemoteUrl,
 } from './url-safety';
@@ -98,6 +99,30 @@ describe('url-safety', () => {
                 allowPrivateNetworks: true,
             });
             expect(url.hostname).toBe('127.0.0.1');
+        });
+    });
+
+    describe('setDefaultHostnameResolver', () => {
+        afterEach(() => setDefaultHostnameResolver(null));
+
+        it('resolves through the installed resolver when the policy has none', async () => {
+            const resolver = jest.fn(async () => ['93.184.216.34']);
+            setDefaultHostnameResolver(resolver);
+
+            await expect(
+                validateRemoteUrl('https://line.example/player_api.php')
+            ).resolves.toMatchObject({ addresses: ['93.184.216.34'] });
+            expect(resolver).toHaveBeenCalledWith('line.example');
+        });
+
+        it('lets an explicit policy resolver win', async () => {
+            const installed = jest.fn(async () => ['93.184.216.34']);
+            setDefaultHostnameResolver(installed);
+
+            await validateRemoteUrl('https://line.example/', {
+                resolveHostname: async () => ['1.1.1.1'],
+            });
+            expect(installed).not.toHaveBeenCalled();
         });
     });
 

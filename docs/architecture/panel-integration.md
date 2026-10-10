@@ -46,7 +46,8 @@ the Android app:
    - `check_mac`: the device already has a line, so the app logs in
      automatically.
    - `fetch_dns`: the server list.
-   - `submit_url`: activates user and password on a DNS.
+   - `submit_url`: activates user and password on a DNS (picked
+     automatically, see "Line server on login" below).
    - `auto_demo`: the response decides what happens:
 
      | Response | Behavior |
@@ -82,34 +83,61 @@ Without a key, the app still builds and runs. The login screen shows a clear
 The PWA has no login crypto. It keeps working with an existing session and
 degrades gracefully.
 
-## Secure DNS picker
+## Automatic DNS (no picker)
 
-The DNS picker appears only on the login screen and in Settings
-(`app-secure-dns-picker`). Options are listed in `SECURE_DNS_OPTIONS`
-(`libs/shared/interfaces/src/lib/panel-bridge.interface.ts`):
+There is no DNS or server selector anywhere (the login-screen and Settings
+pickers were removed). DNS is handled automatically by
+`apps/electron-backend/src/app/services/smart-dns.service.ts`, wired up in
+`PanelEvents.bootstrapPanelEvents()`:
 
-- Automatic (default)
-- Cloudflare
-- Google
-- Quad9
-- AdGuard
-- NextDNS
-- OpenDNS
-
-`apps/electron-backend/src/app/panel/secure-dns.service.ts` applies the choice
-with `app.configureHostResolver`:
-
-- A provider uses `{ secureDnsMode: 'secure', secureDnsServers: [url] }`.
-- Automatic uses `'automatic'`.
-
-The choice is persisted in the Electron store (`SECURE_DNS_MODE`) and applied
-again on startup.
-
-The setting covers Chromium networking: the renderer, `net.fetch`, panel calls
-and the built-in player.
+- **Routes.** `system` (Chromium `secureDnsMode: 'automatic'`, the OS
+  resolver), then DNS-over-HTTPS `cloudflare`
+  (`https://cloudflare-dns.com/dns-query`) and `google`
+  (`https://dns.google/dns-query`), applied with `app.configureHostResolver`
+  (`secureDnsMode: 'secure'`) plus `session.clearHostResolverCache()`.
+- **Fallback.** `withDnsFallback(task)` runs a request on the active route. If
+  it fails with a DNS-type error it switches to the next route, retries, and
+  keeps the first one that works. `services/dns-failure.ts` decides what
+  counts: resolution failures (`ENOTFOUND`, `EAI_AGAIN`, `ESERVFAIL`,
+  `ETIMEOUT`, `net::ERR_NAME_NOT_RESOLVED`, `net::ERR_DNS_*`, ...) and
+  connections refused/reset right away (`ECONNREFUSED`, `ECONNRESET`,
+  `net::ERR_CONNECTION_REFUSED/RESET/CLOSED`), which is how many ISP
+  resolvers block a host. Responses with an HTTP status and errors such as
+  `ERR_INTERNET_DISCONNECTED` never switch routes. Switches are serialized, so
+  parallel failures share one switch. When no route works, the original route
+  is restored and the first error is returned.
+- **What uses it.**
+  - Panel login (`PANEL_LOGIN_REQUEST`): `net.fetch` is wrapped in
+    `withDnsFallback`.
+  - Line/portal requests made by the main process with axios (Xtream, Stalker,
+    M3U downloads through `requestWithValidatedRedirects`): `url-safety.ts`
+    resolves hosts through `setDefaultHostnameResolver(resolveHostnameSmart)`.
+    On the `system` route Node's `dns.lookup` runs first; a DNS failure there,
+    or a DoH route already in use, resolves through
+    `session.defaultSession.resolveHost` with the same fallback. The
+    validated addresses are pinned for the socket as before. Worker threads
+    (EPG parser, playlist refresh) keep the OS resolver.
+  - Everything else on Chromium's network stack (renderer requests to
+    `progress.php`/`epg.php`/`sports.php`, the built-in player) follows the
+    active route.
+- **Memory.** The route that worked is stored in the Electron store
+  (`DNS_ROUTE`) and applied again on the next start. The old manual choice
+  (`SECURE_DNS_MODE`) is deleted on startup and never applied. There is no
+  DNS IPC channel or bridge method any more (`PanelBridgeApi` only has
+  `panelGetDeviceId` and `panelLoginRequest`).
 
 **Limitation:** external MPV/VLC processes use the operating system resolver,
-so the in-app DNS choice does not apply to them.
+so the DoH fallback does not apply to them.
+
+### Line server on login
+
+The login screen has no "Servidor" selector either. When the user signs in,
+`pickLineServer` (`apps/web/src/app/panel-login/line-server.util.ts`) probes
+every `fetch_dns` server in parallel with the typed user and password
+(`PortalStatusService.checkPortalStatus`). The first server that answers
+`active` is used for `submit_url`; otherwise an `expired` one, otherwise the
+first server. A single server is used without probing, and probing stops
+after 12 s. Auto-Demo still uses the first server.
 
 ## Progress and favorites sync
 

@@ -24,15 +24,6 @@
         }
 
         <div class="settings-content">
-            
-            @if (isDesktop) {
-                <section class="settings-dns">
-                    <h3>DNS seguro</h3>
-                    <app-secure-dns-picker />
-                    <p>Cambia el DNS si tu proveedor de internet bloquea la carga de canales. No aplica a MPV/VLC.</p>
-                </section>
-            }
-
             <app-settings-general-section
                 [form]="settingsForm"
                 [activeSection]="activeSection()"

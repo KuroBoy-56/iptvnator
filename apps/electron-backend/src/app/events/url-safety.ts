@@ -190,11 +190,26 @@ export function isPrivateOrReservedIp(address: string): boolean {
     return false;
 }
 
-async function defaultResolveHostname(
+/** Operating-system resolver (`dns.lookup`). */
+export async function systemResolveHostname(
     hostname: string
 ): Promise<readonly string[]> {
     const records = await lookup(hostname, { all: true, verbatim: true });
     return records.map((record) => record.address);
+}
+
+let defaultResolveHostname: (hostname: string) => Promise<readonly string[]> =
+    systemResolveHostname;
+
+/**
+ * Replaces the resolver used when a policy has none. The Electron main
+ * process installs the automatic DNS fallback here; worker threads keep the
+ * operating-system resolver. `null` restores it.
+ */
+export function setDefaultHostnameResolver(
+    resolver: ((hostname: string) => Promise<readonly string[]>) | null
+): void {
+    defaultResolveHostname = resolver ?? systemResolveHostname;
 }
 
 /**

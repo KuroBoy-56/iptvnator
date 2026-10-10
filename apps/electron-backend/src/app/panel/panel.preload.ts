@@ -7,7 +7,5 @@ export function createPanelBridge(ipcRenderer: IpcRenderer): PanelBridgeApi {
         panelGetDeviceId: () => ipcRenderer.invoke('PANEL_GET_DEVICE_ID'),
         panelLoginRequest: (action, payload) =>
             ipcRenderer.invoke('PANEL_LOGIN_REQUEST', action, payload),
-        getSecureDns: () => ipcRenderer.invoke('SECURE_DNS_GET'),
-        setSecureDns: (mode) => ipcRenderer.invoke('SECURE_DNS_SET', mode),
     };
 }

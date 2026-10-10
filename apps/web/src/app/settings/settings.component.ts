@@ -79,7 +79,6 @@ import { SettingsPlaybackSectionComponent } from './settings-playback-section.co
 import { SettingsRemoteControlSectionComponent } from './settings-remote-control-section.component';
 import { SettingsResetSectionComponent } from './settings-reset-section.component';
 import { SettingsSectionScrollDirective } from './settings-section-scroll.directive';
-import { SecureDnsPickerComponent } from '../panel-login/secure-dns-picker.component';
 import { SettingsTmdbSectionComponent } from './settings-tmdb-section.component';
 import { SettingsBackupFacade } from './settings-backup.facade';
 import { SettingsPlaylistResetFacade } from './settings-playlist-reset.facade';
@@ -117,7 +116,6 @@ const APP_UPDATE_STATUS_LOAD_RETRY_DELAY_MS = 250;
         SettingsResetSectionComponent,
         SettingsSectionScrollDirective,
         SettingsTmdbSectionComponent,
-        SecureDnsPickerComponent,
     ],
     providers: [
         SettingsBackupFacade,

@@ -26,7 +26,7 @@ The application is a cross-platform, open-source project built with Electron and
 
 This build is tied to the operator panel (see [docs/architecture/panel-integration.md](docs/architecture/panel-integration.md)):
 
-- Device login like the Android app (device id, activation, Auto-Demo) and a secure DNS picker on the login screen and in Settings
+- Device login like the Android app (device id, activation, Auto-Demo) with automatic server and DNS selection (no picker: DNS-over-HTTPS fallback when the system DNS fails)
 - Watch progress and favorites live on the panel (`api/progress.php`); MPV/VLC save progress and resume from it
 - Fallback EPG from the panel for channels without a provider guide
 - Sports section with the panel agenda and a "TV en vivo" button that opens the matching live channel

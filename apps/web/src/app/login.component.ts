@@ -1,17 +1,21 @@
 import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { PortalStatusService } from '@iptvnator/services';
+import { pickLineServer } from './panel-login/line-server.util';
 import { LoginPostersService } from './panel-login/login-posters.service';
 import { PanelLoginService } from './panel-login/panel-login.service';
 import { PanelSessionService } from './panel-login/panel-session.service';
-import { SecureDnsPickerComponent } from './panel-login/secure-dns-picker.component';
 
 type MessageKind = 'error' | 'info' | 'success';
 
 /**
  * Login / device activation through the panel (same flow as the Android
  * app): the device id is checked first (check_mac); a new device activates
- * with its line (submit_url) or gets a one-time demo (auto_demo).
+ * with its line (submit_url) or gets a one-time demo (auto_demo). There is no
+ * server or DNS selector: the line's server is picked from the panel's DNS
+ * list by probing the credentials, and DNS resolution falls back to
+ * DNS-over-HTTPS automatically in the Electron main process.
  */
 @Component({
     standalone: true,
@@ -19,11 +23,12 @@ type MessageKind = 'error' | 'info' | 'success';
     templateUrl: './login.component.html',
     styleUrls: ['./login.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [FormsModule, SecureDnsPickerComponent],
+    imports: [FormsModule],
 })
 export class LoginComponent implements OnInit {
     private readonly panel = inject(PanelLoginService);
     private readonly session = inject(PanelSessionService);
+    private readonly portalStatus = inject(PortalStatusService);
     private readonly posterService = inject(LoginPostersService);
     private readonly router = inject(Router);
 
@@ -39,7 +44,6 @@ export class LoginComponent implements OnInit {
 
     username = '';
     password = '';
-    selectedDns = '';
 
     async ngOnInit(): Promise<void> {
         void this.posterService.load().then((list) => list.length && this.posters.set(list));
@@ -66,10 +70,16 @@ export class LoginComponent implements OnInit {
         await this.loadDns();
     }
 
-    private async loadDns(): Promise<void> {
-        const list = await this.panel.fetchDns();
-        this.dnsList.set(list);
-        if (!this.selectedDns && list.length) this.selectedDns = list[0];
+    private async loadDns(): Promise<string[]> {
+        if (!this.dnsList().length) this.dnsList.set(await this.panel.fetchDns());
+        return this.dnsList();
+    }
+
+    /** The panel DNS that serves this line (no selector on screen). */
+    private async lineServer(user: string, pass: string): Promise<string | null> {
+        return pickLineServer(await this.loadDns(), (server) =>
+            this.portalStatus.checkPortalStatus(server, user, pass, { skipCache: true })
+        );
     }
 
     async login(): Promise<void> {
@@ -79,14 +89,15 @@ export class LoginComponent implements OnInit {
             this.say('Escribe tu usuario y contraseña.', 'error');
             return;
         }
-        if (!this.selectedDns) await this.loadDns();
-        if (!this.selectedDns) {
+        this.busy.set(true);
+        this.message.set(null);
+        const server = await this.lineServer(user, pass);
+        if (!server) {
+            this.busy.set(false);
             this.say('El panel no tiene servidores disponibles.', 'error');
             return;
         }
-        this.busy.set(true);
-        this.message.set(null);
-        const result = await this.panel.activate(user, pass, this.selectedDns);
+        const result = await this.panel.activate(user, pass, server);
         if (!result.ok) {
             this.busy.set(false);
             this.say(result.message ?? 'No se pudo iniciar sesión.', 'error');
@@ -96,7 +107,7 @@ export class LoginComponent implements OnInit {
         const account =
             check.status === 'active'
                 ? check.account
-                : { server: this.selectedDns, username: user, password: pass, isDemo: false };
+                : { server, username: user, password: pass, isDemo: false };
         await this.enter(account);
     }
 
@@ -117,8 +128,7 @@ export class LoginComponent implements OnInit {
             await this.enter(check.account);
             return;
         }
-        if (!this.dnsList().length) await this.loadDns();
-        const server = this.dnsList()[0];
+        const [server] = await this.loadDns();
         if (!server) {
             this.demoBusy.set(false);
             this.say('El panel no tiene servidores disponibles.', 'error');

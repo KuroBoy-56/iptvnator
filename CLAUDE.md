@@ -600,7 +600,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
     - `player.events.ts` - External player IPC registration; MPV/VLC lifecycle logic lives in `mpv-session.service.ts`, `vlc-session.service.ts`, and shared `external-player-*` helpers
     - `settings.events.ts` - App settings
     - `electron.events.ts` - App version, etc.
-- **Panel** (`apps/electron-backend/src/app/panel/`): device id, AES-GCM login crypto (`PANEL_LOGIN_REQUEST`), master-key loading (`PANEL_MASTER_KEY` env or git-ignored `assets/panel-key.json` written by `tools/panel/write-panel-key.mjs`; never commit the key), secure DNS (`SECURE_DNS_GET/SET`, `app.configureHostResolver`); bridge in `panel.preload.ts`, contract `PanelBridgeApi`
+- **Panel** (`apps/electron-backend/src/app/panel/`): device id, AES-GCM login crypto (`PANEL_LOGIN_REQUEST`), master-key loading (`PANEL_MASTER_KEY` env or git-ignored `assets/panel-key.json` written by `tools/panel/write-panel-key.mjs`; never commit the key), no DNS IPC: automatic DNS fallback lives in `services/smart-dns.service.ts` (system resolver first, DoH Cloudflare → Google on DNS-type failures, route remembered in the store as `DNS_ROUTE`); bridge in `panel.preload.ts`, contract `PanelBridgeApi`
 
 **Workers** (`apps/electron-backend/src/app/workers/`):
 
@@ -674,7 +674,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - EPG: provider first, then `XtreamPanelEpgFallbackService` batches (≤400 channels) to `api/epg.php`
 - Alert: `api/alerta.php?format=json` welcome / expiry notice (panel "Alertas" page) shown once per app start by `WorkspacePanelAlertComponent` in the workspace shell
 - Sports: `api/sports.php` agenda; `findSportsChannel` applies the panel `match` rules to live channels
-- Secure DNS picker only on the login screen and in Settings; does not cover external MPV/VLC
+- No DNS or server picker (login and Settings): DNS is automatic in the Electron main process — system resolver first, then DNS-over-HTTPS (Cloudflare, then Google) on DNS-type failures of panel login and main-process line requests, remembered across starts (`smart-dns.service.ts`); the login picks the line's server from `fetch_dns` by probing the credentials (`line-server.util.ts`); does not cover external MPV/VLC
 - Theme: dark only (no theme picker; `SettingsService.changeTheme` always applies `dark-theme`) with the web player palette and `#e50914` accent (`apps/web/src/m3-theme.scss`)
 - Netflix UI (same design as the web player and TV app): the workspace shell shows a top bar (`workspace-nf-header`: Inicio, Series, Películas, TV en vivo, Deportes, Explorar, search → `explore?q=`, clock, profile menu) instead of the rail/toolbar; the context sidebar only appears for live TV, settings and sources. Pages: `NfHomeComponent` (billboard, platform tiles, Continuar viendo / Mi lista from the panel, Top 10, platform and genre rows), `NfBrowseComponent` (Películas/Series), `NfExploreComponent` (grid; on `?platform=` pages the name filter is a top-right magnifier, `NfTitleSearchComponent`), `NfLibraryPageComponent` (`continue-watching` / `my-list`: "Ver todo" of the panel rows). Panel lists are newest first by `ts` (`panelNewestFirst`). Global `.nf-*` styles live in `apps/web/src/_netflix.scss`; platform/genre keyword tables in `nf/nf-filters.ts` mirror the web player's `includes/core.php`
 
