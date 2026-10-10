@@ -43,7 +43,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 IPTVnator is a cross-platform IPTV player application built with Angular and Electron, supporting M3U/M3U8 playlists, Xtream Codes API, and Stalker portals.
 
-The `macos` branch is the Mac build of the same app: `master` changes are merged into it; it only adds Mac packaging (`electron-builder.json` mac block, `pnpm run make:mac` ad-hoc signing in `tools/packaging/electron-after-pack.cjs`, `.github/workflows/build-macos.yml`). The panel app id is `macos` there (`panelAppId()`).
+The Mac build lives on the `macos` branch: `master` changes are merged into it, and it only adds Mac packaging (`electron-builder.json` mac block, `pnpm run make:mac` ad-hoc signing, `.github/workflows/build-macos.yml`, which is also on `master` so it can be started by hand). Shared code sends the panel app id `macos` on a Mac (`panelAppId()`).
 
 This fork ships as "LatMpx TV+" and is tied to the operator panel: panel device login (`/login`), panel-backed progress/favorites sync, panel fallback EPG and a sports section. There is no Firebase. See `docs/architecture/panel-integration.md`.
 
