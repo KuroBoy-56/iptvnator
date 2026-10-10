@@ -1,0 +1,156 @@
+name: Build macOS app
+
+# LatMpx TV+ for Mac (branch `macos`): .dmg + .zip for Apple Silicon and Intel.
+# With the Apple secrets (CSC_LINK, CSC_KEY_PASSWORD and APPLE_ID +
+# APPLE_APP_SPECIFIC_PASSWORD + APPLE_TEAM_ID) the app is signed and notarized;
+# without them it is signed ad hoc (first launch: right click > Abrir).
+
+on:
+    push:
+        branches:
+            - macos
+        tags:
+            - 'mac-v*'
+    workflow_dispatch:
+
+concurrency:
+    group: build-macos-${{ github.ref }}
+    cancel-in-progress: true
+
+permissions:
+    contents: write
+
+jobs:
+    build:
+        name: macOS ${{ matrix.arch }}
+        runs-on: ${{ matrix.runner }}
+        timeout-minutes: 90
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - runner: macos-latest
+                      arch: arm64
+                    - runner: macos-15-intel
+                      arch: x64
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Inject TMDB API key
+              env:
+                  TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+              run: node tools/tmdb/inject-tmdb-key.mjs
+
+            - name: Write panel key
+              # No-op without the secret: the login screen then reports the missing key.
+              env:
+                  PANEL_MASTER_KEY: ${{ secrets.PANEL_MASTER_KEY }}
+              run: node tools/panel/write-panel-key.mjs
+
+            - name: Only this architecture
+              run: |
+                  node -e "
+                    const fs = require('fs');
+                    const cfg = JSON.parse(fs.readFileSync('electron-builder.json', 'utf8'));
+                    for (const t of cfg.mac.target) t.arch = ['${{ matrix.arch }}'];
+                    fs.writeFileSync('electron-builder.json', JSON.stringify(cfg, null, 4) + '\n');
+                  "
+                  mkdir -p bin
+
+            - name: Signing mode
+              id: signing
+              env:
+                  CSC_LINK: ${{ secrets.CSC_LINK }}
+                  CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+                  APPLE_ID: ${{ secrets.APPLE_ID }}
+                  APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+                  APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+              run: |
+                  if [ -n "$CSC_LINK" ] && [ -n "$CSC_KEY_PASSWORD" ]; then
+                      echo "mode=apple" >> "$GITHUB_OUTPUT"
+                      if [ -n "$APPLE_ID" ] && [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
+                          node -e "
+                            const fs = require('fs');
+                            const cfg = JSON.parse(fs.readFileSync('electron-builder.json', 'utf8'));
+                            cfg.mac.notarize = true;
+                            fs.writeFileSync('electron-builder.json', JSON.stringify(cfg, null, 4) + '\n');
+                          "
+                          echo "Signed with the Apple certificate and notarized."
+                      else
+                          echo "Signed with the Apple certificate (no notarization credentials)."
+                      fi
+                  else
+                      echo "mode=adhoc" >> "$GITHUB_OUTPUT"
+                      echo "No Apple certificate: ad-hoc signature."
+                  fi
+
+            - name: Make app (Apple signature)
+              if: steps.signing.outputs.mode == 'apple'
+              env:
+                  CSC_LINK: ${{ secrets.CSC_LINK }}
+                  CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+                  APPLE_ID: ${{ secrets.APPLE_ID }}
+                  APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+                  APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: '0'
+              run: pnpm run make:app -- --publishPolicy=never
+
+            - name: Make app (ad-hoc signature)
+              if: steps.signing.outputs.mode == 'adhoc'
+              env:
+                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: '0'
+              run: pnpm run make:mac -- --publishPolicy=never
+
+            - name: Verify the app
+              run: |
+                  set -euo pipefail
+                  APP=$(find dist/executables -maxdepth 2 -name '*.app' -type d | head -1)
+                  test -n "$APP"
+                  echo "App: $APP"
+                  codesign --verify --deep --strict --verbose=2 "$APP"
+                  test -f "$APP/Contents/Resources/app.asar"
+                  /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$APP/Contents/Info.plist"
+                  ls -la dist/executables/*.dmg dist/executables/*.zip
+
+            - name: Upload artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                  name: LatMpx-TV-macOS-${{ matrix.arch }}
+                  path: |
+                      dist/executables/*.dmg
+                      dist/executables/*.zip
+                  if-no-files-found: error
+                  retention-days: 30
+
+    release:
+        name: Release
+        needs: build
+        if: startsWith(github.ref, 'refs/tags/mac-v')
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/download-artifact@v4
+              with:
+                  path: artifacts
+                  merge-multiple: true
+            - name: Publish release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  gh release create "${GITHUB_REF_NAME}" artifacts/* \
+                      --repo "${GITHUB_REPOSITORY}" \
+                      --title "LatMpx TV+ macOS ${GITHUB_REF_NAME#mac-v}" \
+                      --notes "LatMpx TV+ para Mac: .dmg para Apple Silicon (arm64) e Intel (x64)."

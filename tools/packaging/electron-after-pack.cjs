@@ -4,6 +4,7 @@ const {
     resolveElectronBuilderArchName,
     validatePackagedEmbeddedMpv,
 } = require('./embedded-mpv-packaging.cjs');
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -105,6 +106,29 @@ async function afterPackHook(params) {
     }
 
     log(`embedded MPV ${params.electronPlatformName} runtime validated`);
+
+    adhocSignMacApp(params);
+}
+
+/**
+ * Without an Apple certificate (IPTVNATOR_MAC_ADHOC_SIGN=1, `pnpm run make:mac`)
+ * the bundle is signed ad hoc: Apple Silicon refuses to run an app whose
+ * signature was broken by packaging. electron-builder then skips its own
+ * signing (CSC_IDENTITY_AUTO_DISCOVERY=false), so this signature stays.
+ */
+function adhocSignMacApp(params) {
+    if (
+        params.electronPlatformName !== 'darwin' ||
+        !isTruthy(process.env.IPTVNATOR_MAC_ADHOC_SIGN)
+    ) {
+        return;
+    }
+    const appName = `${params.packager.appInfo.productFilename}.app`;
+    const appPath = path.join(params.appOutDir, appName);
+    log(`ad-hoc signing ${appName} (no Apple certificate)`);
+    execFileSync('codesign', ['--force', '--deep', '--sign', '-', appPath], {
+        stdio: 'inherit',
+    });
 }
 
 function getResourceDir(params) {

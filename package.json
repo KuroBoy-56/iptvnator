@@ -53,6 +53,7 @@
         "serve:backend:embedded-mpv": "pnpm embedded-mpv:build-native:homebrew && IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW=1 IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT=1 pnpm serve:backend",
         "package:app": "nx run electron-backend:make --prepackageOnly",
         "make:app": "nx run electron-backend:make",
+        "make:mac": "IPTVNATOR_MAC_ADHOC_SIGN=1 CSC_IDENTITY_AUTO_DISCOVERY=false nx run electron-backend:make",
         "smoke:packaged": "node tools/testing/launch-packaged-electron.mjs",
         "serve:website": "nx serve website",
         "build:website": "nx build website",

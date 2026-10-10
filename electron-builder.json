@@ -52,13 +52,18 @@
             }
         ],
         "category": "public.app-category.video",
-        "forceCodeSigning": true,
+        "forceCodeSigning": false,
         "gatekeeperAssess": false,
         "hardenedRuntime": true,
         "entitlements": "apps/electron-backend/macos/entitlements.mac.plist",
         "entitlementsInherit": "apps/electron-backend/macos/entitlements.mac.inherit.plist",
-        "notarize": true,
-        "icon": "apps/web/src/assets/icons/favicon.icns"
+        "notarize": false,
+        "icon": "apps/web/src/assets/icons/favicon.icns",
+        "darkModeSupport": true,
+        "minimumSystemVersion": "12.0",
+        "extendInfo": {
+            "NSLocalNetworkUsageDescription": "LatMpx TV+ usa la red local para el control remoto desde el celular."
+        }
     },
     "linux": {
         "category": "Video",

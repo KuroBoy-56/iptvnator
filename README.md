@@ -38,6 +38,35 @@ run `PANEL_MASTER_KEY=... node tools/panel/write-panel-key.mjs` before
 `nx build electron-backend` to generate the git-ignored
 `apps/electron-backend/src/assets/panel-key.json`.
 
+## macOS (branch `macos`)
+
+The `macos` branch builds LatMpx TV+ for Mac (Apple Silicon and Intel, macOS 12+)
+from the same code as Windows. Shared work lands on `master` first and is merged
+into `macos`, so both apps stay in sync.
+
+- **Device id.** The Mac's `IOPlatformUUID` (`ioreg`), hashed into the same
+  `XX:XX:…` format as Windows and shown on the login screen.
+- **Panel.** Every panel call sends `platform: macos` (and `app=macos` with a
+  distributor), so the panel shows "macOS" in Clientes MAC, counts the Mac in
+  the dashboard, applies the per-app «Pantalla Falsa» switch and the
+  distributor's `macos` app permission. Distributor id, reseller codes,
+  Auto-Demo, progress, favorites, EPG, sports, alerts and error reports work as
+  on Windows.
+- **Build on a Mac.** `pnpm install --frozen-lockfile`, then
+  `PANEL_MASTER_KEY=... node tools/panel/write-panel-key.mjs` and
+  `pnpm run make:mac`. It writes `dist/executables/*.dmg` and `*.zip`, signed ad hoc
+  (no Apple certificate needed). With a Developer ID certificate in the
+  keychain, `pnpm run make:app` signs it with that certificate instead.
+- **CI.** `.github/workflows/build-macos.yml` builds both architectures on every
+  push to `macos` and uploads the `.dmg` as artifacts. A tag `mac-vX.Y.Z` also
+  publishes a release. With the secrets `CSC_LINK` + `CSC_KEY_PASSWORD` the app is
+  signed with the Apple certificate; adding `APPLE_ID`,
+  `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID` also notarizes it.
+  `PANEL_MASTER_KEY` and `TMDB_API_KEY` are the same secrets as Windows.
+- **First launch of an ad-hoc build.** Right-click the app, choose **Abrir**,
+  then confirm. Or remove the quarantine flag:
+  `xattr -cr "/Applications/LatMpx TV+.app"`.
+
 ## Features
 
 **Playlists & sources**
@@ -213,13 +242,13 @@ the host `mpv` executable to the embedded backend by default.
 Older unsigned macOS builds may require removing the quarantine flag from the downloaded application:
 
 ```bash
-xattr -c /Applications/IPTVnator.app
+xattr -cr "/Applications/LatMpx TV+.app"
 ```
 
 Alternatively, if the app is located in a different directory:
 
 ```bash
-xattr -c ~/Downloads/IPTVnator.app
+xattr -cr "$HOME/Downloads/LatMpx TV+.app"
 ```
 
 ### Linux: chrome-sandbox Issues
