@@ -28,14 +28,17 @@ import { databaseWorkerClient } from './app/services/database-worker-client';
 import WindowEvents from './app/events/window.events';
 import XtreamEvents from './app/events/xtream.events';
 import PanelEvents from './app/panel/panel.events';
+import { hostOf, requiresValidCertificate } from './app/util/tls-policy';
 
+// Node requests of the main process only go to IPTV provider servers (often
+// self-signed). The panel and the public APIs go through Chromium, where the
+// certificate policy below verifies them.
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 app.setName('LatMpx TV+');
 app.userAgentFallback = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
 app.commandLine.appendSwitch('disable-web-security');
-app.commandLine.appendSwitch('ignore-certificate-errors');
 app.commandLine.appendSwitch('allow-running-insecure-content');
 app.commandLine.appendSwitch('disable-features', 'IsolateOrigins,site-per-process,BlockInsecurePrivateNetworkRequests');
 app.commandLine.appendSwitch('disable-site-isolation-trials');
@@ -49,7 +52,13 @@ if (
     app.commandLine.appendSwitch('ozone-platform', 'x11');
 }
 
+// IPTV provider servers with a bad certificate keep working; the panel and the
+// public APIs (tls-policy.ts) never accept one.
 app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
+    if (requiresValidCertificate(hostOf(url))) {
+        callback(false);
+        return;
+    }
     event.preventDefault();
     callback(true);
 });
@@ -116,7 +125,11 @@ Main.initialize();
 Main.bootstrapApp();
 
 app.whenReady().then(async () => {
-    session.defaultSession.setCertificateVerifyProc((request, callback) => callback(0));
+    // 0 = accept, -2 = reject, -3 = Chromium's own verification result
+    session.defaultSession.setCertificateVerifyProc((request, callback) => {
+        if (request.errorCode === 0) return callback(-3);
+        callback(requiresValidCertificate(request.hostname) ? -2 : 0);
+    });
 
     session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
         if (details.url.startsWith('http://') || details.url.startsWith('https://')) {

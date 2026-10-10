@@ -54,7 +54,17 @@ the Android app:
      | --- | --- |
      | 200 | Logs in with the demo user on the first DNS. |
      | 403 | Shows the message and disables the button. |
+     | 404 | Unknown reseller code or no demo configured: shows the panel message, the demo stays available. |
      | 429 / 400 | Shows the message. |
+
+     A reseller demo code typed in **Contraseña** (6 letters and digits with at
+     least one letter, `isResellerCode`) goes upper-cased as `reseller`, so the
+     demo is registered under that reseller. Digits only are never sent (that
+     is a distributor number).
+   - `check_mac` and `auto_demo` send `"enc": 1`: the panel answers the line
+     (username + password) AES-GCM encrypted like `fetch_dns`, and the main
+     process decrypts it. An older panel answers JSON and keeps working;
+     errors are always JSON.
 4. **Session.** `apps/web/src/app/panel-login/panel-session.service.ts` turns
    the line into the app session:
    - It creates or updates one Xtream playlist, named "LatMpx TV+" or "DEMO".
@@ -82,6 +92,18 @@ Without a key, the app still builds and runs. The login screen shows a clear
 
 The PWA has no login crypto. It keeps working with an existing session and
 degrades gracefully.
+
+## TLS certificates
+
+`apps/electron-backend/src/app/util/tls-policy.ts` decides which hosts must
+present a valid certificate: the panel host (decoded from the built-in panel
+URL) and the public APIs (TMDB, DoH resolvers, GitHub, YouTube, Google APIs).
+Chromium (`setCertificateVerifyProc`, `certificate-error`) rejects an invalid
+certificate for those hosts; IPTV provider servers, which are often
+self-signed or expired, keep being accepted. The `ignore-certificate-errors`
+switch is gone. `NODE_TLS_REJECT_UNAUTHORIZED=0` stays because the main
+process only uses Node HTTP for provider servers; the panel goes through
+`net.fetch`.
 
 ## Distributor (multi-tenant)
 

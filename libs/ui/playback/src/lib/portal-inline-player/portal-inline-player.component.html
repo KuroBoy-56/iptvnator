@@ -52,13 +52,13 @@
                         }
                         
                         <!-- EL MENSAJE EXACTO SOLICITADO -->
-                        <div style="background-color: rgba(229, 9, 20, 0.1); border-left: 4px solid #e50914; padding: 15px; margin-top: 25px; text-align: left; border-radius: 0 8px 8px 0;">
+                        <div style="background-color: color-mix(in srgb, var(--nf-red, #e50914) 10%, transparent); border-left: 4px solid var(--nf-red, #e50914); padding: 15px; margin-top: 25px; text-align: left; border-radius: 0 8px 8px 0;">
                             <p style="color: #ced4da; font-size: 14px; margin: 0; line-height: 1.6;">
                                 <strong>Aviso:</strong> Como se está reproduciendo en MPV (un reproductor externo), el progreso no se registrará directamente en la aplicación. Solamente se registra progreso para los reproductores integrados en la aplicación.
                             </p>
                         </div>
 
-                        <button mat-flat-button style="margin-top: 30px; background-color: #e50914; color: white; padding: 0 30px; border-radius: 20px; font-size: 16px; height: 40px; line-height: 40px; border: none; cursor: pointer;" (click)="closeMpv()">
+                        <button mat-flat-button style="margin-top: 30px; background-color: var(--nf-red, #e50914); color: var(--nf-on-accent, white); padding: 0 30px; border-radius: 20px; font-size: 16px; height: 40px; line-height: 40px; border: none; cursor: pointer;" (click)="closeMpv()">
                             <mat-icon style="margin-right: 5px; vertical-align: middle;">stop</mat-icon> Detener y Volver
                         </button>
                     </div>

@@ -29,7 +29,7 @@ import { Component, computed, input } from '@angular/core';
                     height: 100%;
                     background: linear-gradient(
                         90deg,
-                        #e50914 0%,
+                        var(--nf-red, #e50914) 0%,
                         #ff4d4d 100%
                     );
                     transition: width 0.3s ease-out;

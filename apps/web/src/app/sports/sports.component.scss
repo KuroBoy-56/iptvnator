@@ -46,7 +46,7 @@
     gap: 8px;
     padding: 8px 14px;
     border-radius: 999px;
-    background: rgba(229, 9, 20, 0.14);
+    background: color-mix(in srgb, var(--nf-red, #e50914) 14%, transparent);
     color: #fff;
     font-weight: 700;
     font-size: 14px;
@@ -57,14 +57,14 @@
     height: 9px;
     border-radius: 50%;
     background: var(--sp-live);
-    box-shadow: 0 0 0 0 rgba(229, 9, 20, 0.7);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--nf-red, #e50914) 70%, transparent);
     animation: spPulse 1.6s infinite;
     flex: none;
 }
 
 @keyframes spPulse {
-    70% { box-shadow: 0 0 0 9px rgba(229, 9, 20, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(229, 9, 20, 0); }
+    70% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--nf-red, #e50914) 0%, transparent); }
+    100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--nf-red, #e50914) 0%, transparent); }
 }
 
 .sp-bar {
@@ -214,8 +214,8 @@
     }
 
     &.live {
-        border-color: rgba(229, 9, 20, 0.55);
-        background: linear-gradient(180deg, rgba(229, 9, 20, 0.12), var(--sp-card) 60%);
+        border-color: color-mix(in srgb, var(--nf-red, #e50914) 55%, transparent);
+        background: linear-gradient(180deg, color-mix(in srgb, var(--nf-red, #e50914) 12%, transparent), var(--sp-card) 60%);
     }
 }
 

@@ -32,13 +32,13 @@
         --tag-border: rgba(0, 0, 0, 0.12);
         --play-idle-bg: linear-gradient(
             135deg,
-            #e50914 0%,
+            var(--nf-red, #e50914) 0%,
             #f0121c 52%,
-            #f6121d 100%
+            var(--nf-red-h, #f6121d) 100%
         );
         --play-idle-fg: #ffffff;
-        --play-idle-border: rgba(229, 9, 20, 0.4);
-        --play-idle-shadow: 0 18px 38px rgba(229, 9, 20, 0.32);
+        --play-idle-border: color-mix(in srgb, var(--nf-red, #e50914) 40%, transparent);
+        --play-idle-shadow: 0 18px 38px color-mix(in srgb, var(--nf-red, #e50914) 32%, transparent);
         --play-launching-bg: linear-gradient(
             135deg,
             #ffd36f 0%,
@@ -83,13 +83,13 @@
         --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
         --play-idle-bg: linear-gradient(
             135deg,
-            #e50914 0%,
+            var(--nf-red, #e50914) 0%,
             #f0121c 58%,
-            #f6121d 100%
+            var(--nf-red-h, #f6121d) 100%
         );
         --play-idle-fg: #ffffff;
-        --play-idle-border: rgba(229, 9, 20, 0.32);
-        --play-idle-shadow: 0 20px 42px rgba(229, 9, 20, 0.32);
+        --play-idle-border: color-mix(in srgb, var(--nf-red, #e50914) 32%, transparent);
+        --play-idle-shadow: 0 20px 42px color-mix(in srgb, var(--nf-red, #e50914) 32%, transparent);
         --play-launching-bg: linear-gradient(
             135deg,
             #ffdd79 0%,

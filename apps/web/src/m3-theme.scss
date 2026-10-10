@@ -124,10 +124,10 @@ html {
     // Hero
     --app-accent-gradient: linear-gradient(
         135deg,
-        rgba(229, 9, 20, 0.08) 0%,
+        color-mix(in srgb, var(--nf-red, #e50914) 8%, transparent) 0%,
         rgba(20, 20, 20, 0.04) 100%
     );
-    --app-hero-surface: rgba(229, 9, 20, 0.04);
+    --app-hero-surface: color-mix(in srgb, var(--nf-red, #e50914) 4%, transparent);
 
     .dark-theme {
         @include mat.all-component-colors($dark-theme);
@@ -223,7 +223,7 @@ html {
         // Hero section
         --app-accent-gradient: linear-gradient(
             135deg,
-            rgba(229, 9, 20, 0.14) 0%,
+            color-mix(in srgb, var(--nf-red, #e50914) 14%, transparent) 0%,
             rgba(20, 20, 20, 0.6) 100%
         );
         --app-hero-surface: rgba(24, 24, 24, 0.92);

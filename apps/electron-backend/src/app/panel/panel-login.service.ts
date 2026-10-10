@@ -1,4 +1,5 @@
 import {
+    isResellerCode,
     isTenantCode,
     PANEL_APP_ID,
     panelEndpoint,
@@ -22,6 +23,11 @@ export interface PanelLoginDeps {
 const ACTIONS: readonly PanelLoginAction[] = ['check_mac', 'fetch_dns', 'submit_url', 'auto_demo', 'tenant_config'];
 /** Actions whose 200 answer is encrypted with the master key. */
 const ENCRYPTED_REPLY: readonly PanelLoginAction[] = ['fetch_dns', 'tenant_config'];
+/**
+ * Actions whose answer carries the line (username + password): they ask for
+ * an encrypted 200 answer with "enc": 1. An older panel still answers JSON.
+ */
+const LINE_REPLY: readonly PanelLoginAction[] = ['check_mac', 'auto_demo'];
 
 function parseJson(text: string): unknown {
     try {
@@ -74,9 +80,14 @@ export async function panelLoginRequest(
                   username: payload?.username?.trim() || undefined,
                   password: payload?.password?.trim() || undefined,
                   url: payload?.url?.trim() || undefined,
+                  reseller:
+                      action === 'auto_demo' && isResellerCode(payload?.reseller)
+                          ? payload?.reseller?.trim().toUpperCase()
+                          : undefined,
                   // without a distributor ("Omitir") both stay out of the payload
                   tenant: tenant || undefined,
                   app: tenant ? PANEL_APP_ID : undefined,
+                  enc: LINE_REPLY.includes(action) ? 1 : undefined,
               }
     );
     const body = new URLSearchParams({ action, data: encryptPayload(plain, deps.masterKey) });
@@ -105,6 +116,15 @@ export async function panelLoginRequest(
             return { ok: true, status, data: value };
         }
         return { ok: false, status, code: 'BAD_RESPONSE', error: 'Respuesta del panel no válida.' };
+    }
+
+    if (LINE_REPLY.includes(action) && status === 200 && text.trim() && !text.trim().startsWith('{')) {
+        const decrypted = decryptPayload(text.trim(), deps.masterKey);
+        const value = decrypted ? parseJson(decrypted) : undefined;
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+            return { ok: true, status, data: value };
+        }
+        return { ok: false, status, code: 'BAD_RESPONSE', error: 'La llave de la app no coincide con la del panel.' };
     }
 
     const data = parseJson(text);

@@ -969,7 +969,7 @@ body.macos-platform .nf-header {
     padding: calc(var(--nf-header) + 26px) var(--nf-pad) 6px;
     background: radial-gradient(
         1200px 300px at 0% 0%,
-        var(--accent, rgba(229, 9, 20, 0.35)),
+        var(--accent, color-mix(in srgb, var(--nf-red, #e50914) 35%, transparent)),
         transparent 70%
     );
 

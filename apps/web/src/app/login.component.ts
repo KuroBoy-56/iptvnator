@@ -116,7 +116,6 @@ export class LoginComponent implements OnInit {
         this.checking.set(true);
         this.demoBlocked.set(false);
         this.dnsList.set([]);
-        this.selectedDns = '';
 
         if (!this.panel.available) {
             this.checking.set(false);
@@ -185,7 +184,8 @@ export class LoginComponent implements OnInit {
         if (this.demoBlocked()) return;
         this.demoBusy.set(true);
         this.message.set(null);
-        const demo = await this.panel.autoDemo();
+        // a reseller demo code typed in "Contraseña" registers the demo under that reseller
+        const demo = await this.panel.autoDemo(this.password);
         if (!demo.ok) {
             this.demoBusy.set(false);
             if (demo.blocked) this.demoBlocked.set(true);

@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import {
     ElectronBridgeApi,
+    isResellerCode,
     normalizeXtreamServerUrl,
     PanelLoginAction,
     PanelLoginPayload,
@@ -137,14 +138,19 @@ export class PanelLoginService {
         return { ok: false, message: res.error ?? 'No se pudo activar el dispositivo.' };
     }
 
-    async autoDemo(): Promise<DemoResult> {
-        const res = await this.request<{ status?: string; username?: string; password?: string }>('auto_demo');
+    /** A reseller demo code (see isResellerCode) registers the demo under that reseller. */
+    async autoDemo(reseller?: string): Promise<DemoResult> {
+        const res = await this.request<{ status?: string; username?: string; password?: string }>(
+            'auto_demo',
+            isResellerCode(reseller) ? { reseller: reseller.trim().toUpperCase() } : undefined
+        );
         if (res.ok && res.data?.status === 'ok' && res.data.username && res.data.password) {
             return { ok: true, username: res.data.username, password: res.data.password };
         }
         return {
             ok: false,
             message: res.error ?? 'No se pudo generar la demo.',
+            // 404: unknown reseller code or no demo configured; the demo stays available
             blocked: res.status === 403,
         };
     }

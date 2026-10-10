@@ -94,6 +94,15 @@ export function isTenantCode(value: unknown): value is string {
     return typeof value === 'string' && CODE_RE.test(value);
 }
 
+/**
+ * Reseller demo code ("Código para Demos en la App"): 6 letters and digits
+ * with at least one letter, so it never looks like a 6-digit distributor
+ * number.
+ */
+export function isResellerCode(value: unknown): value is string {
+    return typeof value === 'string' && /^[A-Za-z0-9]{6}$/.test(value.trim()) && /[A-Za-z]/.test(value);
+}
+
 export function isTenantErrorCode(value: unknown): value is PanelTenantErrorCode {
     return typeof value === 'string' && value in PANEL_TENANT_MESSAGES;
 }

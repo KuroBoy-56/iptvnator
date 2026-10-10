@@ -669,7 +669,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 
 **Panel integration** (see `docs/architecture/panel-integration.md`):
 
-- Login: `/login` uses `check_mac` / `fetch_dns` / `submit_url` / `auto_demo` against panel `login.php` (encrypted in the Electron main process); the line becomes one Xtream playlist plus `session_*` localStorage keys
+- Login: `/login` uses `check_mac` / `fetch_dns` / `submit_url` / `auto_demo` against panel `login.php` (encrypted in the Electron main process); the line becomes one Xtream playlist plus `session_*` localStorage keys; `check_mac` / `auto_demo` ask for the encrypted line (`enc: 1`); a reseller demo code typed in the password box goes as `reseller` (`isResellerCode`); TLS: the panel and public APIs always need a valid certificate, IPTV servers do not (`apps/electron-backend/src/app/util/tls-policy.ts`)
 - Sync: `PanelSyncService` (`libs/services/src/lib/panel-sync/`) — token-only auth against `api/progress.php`, keyed per line (`user@host`, scheme-insensitive); "Mi lista" items are matched with the local catalog by `panelFavoritesToItems` (`libs/portal/shared/data-access`); the panel is the source of truth for progress and favorites, local DB rows are a cache rebuilt by `PanelCacheSyncService`; MPV/VLC progress is saved via `external-playback.service.ts`
 - EPG: provider first, then `XtreamPanelEpgFallbackService` batches (≤400 channels) to `api/epg.php`
 - Alert: `api/alerta.php?format=json` welcome / expiry notice (panel "Alertas" page) shown once per app start by `WorkspacePanelAlertComponent` in the workspace shell

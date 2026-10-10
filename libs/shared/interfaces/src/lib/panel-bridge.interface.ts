@@ -32,6 +32,12 @@ export interface PanelLoginPayload {
      * with "Omitir", so the request is byte-for-byte the old one.
      */
     tenant?: string;
+    /**
+     * Reseller demo code typed in the password box (auto_demo only): the demo
+     * is registered under that reseller. Sent only when it looks like one
+     * (see isResellerCode).
+     */
+    reseller?: string;
 }
 
 /**

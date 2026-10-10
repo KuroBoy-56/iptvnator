@@ -71,7 +71,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid #e50914;
+        outline: 2px solid var(--nf-red, #e50914);
         outline-offset: -2px;
     }
 
