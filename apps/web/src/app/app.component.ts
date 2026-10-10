@@ -54,6 +54,10 @@ export class AppComponent implements OnInit, OnDestroy {
         if (this.runtime.usesCustomWindowControls) {
             document.body.classList.add('frameless-platform');
         }
+        // body-level styles (Netflix top bar, login) leave room for the macOS traffic lights
+        if (this.runtime.isMacOS) {
+            document.body.classList.add('macos-platform');
+        }
 
         const electronProcess = this.dataService.remote?.process;
         if (this.dataService.isElectron && electronProcess && (electronProcess.platform === 'linux' || electronProcess.platform === 'win32') && electronProcess.argv.length > 2) {

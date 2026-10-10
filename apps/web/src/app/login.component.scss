@@ -56,6 +56,14 @@
     position: relative;
     z-index: 2;
     padding: 24px 4%;
+    // the window has no native title bar: the header moves it
+    app-region: drag;
+    -webkit-app-region: drag;
+}
+
+// macOS traffic lights sit at the top left
+:host-context(body.macos-platform) .nf-login-header {
+    padding-left: calc(4% + 72px);
 }
 
 .nf-login-brand {
