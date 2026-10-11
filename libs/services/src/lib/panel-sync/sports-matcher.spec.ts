@@ -1,6 +1,9 @@
 import {
+    channelKey,
     DEFAULT_SPORTS_MATCH_RULES,
+    findChannelByName,
     findSportsChannel,
+    findSportsChannelForEvent,
     normalizeSportsText,
     sportsTeamScore,
     sportsTokens,
@@ -83,5 +86,39 @@ describe('sports matcher', () => {
             partial: true,
         });
         expect(findSportsChannel(event, [], [categories[0]], null)).toBeNull();
+    });
+});
+
+describe('broadcast channel search', () => {
+    const streams = [
+        { stream_id: 1, name: 'MX: ESPN HD', category_id: 1 },
+        { stream_id: 2, name: 'MX: ESPN 2 HD', category_id: 1 },
+        { stream_id: 3, name: 'ESPN 3 MX', category_id: 1 },
+        { stream_id: 4, name: 'TUDN MX FHD', category_id: 1 },
+        { stream_id: 5, name: 'Fox Sports Premium', category_id: 1 },
+        { stream_id: 6, name: 'EVENTO 01: Real Madrid vs Getafe', category_id: 2 },
+    ];
+
+    it('ignores quality and country and glues numbers to the name', () => {
+        expect(channelKey('MX: ESPN 2 HD')).toEqual(['espn2']);
+        expect(channelKey('ESPN2 (México)')).toEqual(['espn2']);
+        expect(channelKey('DAZN 1 Spain')).toEqual(['dazn1']);
+    });
+
+    it('finds the exact channel and never a sibling', () => {
+        expect(findChannelByName('ESPN 2', streams)?.stream_id).toBe(2);
+        expect(findChannelByName('ESPN2', streams)?.stream_id).toBe(2);
+        expect(findChannelByName('ESPN', streams)?.stream_id).toBe(1);
+        expect(findChannelByName('ESPN 3', streams)?.stream_id).toBe(3);
+        expect(findChannelByName('ESPN 4', streams)).toBeNull();
+        expect(findChannelByName('TUDN', streams)?.stream_id).toBe(4);
+        expect(findChannelByName('Sky Sports', streams)).toBeNull();
+    });
+
+    it('uses the broadcast channels first, then the teams', () => {
+        const ev = { id: '1', sp: 'Soccer', lg: 'La Liga', lb: '', ev: 'Real Madrid vs Getafe', h: 'Real Madrid', a: 'Getafe', hb: '', ab: '', hs: null, as: null, ts: '', v: '', st: '', th: '', pp: false };
+        expect(findSportsChannelForEvent({ ...ev, tv: [{ n: 'Sky Sports', c: 'Reino Unido' }, { n: 'ESPN 2', c: 'México' }] }, streams, categories, rules)?.streamId).toBe('2');
+        expect(findSportsChannelForEvent({ ...ev, tv: [{ n: 'Sky Sports', c: '' }] }, streams, categories, rules)?.streamId).toBe('6');
+        expect(findSportsChannelForEvent(ev, streams, categories, rules)?.streamId).toBe('6');
     });
 });

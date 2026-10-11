@@ -127,12 +127,30 @@
         } @else {
             <div class="sp-single">{{ e.ev }}</div>
         }
+        @if (tvLine(e); as tv) {
+            <div class="sp-tvline" [title]="tv">{{ tv }}</div>
+        }
         <div class="sp-foot">
             <span class="v">{{ e.v || (st === 'soon' ? time(e) : '') }}</span>
-            <button type="button" class="sp-tv" [disabled]="busyId() === e.id" (click)="watch(e)">
-                {{ busyId() === e.id ? 'Buscando canal…' : 'TV en vivo' }}
+            <button type="button" class="sp-tv" [disabled]="busyId() === e.id" (click)="open(e)">
+                {{ busyId() === e.id ? 'Buscando canal…' : e.tv?.length ? 'Ver canales' : 'TV en vivo' }}
             </button>
         </div>
+        @if (menuId() === e.id) {
+            <div class="sp-menu" role="menu">
+                <button type="button" class="primary" role="menuitem" (click)="watch(e)">
+                    <b>▶ Ver el evento</b><small>Busca el mejor canal automáticamente</small>
+                </button>
+                @for (t of e.tv; track $index) {
+                    <button type="button" role="menuitem" (click)="watch(e, { kind: 'tv', name: t.n })">
+                        <b>{{ t.n }}</b><small>{{ t.c }}</small>
+                    </button>
+                }
+                <button type="button" role="menuitem" (click)="watch(e, { kind: 'teams' })">
+                    <b>Buscar por equipos</b><small>En las carpetas de eventos de tu lista</small>
+                </button>
+            </div>
+        }
     </article>
 </ng-template>
 

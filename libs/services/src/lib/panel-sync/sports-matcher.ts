@@ -146,3 +146,66 @@ export function findSportsChannel(
     }
     return null;
 }
+
+/* ---------- broadcast channel -> the client's channels ("ESPN 2" -> its ESPN 2 channels) ---------- */
+
+// what does not tell one channel from another: quality and country/region tags
+const CHANNEL_NOISE = new Set([
+    'hd', 'fhd', 'uhd', 'sd', '4k', '8k', 'hq', 'hevc', 'h264', 'h265', '1080', '1080p', '720', '720p', '50fps', '60fps', 'fps',
+    'backup', 'bk', 'alt', 'vip', 'op1', 'op2', 'tv', 'channel', 'canal',
+    'mx', 'mex', 'mexico', 'us', 'usa', 'eeuu', 'ar', 'arg', 'argentina', 'co', 'col', 'colombia', 'cl', 'chile', 'pe', 'peru', 'ec', 'ecuador',
+    've', 'venezuela', 'uy', 'uruguay', 'py', 'paraguay', 'bo', 'bolivia', 'cr', 'pa', 'panama', 'gt', 'hn', 'sv', 'ni', 'do', 'pr',
+    'latam', 'latin', 'latino', 'latina', 'lat', 'america', 'es', 'esp', 'spain', 'espana', 'uk', 'gb', 'int', 'intl', 'international',
+    'br', 'bra', 'brasil', 'brazil', 'pt', 'portugal', 'ca', 'can', 'canada', 'fr', 'france', 'it', 'italy', 'de', 'germany',
+    'nl', 'netherlands', 'au', 'australia', 'nz', 'zealand', 'new', 'ie', 'ireland',
+]);
+
+/** Words that identify a channel; a number sticks to the word before it ("ESPN 2" -> ["espn2"]). */
+export function channelKey(name: string): string[] {
+    const out: string[] = [];
+    for (const t of normalizeSportsText(name).split(' ')) {
+        if (!t || CHANNEL_NOISE.has(t)) continue;
+        if (/^\d+$/.test(t) && out.length && !/^\d+$/.test(out[out.length - 1])) out[out.length - 1] += t;
+        else out.push(t);
+    }
+    return out;
+}
+
+/**
+ * The client's channel for a broadcast channel name: same name without quality or country first,
+ * then one that contains all its words. "ESPN 2" never returns "ESPN" or "ESPN 3".
+ */
+export function findChannelByName(tvName: string, streams: readonly SportsLiveStream[]): SportsLiveStream | null {
+    const q = channelKey(tvName);
+    const qs = q.join(' ');
+    const qc = q.join('');
+    if (!q.length || qc.length < 2) return null;
+    let best: { score: number; stream: SportsLiveStream } | null = null;
+    for (const st of streams) {
+        if (!st?.stream_id) continue;
+        const k = channelKey(String(st.name ?? ''));
+        if (!k.length) continue;
+        let score: number;
+        if (k.join(' ') === qs) score = 1000 - k.length;
+        else if (k.join('') === qc) score = 900 - k.length;
+        else if (q.every((t) => k.includes(t))) score = 500 - 10 * (k.length - q.length);
+        else continue;
+        score -= String(st.name ?? '').length / 1000;
+        if (!best || score > best.score) best = { score, stream: st };
+    }
+    return best ? best.stream : null;
+}
+
+/** First broadcast channel of the match the client has, else the team / event-name match. */
+export function findSportsChannelForEvent(
+    event: PanelSportsEvent,
+    streams: SportsLiveStream[],
+    categories: SportsLiveCategory[],
+    panelRules?: Partial<SportsMatchRules> | null
+): SportsChannelMatch | null {
+    for (const t of event.tv ?? []) {
+        const st = findChannelByName(t.n, streams);
+        if (st) return { streamId: String(st.stream_id), categoryId: String(st.category_id ?? ''), name: String(st.name ?? ''), partial: false };
+    }
+    return findSportsChannel(event, streams, categories, panelRules);
+}
