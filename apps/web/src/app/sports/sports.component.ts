@@ -12,7 +12,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { Router } from '@angular/router';
 import { PanelSportMeta } from '@iptvnator/services';
 import { buildXtreamNavigationTarget } from '@iptvnator/portal/shared/util';
-import { SportsDataService } from './sports-data.service';
+import { SportsDataService, SportsWatchMode } from './sports-data.service';
 import {
     DEFAULT_SPORTS_META,
     groupByLeague,
@@ -53,6 +53,8 @@ export class SportsComponent implements OnInit {
     readonly query = signal('');
     readonly now = signal(Date.now());
     readonly busyId = signal<string | null>(null);
+    /** Event whose "where to watch" menu is open. */
+    readonly menuId = signal<string | null>(null);
     private readonly timeFormat = new Intl.DateTimeFormat('es', { hour: 'numeric', minute: '2-digit' });
     private queryTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -158,7 +160,20 @@ export class SportsComponent implements OnInit {
         img.nextElementSibling?.removeAttribute('hidden');
     }
 
-    async watch(e: SportsCard): Promise<void> {
+    tvLine(e: SportsCard): string {
+        const tv = e.tv ?? [];
+        if (!tv.length) return '';
+        return 'En TV: ' + tv.slice(0, 4).map((t) => t.n).join(' · ') + (tv.length > 4 ? `  +${tv.length - 4}` : '');
+    }
+
+    /** With broadcast channels: the menu (watch, each channel, by teams); without: straight to the search. */
+    open(e: SportsCard): void {
+        if (e.tv?.length) this.menuId.set(this.menuId() === e.id ? null : e.id);
+        else void this.watch(e);
+    }
+
+    async watch(e: SportsCard, mode: SportsWatchMode = { kind: 'auto' }): Promise<void> {
+        this.menuId.set(null);
         const st = this.status(e);
         const isToday = e.dayKey === this.dayKeys()[0];
         if (!isToday || st === 'fin' || st === 'pp') {
@@ -168,11 +183,12 @@ export class SportsComponent implements OnInit {
         if (this.busyId()) return;
         this.busyId.set(e.id);
         try {
-            const target = await this.data.findChannel(e);
+            const target = await this.data.findChannel(e, mode);
             if (!target) {
-                this.toast('No encontramos un canal para este evento');
+                this.toast(mode.kind === 'tv' ? `No encontramos ${mode.name} ni el evento en tu lista` : 'No encontramos un canal para este evento');
                 return;
             }
+            if (target.missing) this.toast(`No tienes ${target.missing}; te mostramos ${target.name}`);
             if (target.partial) {
                 this.toast(`Aún no aparece el canal exacto, te mostramos ${target.name}`);
                 await this.router.navigate(['/workspace', 'xtreams', target.playlistId, 'live', target.categoryId]);

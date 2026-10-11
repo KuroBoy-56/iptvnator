@@ -138,6 +138,15 @@ export class LoginComponent implements OnInit {
         this.deviceId.set(await this.panel.deviceId());
         const check = await this.panel.checkDevice();
         if (check.status === 'active') {
+            // the panel line is checked on the IPTV server before entering (wrong password or expired: no entry)
+            const st = await this.portalStatus.checkPortalStatus(check.account.server, check.account.username, check.account.password, { skipCache: true });
+            if (st === 'expired' || st === 'inactive') {
+                await this.session.clear();
+                this.checking.set(false);
+                this.say(st === 'expired' ? 'La cuenta de este equipo está vencida. Renuévala con tu distribuidor.' : 'El usuario o la contraseña de este equipo ya no son válidos en el servidor.', 'error');
+                await this.loadDns();
+                return;
+            }
             this.say('Dispositivo activado. Entrando…', 'success');
             await this.enter(check.account);
             return;

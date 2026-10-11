@@ -24,6 +24,14 @@ export interface PanelSportsEvent {
     th: string;
     /** Postponed. */
     pp: boolean;
+    /** Channels that broadcast it (region first), when the panel knows them. */
+    tv?: PanelSportsTv[];
+}
+
+/** A broadcast channel of a match: name and country, e.g. { n: 'ESPN 2', c: 'México' }. */
+export interface PanelSportsTv {
+    n: string;
+    c: string;
 }
 
 export interface PanelSportMeta {

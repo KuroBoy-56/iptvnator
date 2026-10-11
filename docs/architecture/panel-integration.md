@@ -93,6 +93,14 @@ Without a key, the app still builds and runs. The login screen shows a clear
 The PWA has no login crypto. It keeps working with an existing session and
 degrades gracefully.
 
+### Line check on start
+
+`check_mac` runs on every start. When it returns a line, the login screen first
+checks it on the IPTV server (`PortalStatusService.checkPortalStatus`): an
+expired or rejected line clears the session and stays on the login screen with
+the reason. An unreachable server does not block the entry (the scheme is
+resolved later). The line password is never stored in `localStorage`.
+
 ### Platform, fake screen and error reports
 
 - **Platform.** Every `login.php` payload and the `progress.php` `auth` body
@@ -409,6 +417,18 @@ uses the Electron Xtream bridge.
 The best channel opens in the Xtream live view, through the
 `openXtreamLiveItemId` history state. When there is no exact match, the first
 event category opens instead.
+
+### Broadcast channels
+
+Events may carry `tv: [{n, c}]` (channel name and country, region first), which
+the panel takes from TheSportsDB (`includes/sports_tv.php`). The card shows
+"En TV: …" and its button becomes **Ver canales**: a menu with **Ver el evento**
+(`findSportsChannelForEvent`: the first broadcast channel the client has, then the
+teams), one row per channel (`findChannelByName`) and **Buscar por equipos**
+(`findSportsChannel`). `channelKey` drops quality and country tags and glues a
+number to the word before it, so "ESPN 2" finds "MX: ESPN 2 HD" and never "ESPN"
+or "ESPN 3". A channel the client lacks falls back to the team / event-name match
+with a toast. Android, Vega, Roku and the web player use the same rules.
 
 ## Netflix look
 
