@@ -10,6 +10,7 @@ import {
     Playlist,
     PlaylistMeta,
     setSessionAlertAccounts,
+    setSessionDemo,
     setSessionPassword,
 } from '@iptvnator/shared/interfaces';
 import { PanelAccount } from './panel-login.service';
@@ -82,6 +83,8 @@ export class PanelSessionService {
         } catch {
             // Storage unavailable: the session still works for this run.
         }
+        // demo: "DEMO" instead of the user/password and no progress or favorites (a normal line clears it)
+        setSessionDemo(account.isDemo);
         setSessionPassword(account.password);
         setSessionAlertAccounts([{ user: account.username, pass: account.password, dns: server, title }]);
 
@@ -93,7 +96,7 @@ export class PanelSessionService {
         const playlists = await firstValueFrom(this.store.select(selectAllPlaylistsMeta));
         await this.removeOtherLines(playlists, undefined);
         try {
-            ['session_token', 'session_date', 'session_user', 'session_pass', 'session_server', 'alert_accounts'].forEach((k) =>
+            ['session_token', 'session_date', 'session_user', 'session_pass', 'session_server', 'session_demo', 'alert_accounts'].forEach((k) =>
                 localStorage.removeItem(k)
             );
         } catch {

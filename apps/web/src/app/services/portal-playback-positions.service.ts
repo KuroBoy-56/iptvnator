@@ -8,7 +8,7 @@ import {
     PlaybackPositionData,
     XTREAM_DATA_SOURCE,
 } from '@iptvnator/portal/xtream/data-access';
-import { getSessionPassword } from '@iptvnator/shared/interfaces';
+import { getSessionPassword, isSessionDemo } from '@iptvnator/shared/interfaces';
 
 @Injectable({
     providedIn: 'root',
@@ -31,6 +31,7 @@ export class AppPortalPlaybackPositionsService
         playlistId: string,
         data: PlaybackPositionData
     ): Promise<void> {
+        if (isSessionDemo()) return; // a demo keeps no progress
         await this.dataSource.savePlaybackPosition(playlistId, data);
     }
 

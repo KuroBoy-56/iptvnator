@@ -6,7 +6,7 @@ import {
     withMethods,
     withState,
 } from '@ngrx/signals';
-import { XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
+import { isSessionDemo, XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import {
     PlaybackPositionData,
@@ -198,6 +198,8 @@ export function withPlaybackPositions() {
                     playlistId: string,
                     data: PlaybackPositionData
                 ): Promise<void> {
+                    // a demo keeps no progress
+                    if (isSessionDemo()) return;
                     try {
                         const selected: any = (store as { selectedItem?: () => unknown }).selectedItem?.();
                         if (selected) {

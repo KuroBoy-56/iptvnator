@@ -14,6 +14,7 @@ import {
     extractStalkerItemId,
     extractStalkerItemPoster,
     extractStalkerItemTitle,
+    blockedForDemo,
     extractStalkerItemType,
     isStalkerRadioItem,
     normalizeStalkerDate,
@@ -303,6 +304,7 @@ export class UnifiedFavoritesDataService {
     private async addXtreamFavorite(
         item: UnifiedCollectionItem
     ): Promise<void> {
+        if (blockedForDemo()) return; // a demo keeps no favorites
         const contentId =
             item.contentId ??
             (item.xtreamId != null

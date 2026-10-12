@@ -119,14 +119,15 @@ export class PanelLoginService {
     }
 
     async checkDevice(): Promise<DeviceCheck> {
-        const res = await this.request<{ exists?: boolean; username?: string; password?: string; url?: string }>('check_mac');
+        const res = await this.request<{ exists?: boolean; username?: string; password?: string; url?: string; demo?: boolean }>('check_mac');
         if (!res.ok) return { status: 'error', message: res.error ?? 'No se pudo verificar el dispositivo.' };
         const data = res.data;
         // fake screen of the panel for new devices («Pantalla Falsa»)
         if (!data?.exists || !data.url) return { status: 'inactive', fake: parseFakeScreen(data) };
         const line = parsePanelLineUrl(data.url);
         if (!line) return { status: 'inactive', fake: parseFakeScreen(data) };
-        return { status: 'active', account: { ...line, isDemo: isDemoUser(line.username) } };
+        // the panel says when the line is a demo; old panels: the "demo_" user name
+        return { status: 'active', account: { ...line, isDemo: data.demo === true || isDemoUser(line.username) } };
     }
 
     async fetchDns(): Promise<string[]> {

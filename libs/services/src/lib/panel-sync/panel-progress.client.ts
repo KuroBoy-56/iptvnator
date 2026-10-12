@@ -4,6 +4,7 @@ import {
     PANEL_TENANT_FATAL,
     panelEndpoint,
     panelTenantFields,
+    rememberPanelDemo,
     tenantErrorCode,
     tenantStorageSuffix,
 } from '@iptvnator/shared/interfaces';
@@ -91,6 +92,7 @@ export class PanelProgressClient {
         const body = res.ok ? await res.json().catch(() => null) : null;
         const token = body?.success && typeof body.token === 'string' ? body.token : null;
         rememberPanelTmdbKey(body?.tmdbKey);
+        rememberPanelDemo(body);
         if (token) {
             this.tokens.set(tokenKey(creds), token);
             writeToken(tokenKey(creds), token);
@@ -148,6 +150,7 @@ export class PanelProgressClient {
                 if (!res?.ok) return null;
                 const body = await res.json().catch(() => null);
                 rememberPanelTmdbKey(body?.tmdbKey);
+                rememberPanelDemo(body);
                 const data: PanelSnapshot = {
                     progress: body?.progress && typeof body.progress === 'object' ? body.progress : {},
                     favorites: Array.isArray(body?.favorites) ? body.favorites : [],

@@ -23,7 +23,7 @@ import {
 } from './panel-sync.types';
 import { PanelSportsAgenda } from './panel-sports.types';
 import { lookupSeriesInfo } from './series-info.lookup';
-import { getSessionPassword } from '@iptvnator/shared/interfaces';
+import { getSessionPassword, isSessionDemo } from '@iptvnator/shared/interfaces';
 import { applyFavoriteOverrides, FavoriteChange, PanelFavoritesOutbox } from './panel-favorites-outbox';
 
 const MIN_SAVE_SECONDS = 5;
@@ -77,7 +77,8 @@ export class PanelSyncService {
         duration: number,
         options: { force?: boolean } = {}
     ): Promise<void> {
-        if (!pbInfo?.id || !(currentTime > MIN_SAVE_SECONDS)) return;
+        // a demo keeps no progress
+        if (isSessionDemo() || !pbInfo?.id || !(currentTime > MIN_SAVE_SECONDS)) return;
         const kind = pbInfo.type === 'movie' ? 'movie' : pbInfo.type === 'series' ? 'series' : null;
         if (!kind) return;
         const throttleKey = `${kind}:${clean(pbInfo.id)}`;
@@ -136,7 +137,7 @@ export class PanelSyncService {
         userIdObj: SyncUserCredentials | null | undefined,
         pbInfo: PlaybackSyncInfo | null | undefined
     ): Promise<number> {
-        if (!pbInfo?.id) return 0;
+        if (isSessionDemo() || !pbInfo?.id) return 0;
         const kind = pbInfo.type === 'movie' ? 'movie' : pbInfo.type === 'series' ? 'series' : null;
         if (!kind) return 0;
         const snapshot = await this.client.getSnapshot(this.creds(userIdObj));
@@ -149,6 +150,7 @@ export class PanelSyncService {
         kind: 'movie' | 'series',
         id: string | number
     ): Promise<PanelProgressEntry | null> {
+        if (isSessionDemo()) return null;
         const snapshot = await this.client.getSnapshot(this.creds(userIdObj));
         const wanted = clean(id);
         for (const entry of Object.values(snapshot?.progress ?? {})) {
@@ -160,6 +162,7 @@ export class PanelSyncService {
     }
 
     async getAllProgress(userIdObj?: SyncUserCredentials | null): Promise<SyncProgressTree> {
+        if (isSessionDemo()) return toProgressTree({});
         const snapshot = await this.client.getSnapshot(this.creds(userIdObj));
         return toProgressTree(snapshot?.progress);
     }
@@ -169,6 +172,7 @@ export class PanelSyncService {
         type: string,
         id: string
     ): Promise<void> {
+        if (isSessionDemo()) return;
         const creds = this.creds(userIdObj);
         const snapshot = await this.client.getSnapshot(creds);
         const kind = type === 'movie' || type === 'vod' ? 'movie' : 'series';
@@ -184,6 +188,8 @@ export class PanelSyncService {
         _timestamp?: number,
         meta: FavoriteSyncMeta = {}
     ): Promise<boolean> {
+        // a demo keeps no favorites
+        if (isSessionDemo()) return false;
         const creds = this.creds(userIdObj);
         const item = {
             id: clean(id),
@@ -204,6 +210,7 @@ export class PanelSyncService {
         bucket: string,
         id: string | number
     ): Promise<boolean> {
+        if (isSessionDemo()) return false;
         const creds = this.creds(userIdObj);
         const user = lineKey(creds);
         const favId = clean(id);
@@ -214,6 +221,7 @@ export class PanelSyncService {
 
     /** Retries favorite changes that did not reach the panel (offline, panel down…). */
     async flushFavorites(userIdObj?: SyncUserCredentials | null): Promise<void> {
+        if (isSessionDemo()) return;
         const creds = this.creds(userIdObj);
         for (const change of this.outbox.pending(lineKey(creds))) {
             if (!(await this.send(creds, change))) return; // still unreachable: keep the rest for later
@@ -222,6 +230,7 @@ export class PanelSyncService {
 
     /** Panel favorites with this device's fresh, not yet visible changes applied. */
     async getAllFavorites(userIdObj?: SyncUserCredentials | null): Promise<SyncFavoritesTree> {
+        if (isSessionDemo()) return toFavoritesTree([]);
         const creds = this.creds(userIdObj);
         const snapshot = await this.client.getSnapshot(creds);
         return toFavoritesTree(applyFavoriteOverrides(snapshot?.favorites ?? [], this.outbox.overrides(lineKey(creds))));

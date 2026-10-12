@@ -5,7 +5,7 @@ import { FavoriteItem } from './favorite-item.interface';
 import { PanelSyncService } from '@iptvnator/services';
 import { Store } from '@ngrx/store';
 import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
-import { getSessionPassword } from '@iptvnator/shared/interfaces';
+import { blockedForDemo, getSessionPassword } from '@iptvnator/shared/interfaces';
 
 function normalizeCategoryId(categoryId: string | number): number {
     const numericCategoryId = Number(categoryId);
@@ -47,7 +47,8 @@ export class FavoritesService {
         backdrop_url?: string;
         type?: string; 
     }): Promise<void> {
-        
+        if (blockedForDemo()) return; // a demo keeps no favorites
+
         await this.dataSource.addFavorite(
             item.content_id,
             item.playlist_id,

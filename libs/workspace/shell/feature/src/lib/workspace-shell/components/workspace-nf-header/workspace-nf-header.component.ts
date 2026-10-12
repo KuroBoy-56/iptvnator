@@ -13,6 +13,7 @@ import {
 import { MatIcon } from '@angular/material/icon';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { PanelBrandingService } from '@iptvnator/services';
+import { DEMO_LABEL, isSessionDemo } from '@iptvnator/shared/interfaces';
 
 interface NfNavLink {
     label: string;
@@ -176,6 +177,8 @@ export class WorkspaceNfHeaderComponent {
 
 function readUser(): string {
     try {
+        // a demo never shows the line's user: just "DEMO"
+        if (isSessionDemo()) return DEMO_LABEL;
         return localStorage.getItem('session_user') ?? '';
     } catch {
         return '';

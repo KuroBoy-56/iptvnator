@@ -146,6 +146,12 @@ lines, alerts, TMDB key, sports, name, logo and colours. The panel contract
 (api/login.php `tenant_config`, error codes) is in the panel README,
 "Distribuidores". App id: `windows` (`PANEL_APP_ID`).
 
+- **Choice kept on the PC:** the choice lives in the Electron user data
+  (`%APPDATA%`), so it survives updates. The NSIS uninstaller deletes that
+  data (`deleteAppDataOnUninstall`), so uninstall + install starts again at
+  the distributor step. After "Omitir" the login shows a link
+  "¿Tienes un número de distribuidor?" that goes back to the step
+  (`PanelTenantService.change()`).
 - **First launch:** `/login` shows the "Número de distribuidor" step
   (6 digits, Continuar / Omitir) before the device check. `AuthGuard` also
   sends the user to `/login` while no choice is stored.
@@ -251,6 +257,26 @@ every `fetch_dns` server in parallel with the typed user and password
 `active` is used for `submit_url`; otherwise an `expired` one, otherwise the
 first server. A single server is used without probing, and probing stops
 after 12 s. Auto-Demo still uses the first server.
+
+## Demo lines (DEMO mode)
+
+A line is a demo when it comes from the **Auto-Demo** button, when
+`check_mac` answers `"demo": true`, or when `api/progress.php` answers
+`"demo": true` (auth or `?v=2`; the panel says so when every panel record of
+the user is a demo). `setSessionDemo()` / `isSessionDemo()`
+(`libs/shared/interfaces/src/lib/panel-demo.util.ts`, key `session_demo`,
+also mirrored to `is_demo_<playlistId>`) hold the flag; a normal login clears
+it. While it is on:
+
+- the line's user is never shown: the top bar menu and "Mi cuenta" say
+  **DEMO**, and the password is never shown;
+- `PanelSyncService` sends no `save`, `delete`, `fav_add` or `fav_remove` and
+  reads empty "Continuar viendo" / "Mi lista"; local playback positions are not
+  saved either;
+- adding to Mi lista shows "No disponible en la DEMO" (`blockedForDemo()`
+  fires `PANEL_DEMO_BLOCKED_EVENT`, `AppComponent` shows the snack bar).
+
+The panel enforces the same rule: it stores nothing for a demo line.
 
 ## Progress and favorites sync
 
