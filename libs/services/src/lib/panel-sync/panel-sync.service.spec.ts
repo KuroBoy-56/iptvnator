@@ -1,4 +1,4 @@
-import { clearTenant, PANEL_TENANT_ERROR_EVENT, saveTenantCode } from '@iptvnator/shared/interfaces';
+import { clearTenant, isSessionDemo, PANEL_DEMO_BLOCKED_EVENT, PANEL_TENANT_ERROR_EVENT, blockedForDemo, saveTenantCode, setSessionDemo } from '@iptvnator/shared/interfaces';
 import { lineKey } from './panel-progress.client';
 import { PanelSyncService } from './panel-sync.service';
 
@@ -83,6 +83,47 @@ describe('PanelSyncService', () => {
             expect(await service().refresh(creds)).toBe(false);
             window.removeEventListener(PANEL_TENANT_ERROR_EVENT, listener);
             expect(seen).toContain('tenant_expired');
+        });
+    });
+
+    describe('demo line', () => {
+        it('turns the demo mode on when progress.php says demo and keeps nothing', async () => {
+            global.fetch = jest.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+                calls.push({ url: String(url), init });
+                if (init?.method === 'POST') return jsonResponse({ success: true, token: 'tok', demo: true });
+                return jsonResponse({ progress: {}, favorites: [], demo: true });
+            }) as typeof fetch;
+            const sync = service();
+            await sync.refresh(creds);
+            expect(isSessionDemo()).toBe(true);
+            calls = [];
+            await sync.saveProgress(creds, { id: '10', type: 'movie', title: 'Movie A' }, 300, 1000, { force: true });
+            expect(await sync.addFavorite(creds, 'Movie', '10')).toBe(false);
+            expect(await sync.removeFavorite(creds, 'Movie', '10')).toBe(false);
+            expect(calls).toHaveLength(0);
+            expect(await sync.getAllProgress(creds)).toEqual({ Movie: {}, Series: {} });
+        });
+
+        it('a demo shows no progress or favorites even from an old panel', async () => {
+            setSessionDemo(true);
+            const tree = await service().getAllProgress(creds);
+            const favs = await service().getAllFavorites(creds);
+            expect(Object.keys(tree.Movie)).toHaveLength(0);
+            expect(Object.keys(favs.LiveTv)).toHaveLength(0);
+            expect(calls).toHaveLength(0);
+        });
+
+        it('blockedForDemo tells the user only while a demo is in use', () => {
+            const seen: Event[] = [];
+            const listener = (e: Event) => seen.push(e);
+            window.addEventListener(PANEL_DEMO_BLOCKED_EVENT, listener);
+            expect(blockedForDemo()).toBe(false);
+            setSessionDemo(true);
+            expect(blockedForDemo()).toBe(true);
+            setSessionDemo(false);
+            expect(isSessionDemo()).toBe(false);
+            window.removeEventListener(PANEL_DEMO_BLOCKED_EVENT, listener);
+            expect(seen).toHaveLength(1);
         });
     });
 

@@ -6,6 +6,7 @@ import {
     withState,
 } from '@ngrx/signals';
 import { createLogger } from '@iptvnator/portal/shared/util';
+import { blockedForDemo } from '@iptvnator/shared/interfaces';
 import { XTREAM_DATA_SOURCE } from './data-sources/xtream-data-source.interface';
 import { FavoritesService } from './services/favorites.service';
 
@@ -26,6 +27,8 @@ export const withFavorites = function () {
                 contentType: 'live' | 'movie' | 'series',
                 backdropUrl?: string
             ) {
+                // a demo keeps no favorites ("No disponible en la DEMO")
+                if (blockedForDemo()) return false;
                 const normalizedXtreamId = Number(xtreamId);
                 if (
                     !Number.isFinite(normalizedXtreamId) ||

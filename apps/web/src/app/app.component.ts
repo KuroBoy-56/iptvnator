@@ -11,7 +11,7 @@ import { WindowControlsComponent } from '@iptvnator/ui/components';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { filter, take } from 'rxjs';
 import { DataService, RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
-import { AUTO_UPDATE_PLAYLISTS, Language, OPEN_FILE, Settings, STORE_KEY, Theme, createDevLogger } from '@iptvnator/shared/interfaces';
+import { AUTO_UPDATE_PLAYLISTS, DEMO_BLOCKED_MESSAGE, Language, OPEN_FILE, PANEL_DEMO_BLOCKED_EVENT, Settings, STORE_KEY, Theme, createDevLogger } from '@iptvnator/shared/interfaces';
 import { SettingsService } from './services/settings.service';
 import { PanelCacheSyncService } from './services/panel-cache-sync.service';
 import { AppUpdateNotificationPanelComponent } from './app-update-notification-panel.component';
@@ -58,6 +58,10 @@ export class AppComponent implements OnInit, OnDestroy {
         if (this.runtime.isMacOS) {
             document.body.classList.add('macos-platform');
         }
+        // demo line: "Mi lista" and the progress are not kept; the user is told so
+        window.addEventListener(PANEL_DEMO_BLOCKED_EVENT, () =>
+            this.snackBar.open(DEMO_BLOCKED_MESSAGE, undefined, { duration: 3000 })
+        );
 
         const electronProcess = this.dataService.remote?.process;
         if (this.dataService.isElectron && electronProcess && (electronProcess.platform === 'linux' || electronProcess.platform === 'win32') && electronProcess.argv.length > 2) {

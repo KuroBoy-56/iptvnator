@@ -6,6 +6,7 @@ export * from './lib/electron-api.interface';
 export * from './lib/panel-bridge.interface';
 export * from './lib/panel-endpoint.util';
 export * from './lib/panel-tenant.util';
+export * from './lib/panel-demo.util';
 export * from './lib/panel-tenant-theme.util';
 export * from './lib/epg-channel-metadata.model';
 export * from './lib/epg-channel-with-programs.interface';

@@ -104,6 +104,11 @@ export class LoginComponent implements OnInit {
         await this.startDeviceCheck(true);
     }
 
+    /** Login after "Omitir": back to the distributor step to type a number. */
+    async chooseDistributor(): Promise<void> {
+        await this.tenant.change();
+    }
+
     /** Distributor step "Omitir". */
     async skipDistributor(): Promise<void> {
         this.tenant.skip();

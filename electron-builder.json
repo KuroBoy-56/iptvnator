@@ -159,6 +159,7 @@
         "icon": "apps/web/src/assets/icons/icon.png"
     },
     "nsis": {
-        "artifactName": "${name}-${version}-windows-${arch}-setup.${ext}"
+        "artifactName": "${name}-${version}-windows-${arch}-setup.${ext}",
+        "deleteAppDataOnUninstall": true
     }
 }
