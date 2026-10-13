@@ -1,6 +1,13 @@
 @if (fakeScreen(); as fake) {
     <app-fake-screen [screen]="fake" [deviceId]="deviceId()" (unlocked)="hideFake(true)" />
 }
+<!-- first panel check of this device: a dark screen, never the login form before the panel says
+     whether the fake screen («Pantalla Falsa») goes first -->
+@if (checking() && !fakeScreen() && !needsDistributor() && !tenant.retryMessage()) {
+    <div class="nf-login-checking loading" role="status" aria-label="Verificando el dispositivo">
+        <span class="nf-spinner" aria-hidden="true"></span>
+    </div>
+} @else {
 <div class="nf-login-page">
     @if (posters().length) {
         <div class="nf-login-wall" aria-hidden="true">
@@ -108,3 +115,4 @@
         }
     </main>
 </div>
+}

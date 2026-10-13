@@ -77,7 +77,8 @@ export class LoginComponent implements OnInit {
     }
 
     async ngOnInit(): Promise<void> {
-        void this.posterService.load().then((list) => list.length && this.posters.set(list));
+        // the panel decides: without its TMDB key (owner or distributor) there is no poster wall
+        void this.posterService.load().then((list) => this.posters.set(list));
         if (this.needsDistributor() || this.tenant.retryMessage()) return;
         await this.startDeviceCheck();
     }
