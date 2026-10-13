@@ -17,6 +17,7 @@ import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller'
             [playback]="playback"
             [seriesNavigation]="seriesNavigation"
             (playbackEnded)="endedCount = endedCount + 1"
+            (playbackFailed)="failedCount = failedCount + 1"
             (previousEpisodeRequested)="previousCount = previousCount + 1"
             (nextEpisodeRequested)="nextCount = nextCount + 1"
         />
@@ -40,6 +41,7 @@ class EmbeddedMpvPlayerHostComponent {
     };
 
     endedCount = 0;
+    failedCount = 0;
     previousCount = 0;
     nextCount = 0;
 }
@@ -160,6 +162,20 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
 
         expect(fixture.componentInstance.endedCount).toBe(1);
         expect(player.isPlaying()).toBe(false);
+    });
+
+    it('emits playbackFailed once when mpv cannot open a stream, not after it played', () => {
+        const setStatus = (id: string, status: EmbeddedMpvSession['status']) => {
+            controller.session.update((s) => (s ? { ...s, id, status } : s));
+            fixture.detectChanges();
+        };
+        setStatus('session-1', 'error'); // played before: a later error is not an open failure
+        setStatus('session-2', 'loading');
+        setStatus('session-2', 'error');
+        setStatus('session-2', 'error');
+        setStatus('embedded-mpv-error', 'error'); // create/IPC failure
+
+        expect(fixture.componentInstance.failedCount).toBe(1);
     });
 
     it('hides episode navigation for live playback', () => {

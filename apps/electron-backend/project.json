@@ -22,7 +22,7 @@
                 "{workspaceRoot}/apps/electron-backend/native/build/Release"
             ],
             "options": {
-                "command": "node -e \"const fs=require('fs');const d='apps/electron-backend/native/build/Release';fs.mkdirSync(d,{recursive:true});fs.writeFileSync(d+'/README.txt','Embedded MPV native addon not compiled in this build.\\n');console.log('Skipping native C++ compilation for MPV. App will compile normally.')\""
+                "command": "node tools/embedded-mpv/build-native-addon.cjs"
             }
         },
         "build": {

@@ -29,7 +29,14 @@ jobs:
     build:
         name: macOS ${{ matrix.arch }}
         runs-on: ${{ matrix.runner }}
-        timeout-minutes: 90
+        # the first run per arch/Xcode builds FFmpeg + mpv from source (cached afterwards)
+        timeout-minutes: 150
+        env:
+            # Embedded MPV (plays MKV/AVI, AC-3/DTS/TrueHD, HEVC 10-bit/HDR, 4K...):
+            # build the native addon against the vendored LGPL libmpv for this arch.
+            IPTVNATOR_BUILD_EMBEDDED_MPV: '1'
+            IPTVNATOR_EMBEDDED_MPV_PLATFORM: darwin
+            IPTVNATOR_EMBEDDED_MPV_ARCH: ${{ matrix.arch }}
         strategy:
             fail-fast: false
             matrix:
@@ -76,6 +83,47 @@ jobs:
                   "
                   mkdir -p bin
 
+            - name: Embedded MPV runtime cache key
+              id: mpv-key
+              run: |
+                  XCODE="$(xcodebuild -version 2>/dev/null | tr '\n' ' ' || echo none)"
+                  echo "xcode=$(printf '%s' "$XCODE" | shasum -a 256 | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
+            - name: Restore embedded MPV runtime
+              id: mpv-cache
+              uses: actions/cache/restore@v4
+              with:
+                  path: |
+                      vendor/embedded-mpv/darwin-${{ matrix.arch }}/include
+                      vendor/embedded-mpv/darwin-${{ matrix.arch }}/lib
+                      vendor/embedded-mpv/darwin-${{ matrix.arch }}/runtime-manifest.json
+                  key: embedded-mpv-runtime-v2-darwin-${{ matrix.arch }}-macos11.0-xcode${{ steps.mpv-key.outputs.xcode }}-${{ hashFiles('tools/embedded-mpv/build-macos-runtime.mjs', 'tools/embedded-mpv/stage-macos-runtime.mjs', 'tools/embedded-mpv/stage-runtime.mjs') }}
+
+            - name: Build embedded MPV runtime (FFmpeg + libmpv, LGPL)
+              if: steps.mpv-cache.outputs.cache-hit != 'true'
+              env:
+                  MACOSX_DEPLOYMENT_TARGET: '11.0'
+              run: |
+                  set -euo pipefail
+                  rm -rf vendor/embedded-mpv/darwin-${{ matrix.arch }}/include \
+                         vendor/embedded-mpv/darwin-${{ matrix.arch }}/lib \
+                         vendor/embedded-mpv/darwin-${{ matrix.arch }}/runtime-manifest.json
+                  brew install meson ninja pkg-config nasm autoconf automake libtool xz
+                  RUNTIME_PREFIX="${RUNNER_TEMP}/embedded-mpv-runtime/${{ matrix.arch }}/prefix"
+                  pnpm embedded-mpv:build-runtime -- "${{ matrix.arch }}" "${RUNTIME_PREFIX}"
+                  pnpm embedded-mpv:stage-runtime -- darwin "${{ matrix.arch }}" "${RUNTIME_PREFIX}"
+
+            - name: Save embedded MPV runtime
+              # saved right away so a later failure (signing, packaging) does not lose the long build
+              if: steps.mpv-cache.outputs.cache-hit != 'true'
+              uses: actions/cache/save@v4
+              with:
+                  path: |
+                      vendor/embedded-mpv/darwin-${{ matrix.arch }}/include
+                      vendor/embedded-mpv/darwin-${{ matrix.arch }}/lib
+                      vendor/embedded-mpv/darwin-${{ matrix.arch }}/runtime-manifest.json
+                  key: ${{ steps.mpv-cache.outputs.cache-primary-key }}
+
             - name: Signing mode
               id: signing
               env:
@@ -111,13 +159,14 @@ jobs:
                   APPLE_ID: ${{ secrets.APPLE_ID }}
                   APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
                   APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: '0'
+                  # fail instead of silently shipping without embedded MPV
+                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: '1'
               run: pnpm run make:app -- --publishPolicy=never
 
             - name: Make app (ad-hoc signature)
               if: steps.signing.outputs.mode == 'adhoc'
               env:
-                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: '0'
+                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: '1'
               run: pnpm run make:mac -- --publishPolicy=never
 
             - name: Verify the app
@@ -128,6 +177,15 @@ jobs:
                   echo "App: $APP"
                   codesign --verify --deep --strict --verbose=2 "$APP"
                   test -f "$APP/Contents/Resources/app.asar"
+                  # embedded MPV: addon + bundled libmpv for this arch, each with a valid signature
+                  NATIVE="$APP/Contents/Resources/app.asar.unpacked/electron-backend/native"
+                  test -f "$NATIVE/embedded_mpv.node"
+                  test -f "$NATIVE/embedded-mpv-runtime.json"
+                  ls "$NATIVE/lib"/libmpv*.dylib
+                  lipo -archs "$NATIVE/embedded_mpv.node" | grep -q "$(echo '${{ matrix.arch }}' | sed 's/x64/x86_64/')"
+                  for BIN in "$NATIVE/embedded_mpv.node" "$NATIVE"/lib/*.dylib; do
+                      codesign --verify --strict "$BIN"
+                  done
                   /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$APP/Contents/Info.plist"
                   ls -la dist/executables/*.dmg dist/executables/*.zip
 

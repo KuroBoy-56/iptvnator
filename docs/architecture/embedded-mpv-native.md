@@ -189,6 +189,35 @@ Every IPC call goes through a `guardIpc` helper that swallows addon-side throws 
 
 The Electron main process holds an `electron.powerSaveBlocker` of type `prevent-display-sleep` whenever any embedded MPV session has status `playing`. Released on pause, EOF (`ended`), dispose, or shutdown. Necessary because libmpv-rendered video does not own the windowing surface, so MPV's own screensaver inhibition does not apply. See `EmbeddedMpvNativeService.updatePowerBlocker()` for the implementation.
 
+## Automatic Fallback From The Inline Players
+
+`WebPlayerViewComponent` hands a stream to embedded MPV by itself when the
+inline player (Video.js / HTML5 / ArtPlayer) reports a format failure
+(`externalFallbackRecommended`) and `EmbeddedMpvAvailabilityService` confirms
+embedded MPV works on this machine (`prepareEmbeddedMpv` exists and returns
+`supported: true`; the answer is cached for the run). The switch only lasts
+for the current stream, resumes VOD at the last inline position and never
+writes the player setting. Before that, a failing stream is retried once on
+the other scheme (http ↔ https); embedded MPV does the same through its
+`playbackFailed` output. See `libs/ui/playback/src/lib/web-player-view/playback-recovery.ts`
+and "Provider DNS scheme" in `panel-integration.md`.
+
+## Fork Build Opt-In (MPX Player)
+
+`nx run electron-backend:build-embedded-mpv` runs
+`tools/embedded-mpv/build-native-addon.cjs`. It compiles the addon (via
+`build-embedded-mpv.js`) only when `IPTVNATOR_BUILD_EMBEDDED_MPV=1`;
+otherwise it only creates the empty `native/build/Release` folder, so local
+Windows builds without a toolchain/runtime behave as before and ship without
+embedded MPV. `.github/workflows/build-macos.yml` sets the flag, builds and
+stages the LGPL runtime per arch (`embedded-mpv:build-runtime` +
+`embedded-mpv:stage-runtime`, cached with `actions/cache` by arch, Xcode
+version and the runtime scripts' hash), requires the addon
+(`IPTVNATOR_REQUIRE_EMBEDDED_MPV=1`) and checks the addon/libmpv
+architecture and signatures in the packaged `.app`. The runtime binaries are
+ad-hoc signed when they are staged, then re-signed by electron-builder with
+the Apple certificate when one is configured.
+
 ## Packaging State
 
 Current development behavior:

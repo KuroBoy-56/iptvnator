@@ -9,7 +9,6 @@ import {
     output,
     signal,
     untracked,
-    OnInit
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ClipboardModule } from '@angular/cdk/clipboard';
@@ -24,6 +23,7 @@ import {
     Settings,
     STORE_KEY,
     VideoPlayer,
+    applyPreferredStreamScheme,
 } from '@iptvnator/shared/interfaces';
 import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
@@ -39,6 +39,12 @@ import {
 } from '../playback-diagnostics/playback-diagnostics.util';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { buildCurrentPlaybackInfo } from './current-playback-info';
+import { getDiagnosticTranslationBase } from './playback-diagnostic-keys.util';
+import { getHeaderValue } from './playback-headers.util';
+import {
+    EmbeddedMpvAvailabilityService,
+    PlaybackRecovery,
+} from './playback-recovery';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 
@@ -67,9 +73,18 @@ type PlaybackDiagnosticDetail = {
     ],
     encapsulation: ViewEncapsulation.None,
 })
-export class WebPlayerViewComponent implements OnInit {
+export class WebPlayerViewComponent {
     storage = inject(StorageMap);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    /**
+     * Smarters-style recovery of the current stream: one http ↔ https retry,
+     * then embedded MPV for formats the inline player cannot play (see
+     * `PlaybackRecovery`).
+     */
+    private readonly autoMpv = new PlaybackRecovery(
+        inject(EmbeddedMpvAvailabilityService)
+    );
+    readonly autoEmbeddedMpv = this.autoMpv.active.asReadonly();
     private readonly playlistContext = inject(PlaylistContextFacade, { optional: true });
 
     streamUrl = input.required<string>();
@@ -102,7 +117,8 @@ export class WebPlayerViewComponent implements OnInit {
     readonly reloadToken = signal(0);
     readonly playbackDiagnostic = signal<PlaybackDiagnostic | null>(null);
     readonly visiblePlaybackDiagnostic = computed(() =>
-        this.selectedPlayer() === VideoPlayer.EmbeddedMpv
+        this.selectedPlayer() === VideoPlayer.EmbeddedMpv ||
+        this.autoMpv.pending()
             ? null
             : this.playbackDiagnostic()
     );
@@ -117,7 +133,8 @@ export class WebPlayerViewComponent implements OnInit {
             : 'PLAYBACK_DIAGNOSTICS.INLINE_FAILURE_TITLE'
     );
 
-    readonly resolvedPlayback = computed<ResolvedPortalPlayback>(() => {
+    /** The stream as the host gave it. */
+    private readonly basePlayback = computed<ResolvedPortalPlayback>(() => {
         const playback = this.playback();
         let rawUrl = playback?.streamUrl || this.streamUrl();
         const title = playback?.title || this.title() || rawUrl;
@@ -144,13 +161,33 @@ export class WebPlayerViewComponent implements OnInit {
             startTime: this.startTime(),
         };
     });
-
-    readonly selectedPlayer = computed(
-        () =>
-            this.playerOverride() ??
-            this.settings()?.player ??
-            VideoPlayer.VideoJs
+    private readonly baseStreamUrl = computed(
+        () => this.basePlayback().streamUrl
     );
+    /** The given stream, on the scheme that worked earlier this session. */
+    private readonly preferredStreamUrl = computed(() =>
+        applyPreferredStreamScheme(this.baseStreamUrl())
+    );
+    /** The stream being played (on the other scheme during a retry). */
+    readonly resolvedPlayback = computed<ResolvedPortalPlayback>(() => ({
+        ...this.basePlayback(),
+        streamUrl: this.autoMpv.schemeUrl() ?? this.preferredStreamUrl(),
+    }));
+
+    readonly selectedPlayer = computed(() =>
+        this.autoEmbeddedMpv()
+            ? VideoPlayer.EmbeddedMpv
+            : (this.playerOverride() ??
+              this.settings()?.player ??
+              VideoPlayer.VideoJs)
+    );
+    readonly embeddedMpvPlayback = computed<ResolvedPortalPlayback>(() => {
+        const playback = this.resolvedPlayback();
+        const resumeAt = this.autoMpv.startTime();
+        return resumeAt === null
+            ? playback
+            : { ...playback, startTime: resumeAt };
+    });
     readonly recordingFolder = computed(
         () => this.settings()?.recordingFolder ?? ''
     );
@@ -168,15 +205,16 @@ export class WebPlayerViewComponent implements OnInit {
             );
         });
 
+        // a new stream (URL) starts on the configured player again
+        effect(() => {
+            this.baseStreamUrl();
+            untracked(() => this.autoMpv.reset());
+        });
+
         effect(() => {
             (window as unknown as { currentPlaybackInfo?: unknown }).currentPlaybackInfo =
                 buildCurrentPlaybackInfo(this.channel, this.resolvedPlayback(), !!this.seriesNavigation());
         });
-    }
-
-    ngOnInit(): void {
-        // Limpiado de llamadas directas al servicio de sincronización. 
-        // El componente solo emite el evento de tiempo hacia arriba de forma limpia.
     }
 
     setVjsOptions(streamUrl: string, isLive = true) {
@@ -219,15 +257,15 @@ export class WebPlayerViewComponent implements OnInit {
             http: {
                 referrer:
                     playback.referer ??
-                    this.getHeaderValue(playback.headers, 'Referer') ??
+                    getHeaderValue(playback.headers, 'Referer') ??
                     '',
                 'user-agent':
                     playback.userAgent ??
-                    this.getHeaderValue(playback.headers, 'User-Agent') ??
+                    getHeaderValue(playback.headers, 'User-Agent') ??
                     '',
                 origin:
                     playback.origin ??
-                    this.getHeaderValue(playback.headers, 'Origin') ??
+                    getHeaderValue(playback.headers, 'Origin') ??
                     '',
             },
             radio: 'false',
@@ -241,6 +279,46 @@ export class WebPlayerViewComponent implements OnInit {
         }
 
         this.playbackDiagnostic.set(issue);
+        if (!issue) {
+            return;
+        }
+        const playback = this.resolvedPlayback();
+        const next = this.autoMpv.onInlineFailure(issue, playback.streamUrl);
+        if (next === 'retry-other-scheme') {
+            // resolvedPlayback() now carries the other scheme: the reload
+            // effect clears the diagnostic and reloads the inline player.
+            this.playbackDiagnostic.set(null);
+        } else if (next === 'embedded-mpv') {
+            void this.autoMpv
+                .trySwitch(this.isLivePlayback(playback), () =>
+                    Boolean(this.playbackDiagnostic())
+                )
+                .then((switched) => {
+                    if (switched) {
+                        this.playbackDiagnostic.set(null);
+                    }
+                });
+        }
+    }
+
+    onInlineTimeUpdate(event: { currentTime: number; duration: number }) {
+        this.autoMpv.recordInlinePosition(event.currentTime);
+        const url = this.resolvedPlayback().streamUrl;
+        this.autoMpv.notePlaying(url, event.currentTime);
+        this.timeUpdate.emit(event);
+    }
+
+    onEmbeddedMpvTimeUpdate(event: { currentTime: number; duration: number }) {
+        // MPV reports the resume position while opening: count progress past it
+        const start = this.embeddedMpvPlayback().startTime ?? 0;
+        const url = this.resolvedPlayback().streamUrl;
+        this.autoMpv.notePlaying(url, event.currentTime - start);
+        this.timeUpdate.emit(event);
+    }
+
+    /** Embedded MPV could not open the stream: retry the other scheme once. */
+    onEmbeddedMpvFailed(): void {
+        this.autoMpv.onEmbeddedMpvFailure(this.resolvedPlayback().streamUrl);
     }
 
     requestExternalFallback(player: ExternalPlayerName): void {
@@ -266,7 +344,7 @@ export class WebPlayerViewComponent implements OnInit {
     }
 
     getDiagnosticTitleKey(issue: PlaybackDiagnostic): string {
-        return `${this.getDiagnosticTranslationBase(issue)}.TITLE`;
+        return `${getDiagnosticTranslationBase(issue)}.TITLE`;
     }
 
     getDiagnosticDescriptionKey(issue: PlaybackDiagnostic): string {
@@ -277,7 +355,7 @@ export class WebPlayerViewComponent implements OnInit {
             return 'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.PWA_DESCRIPTION';
         }
 
-        return `${this.getDiagnosticTranslationBase(issue)}.DESCRIPTION`;
+        return `${getDiagnosticTranslationBase(issue)}.DESCRIPTION`;
     }
 
     getDiagnosticMeta(issue: PlaybackDiagnostic): string {
@@ -304,75 +382,11 @@ export class WebPlayerViewComponent implements OnInit {
         ];
     }
 
-    private getDiagnosticTranslationBase(issue: PlaybackDiagnostic): string {
-        switch (issue.code) {
-            case PlaybackDiagnosticCode.UnsupportedContainer:
-                return 'PLAYBACK_DIAGNOSTICS.UNSUPPORTED_CONTAINER';
-            case PlaybackDiagnosticCode.UnsupportedCodec:
-                return 'PLAYBACK_DIAGNOSTICS.UNSUPPORTED_CODEC';
-            case PlaybackDiagnosticCode.MediaDecodeError:
-                return 'PLAYBACK_DIAGNOSTICS.MEDIA_DECODE_ERROR';
-            case PlaybackDiagnosticCode.NetworkError:
-                return 'PLAYBACK_DIAGNOSTICS.NETWORK_ERROR';
-            case PlaybackDiagnosticCode.BrowserAccessError:
-                return 'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR';
-            case PlaybackDiagnosticCode.DrmOrEncryption:
-                return 'PLAYBACK_DIAGNOSTICS.DRM_OR_ENCRYPTION';
-            case PlaybackDiagnosticCode.UnknownPlaybackError:
-            default:
-                return 'PLAYBACK_DIAGNOSTICS.UNKNOWN_PLAYBACK_ERROR';
-        }
-    }
-
     private isLivePlayback(playback: ResolvedPortalPlayback): boolean {
         if (typeof playback.isLive === 'boolean') {
             return playback.isLive;
         }
 
         return !playback.contentInfo;
-    }
-
-    private getHeaderValue(
-        headers: ResolvedPortalPlayback['headers'] | undefined,
-        name: string
-    ): string | undefined {
-        if (!headers) {
-            return undefined;
-        }
-
-        const matchingKey = Object.keys(headers).find(
-            (key) => key.toLowerCase() === name.toLowerCase()
-        );
-        return matchingKey ? headers[matchingKey] : undefined;
-    }
-
-    private formatPlayer(player: PlaybackDiagnostic['player']): string {
-        switch (player) {
-            case 'videojs':
-                return 'Video.js';
-            case 'html5':
-                return 'HTML5';
-            case 'artplayer':
-                return 'ArtPlayer';
-            default:
-                return '';
-        }
-    }
-
-    private formatDiagnosticSource(
-        source: PlaybackDiagnostic['source']
-    ): string {
-        switch (source) {
-            case 'hls':
-                return 'HLS.js';
-            case 'mpegts':
-                return 'mpegts.js';
-            case 'native':
-                return 'Native media element';
-            case 'source':
-                return 'Stream metadata';
-            default:
-                return source;
-        }
     }
 }

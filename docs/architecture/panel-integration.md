@@ -580,6 +580,48 @@ Two layers handle this:
 - **Electron `XTREAM_REQUEST`:** after a connection failure on https (timeout,
   refused, TLS error), the request is retried once over http. The host is
   remembered for the run (`xtream-scheme-fallback.ts`).
+- **Streams (inline players and embedded MPV):** when a stream fails to play
+  (and before the automatic switch to embedded MPV, see below), the web player
+  view retries the same URL once on the other scheme — `http://host:80` ↔
+  `https://host`, dropping the default port of the scheme being left
+  (`withScheme` / `otherSchemeUrl` in
+  `libs/shared/interfaces/src/lib/stream-scheme.util.ts`, also used by the
+  login probe above). Embedded MPV does the same when it cannot open a stream
+  (`EmbeddedMpvPlayerComponent.playbackFailed`). A URL that already played is
+  not retried. When the retried scheme plays, it is remembered for the host
+  in memory (`rememberStreamScheme`), and later streams of that host start on
+  it (`applyPreferredStreamScheme`). `PanelSessionService.start` / `clear`
+  forget it (`resetStreamSchemePreference`). External MPV/VLC are not covered.
+
+### Unsupported formats: automatic embedded MPV (Smarters-like)
+
+The inline players (Video.js default, HTML5, ArtPlayer) run on Chromium's
+media stack, which cannot play MKV/AVI with AC-3/DTS/TrueHD audio, many HEVC
+10-bit/HDR files and other formats. When an inline failure is a format
+problem (`PlaybackDiagnostic.externalFallbackRecommended`: unsupported
+container or codec, decode error, browser-only access rule, HLS key/DRM) and
+embedded MPV is available on the machine
+(`EmbeddedMpvAvailabilityService`: the `prepareEmbeddedMpv` bridge method
+exists **and** reports `supported: true`, i.e. the native addon and libmpv
+runtime are bundled), `WebPlayerViewComponent` switches that stream to
+embedded MPV automatically, from the last inline position for VOD (live stays
+live). It overrides the player only for the current stream (reset when the
+stream URL changes) and never changes the saved player setting. Without
+embedded MPV the diagnostic banner stays as before. The order is: other
+scheme once → embedded MPV (with the URL that answered) → diagnostic. Logic:
+`libs/ui/playback/src/lib/web-player-view/playback-recovery.ts`.
+
+Embedded MPV ships in the Mac build (`.github/workflows/build-macos.yml`
+builds the LGPL FFmpeg/libmpv runtime per arch, cached, and the native addon
+with `IPTVNATOR_BUILD_EMBEDDED_MPV=1`). Windows builds made without that flag
+(and without a staged `vendor/embedded-mpv/win32-x64` runtime) still ship
+without it, so they keep the diagnostic banner.
+
+The inline players do not cap quality: hls.js runs with
+`capLevelToPlayerSize: false` and a 120 MB forward buffer, and Video.js VHS
+with `limitRenditionByPlayerDimensions: false`
+(`libs/ui/playback/src/lib/playback-quality/high-quality-playback.config.ts`),
+so 4K renditions are picked whenever the bandwidth allows.
 
 Failed provider requests are only logged. The old native "CAZADOR DE ERRORES"
 error box is gone, so background calls such as `get_account_info` no longer
