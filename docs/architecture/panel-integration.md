@@ -127,6 +127,14 @@ resolved later). The line password is never stored in `localStorage`.
   renderer's `PanelErrorHandler` (`apps/web/src/app/services/panel-error-reporter.ts`)
   reports Angular errors. The line password is never part of a report. The
   owner sees them on the panel page «Errores de las apps».
+  While that first `check_mac` runs the login renders only a dark spinner
+  (`.nf-login-checking`), never the form: an active fake screen is the first
+  thing the user sees.
+- **Login poster wall:** `LoginPostersService` asks the panel
+  `api/tmdb.php?path=movie/now_playing&language=es-ES&page=N` (+ `t`/`app`
+  with a distributor). The panel uses the distributor's TMDB key or, with
+  Omitir, the owner's; `{"error":"tmdb_key_not_set"}` means no wall. Cached
+  12 h per distributor (`login_posters_v2` + `tenantStorageSuffix()`).
 
 ## TLS certificates
 
