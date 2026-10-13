@@ -49,6 +49,20 @@ function errorMessage(data: unknown, fallback: string): string {
  * tenant + app when a distributor is chosen). fetch_dns and tenant_config
  * answer with an encrypted body; the rest (and every error) with JSON.
  */
+/** Panel time minus device time (seconds), for the "ts" of every request. */
+let clockSkew = 0;
+
+/** The panel's time from a 401 ts_expired / ts_invalid / replay reply, or 0. */
+function replayServerTime(text: string): number {
+    try {
+        const j = JSON.parse(text) as { code?: unknown; server_time?: unknown };
+        const t = Number(j.server_time);
+        return typeof j.code === 'string' && j.code.startsWith('ts_') && t > 0 ? t : 0;
+    } catch {
+        return 0;
+    }
+}
+
 export async function panelLoginRequest(
     action: PanelLoginAction,
     payload: PanelLoginPayload | undefined,
@@ -72,9 +86,11 @@ export async function panelLoginRequest(
     if (action === 'tenant_config' && !tenant) {
         return { ok: false, status: 0, code: 'BAD_RESPONSE', error: 'Número de distribuidor no válido' };
     }
-    const plain = JSON.stringify(
+    // anti-hack check of the panel: the request time ("ts"); with a wrong device clock the panel answers
+    // 401 ts_expired with its own time and the request is sent once more with the clock corrected
+    const plainFor = (ts: number) => JSON.stringify(
         action === 'tenant_config'
-            ? { code: tenant, app: PANEL_APP_ID, device: deps.deviceId }
+            ? { code: tenant, app: PANEL_APP_ID, device: deps.deviceId, ts }
             : {
                   mac_address: deps.deviceId,
                   username: payload?.username?.trim() || undefined,
@@ -90,22 +106,29 @@ export async function panelLoginRequest(
                   enc: LINE_REPLY.includes(action) ? 1 : undefined,
                   // device type of this MAC in the panel (Clientes MAC › Dispositivo) and the fake screen
                   platform: PANEL_APP_ID,
+                  ts,
               }
     );
-    const body = new URLSearchParams({ action, data: encryptPayload(plain, deps.masterKey) });
 
     let status = 0;
     let text = '';
-    try {
-        const res = await deps.fetch(panelEndpoint('login.php'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: body.toString(),
-        });
-        status = res.status;
-        text = await res.text();
-    } catch {
-        return { ok: false, status: 0, code: 'NETWORK', error: 'No se pudo conectar con el panel.' };
+    for (let attempt = 0; attempt < 2; attempt++) {
+        const ts = Math.floor(Date.now() / 1000) + clockSkew;
+        const body = new URLSearchParams({ action, data: encryptPayload(plainFor(ts), deps.masterKey) });
+        try {
+            const res = await deps.fetch(panelEndpoint('login.php'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body.toString(),
+            });
+            status = res.status;
+            text = await res.text();
+        } catch {
+            return { ok: false, status: 0, code: 'NETWORK', error: 'No se pudo conectar con el panel.' };
+        }
+        const serverTime = attempt === 0 && status === 401 ? replayServerTime(text) : 0;
+        if (!serverTime) break;
+        clockSkew = serverTime - Math.floor(Date.now() / 1000);
     }
 
     if (ENCRYPTED_REPLY.includes(action) && status === 200) {
