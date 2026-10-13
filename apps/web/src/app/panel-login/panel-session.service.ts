@@ -8,6 +8,7 @@ import {
     clearSessionCredentials,
     normalizeXtreamServerUrl,
     Playlist,
+    resetStreamSchemePreference,
     PlaylistMeta,
     setSessionAlertAccounts,
     setSessionDemo,
@@ -37,6 +38,8 @@ export class PanelSessionService {
     private readonly panelSync = inject(PanelSyncService);
 
     async start(account: PanelAccount): Promise<void> {
+        // a new session/line starts without remembered stream schemes
+        resetStreamSchemePreference();
         const server = await resolveReachableServer(
             normalizeXtreamServerUrl(account.server).trim(),
             window.electron?.xtreamProbeUrl
@@ -105,6 +108,7 @@ export class PanelSessionService {
             // Nothing stored.
         }
         clearSessionCredentials();
+        resetStreamSchemePreference();
     }
 
     private async removeOtherLines(playlists: PlaylistMeta[], keepId: string | undefined): Promise<void> {

@@ -27,6 +27,7 @@ import {
 } from '../playback-diagnostics/playback-diagnostics.util';
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { HIGH_QUALITY_VHS_OPTIONS } from '../playback-quality/high-quality-playback.config';
 import { PanelSyncService } from '@iptvnator/services';
 
 type VideoPlayerSource = {
@@ -157,7 +158,10 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             subsCapsButton: true
         };
         vjsOptions.html5 = {
-            vhs: { overrideNative: !videoJs.browser.IS_ANY_SAFARI }
+            vhs: {
+                overrideNative: !videoJs.browser.IS_ANY_SAFARI,
+                ...HIGH_QUALITY_VHS_OPTIONS,
+            },
         };
 
         this.player = videoJs(this.target().nativeElement, vjsOptions, () => {

@@ -80,6 +80,8 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         duration: number;
     }>();
     readonly playbackEnded = output<void>();
+    /** mpv could not open the stream (error before it ever played). */
+    readonly playbackFailed = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
 
@@ -296,6 +298,8 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     private recordingMessageTimer: number | null = null;
     private viewportClickTimer: number | null = null;
     private lastEndedSessionId: string | null = null;
+    private readonly playedSessions = new Set<string>();
+    private readonly failedSessions = new Set<string>();
     private readonly recordingTick = signal(Date.now());
     private readonly recordingMessage = signal<string | null>(null);
 
@@ -434,6 +438,25 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
             this.lastEndedSessionId = session.id;
             this.playbackEnded.emit();
+        });
+
+        effect(() => {
+            const session = this.session();
+            // 'embedded-mpv-error' is a create/IPC failure, not the stream
+            if (!session || session.id === 'embedded-mpv-error') {
+                return;
+            }
+            const key = `${session.id}|${session.streamUrl}`;
+            if (session.status === 'playing') {
+                this.playedSessions.add(key);
+            } else if (
+                session.status === 'error' &&
+                !this.playedSessions.has(key) &&
+                !this.failedSessions.has(key)
+            ) {
+                this.failedSessions.add(key);
+                untracked(() => this.playbackFailed.emit());
+            }
         });
 
         effect((onCleanup) => {

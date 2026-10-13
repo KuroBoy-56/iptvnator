@@ -12,9 +12,13 @@ import { By } from '@angular/platform-browser';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateModule } from '@ngx-translate/core';
 import { of, Subject } from 'rxjs';
-import { VideoPlayer } from '@iptvnator/shared/interfaces';
+import {
+    resetStreamSchemePreference,
+    VideoPlayer,
+} from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import type { WebPlayerViewComponent as WebPlayerViewComponentInstance } from './web-player-view.component';
+import { EmbeddedMpvAvailabilityService } from './playback-recovery';
 import {
     PlaybackDiagnostic,
     PlaybackDiagnosticCode,
@@ -89,6 +93,7 @@ class StubEmbeddedMpvPlayerComponent {
     readonly seriesNavigation = input<unknown>(null);
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
     readonly playbackEnded = output<void>();
+    readonly playbackFailed = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
 }
@@ -101,6 +106,7 @@ describe('WebPlayerViewComponent', () => {
         get: jest.fn(() => of({ player: VideoPlayer.VideoJs })),
     };
     let runtimeCapabilities: { supportsManagedExternalPlayers: boolean };
+    let embeddedMpvAvailability: { isAvailable: jest.Mock };
 
     beforeAll(async () => {
         ({ WebPlayerViewComponent } =
@@ -109,6 +115,9 @@ describe('WebPlayerViewComponent', () => {
 
     beforeEach(async () => {
         runtimeCapabilities = { supportsManagedExternalPlayers: false };
+        embeddedMpvAvailability = {
+            isAvailable: jest.fn(() => Promise.resolve(false)),
+        };
 
         await TestBed.configureTestingModule({
             // @defer blocks render their main content synchronously in tests.
@@ -119,6 +128,10 @@ describe('WebPlayerViewComponent', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: runtimeCapabilities,
+                },
+                {
+                    provide: EmbeddedMpvAvailabilityService,
+                    useValue: embeddedMpvAvailability,
                 },
             ],
         })
@@ -151,7 +164,15 @@ describe('WebPlayerViewComponent', () => {
 
     afterEach(() => {
         fixture.destroy();
+        resetStreamSchemePreference();
     });
+
+    /** First failure retries the other scheme; this reports the next one. */
+    const failAfterSchemeRetry = (issue: PlaybackDiagnostic) => {
+        component.handlePlaybackIssue(issue);
+        fixture.detectChanges();
+        component.handlePlaybackIssue(issue);
+    };
 
     it('anchors overlay UI to the player view host', () => {
         fixture.detectChanges();
@@ -159,7 +180,7 @@ describe('WebPlayerViewComponent', () => {
         expect(fixture.nativeElement.classList).toContain('web-player-view');
     });
 
-    it('renders diagnostics and emits MPV fallback requests when managed external players are available', () => {
+    it('renders the diagnostic banner and still emits external fallback requests when embedded MPV is unavailable', async () => {
         const requests: unknown[] = [];
         runtimeCapabilities.supportsManagedExternalPlayers = true;
         component.externalFallbackRequested.subscribe((request) =>
@@ -167,14 +188,12 @@ describe('WebPlayerViewComponent', () => {
         );
 
         fixture.detectChanges();
-        component.handlePlaybackIssue(createUnsupportedContainerDiagnostic());
+        failAfterSchemeRetry(createUnsupportedContainerDiagnostic());
+        await flushPromises();
         fixture.detectChanges();
 
         const banner = fixture.debugElement.query(
             By.css('[data-test-id="playback-diagnostic-banner"]')
-        );
-        const mpvButton = fixture.debugElement.query(
-            By.css('[data-test-id="playback-fallback-mpv"]')
         );
 
         expect(banner.nativeElement.textContent).toContain(
@@ -183,13 +202,13 @@ describe('WebPlayerViewComponent', () => {
         expect(banner.nativeElement.textContent).toContain(
             'PLAYBACK_DIAGNOSTICS.NATIVE_FALLBACK_TITLE'
         );
-        mpvButton.nativeElement.click();
+        component.requestExternalFallback('mpv');
 
         expect(requests).toEqual([
             expect.objectContaining({
                 player: 'mpv',
                 playback: expect.objectContaining({
-                    streamUrl: 'https://example.com/archive/movie.mkv',
+                    streamUrl: 'http://example.com/archive/movie.mkv',
                     title: 'Example Movie',
                 }),
                 diagnostic: expect.objectContaining({
@@ -197,6 +216,222 @@ describe('WebPlayerViewComponent', () => {
                 }),
             }),
         ]);
+    });
+
+    it('switches a stream that fails after playing to embedded MPV from the same position, without a scheme retry or touching the saved player', async () => {
+        embeddedMpvAvailability.isAvailable.mockResolvedValue(true);
+        fixture.componentRef.setInput('playback', {
+            streamUrl: 'https://example.com/movie/7.mkv',
+            title: 'Example Movie',
+            startTime: 5,
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 7,
+                contentType: 'vod',
+            },
+        });
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const inlinePlayer = fixture.debugElement.query(
+            By.directive(StubVjsPlayerComponent)
+        ).componentInstance as StubVjsPlayerComponent;
+        inlinePlayer.timeUpdate.emit({ currentTime: 42, duration: 5400 });
+        inlinePlayer.playbackIssue.emit(createUnsupportedCodecDiagnostic());
+        await flushPromises();
+        fixture.detectChanges();
+
+        const mpvPlayer = fixture.debugElement.query(
+            By.directive(StubEmbeddedMpvPlayerComponent)
+        );
+        expect(mpvPlayer).not.toBeNull();
+        expect(
+            fixture.debugElement.query(By.directive(StubVjsPlayerComponent))
+        ).toBeNull();
+        expect(
+            (mpvPlayer.componentInstance as StubEmbeddedMpvPlayerComponent)
+                .playback()
+        ).toEqual(
+            expect.objectContaining({
+                streamUrl: 'https://example.com/movie/7.mkv',
+                startTime: 42,
+            })
+        );
+        expect(component.autoEmbeddedMpv()).toBe(true);
+        expect(component.settings()?.player).toBe(VideoPlayer.VideoJs);
+        expect(component.playbackDiagnostic()).toBeNull();
+        expect(
+            fixture.debugElement.query(
+                By.css('[data-test-id="playback-diagnostic-banner"]')
+            )
+        ).toBeNull();
+    });
+
+    it('keeps live streams at the live edge when switching to embedded MPV', async () => {
+        embeddedMpvAvailability.isAvailable.mockResolvedValue(true);
+        fixture.componentRef.setInput(
+            'streamUrl',
+            'https://example.com/live/channel.ts'
+        );
+        fixture.detectChanges();
+
+        component.onInlineTimeUpdate({ currentTime: 30, duration: 0 });
+        component.handlePlaybackIssue(createUnsupportedCodecDiagnostic());
+        await flushPromises();
+        fixture.detectChanges();
+
+        expect(component.selectedPlayer()).toBe(VideoPlayer.EmbeddedMpv);
+        expect(component.embeddedMpvPlayback().startTime).toBe(0);
+    });
+
+    it('hides the diagnostic while checking embedded MPV and keeps it when MPV is unavailable', async () => {
+        let resolveAvailability: (available: boolean) => void = () =>
+            undefined;
+        embeddedMpvAvailability.isAvailable.mockReturnValue(
+            new Promise<boolean>((resolve) => {
+                resolveAvailability = resolve;
+            })
+        );
+        fixture.detectChanges();
+
+        failAfterSchemeRetry(createUnsupportedCodecDiagnostic());
+        expect(component.visiblePlaybackDiagnostic()).toBeNull();
+
+        resolveAvailability(false);
+        await flushPromises();
+        fixture.detectChanges();
+
+        expect(component.selectedPlayer()).toBe(VideoPlayer.VideoJs);
+        expect(component.visiblePlaybackDiagnostic()).toEqual(
+            expect.objectContaining({
+                code: PlaybackDiagnosticCode.UnsupportedCodec,
+            })
+        );
+        expect(
+            fixture.debugElement.query(
+                By.css('[data-test-id="playback-diagnostic-banner"]')
+            )
+        ).not.toBeNull();
+    });
+
+    it('does not switch to embedded MPV for network errors', async () => {
+        embeddedMpvAvailability.isAvailable.mockResolvedValue(true);
+        fixture.detectChanges();
+
+        failAfterSchemeRetry(createNetworkDiagnostic());
+        await flushPromises();
+
+        expect(embeddedMpvAvailability.isAvailable).not.toHaveBeenCalled();
+        expect(component.selectedPlayer()).toBe(VideoPlayer.VideoJs);
+    });
+
+    it('returns to the configured inline player when the stream changes', async () => {
+        embeddedMpvAvailability.isAvailable.mockResolvedValue(true);
+        fixture.detectChanges();
+        failAfterSchemeRetry(createUnsupportedContainerDiagnostic());
+        await flushPromises();
+        fixture.detectChanges();
+        expect(component.selectedPlayer()).toBe(VideoPlayer.EmbeddedMpv);
+
+        fixture.componentRef.setInput(
+            'streamUrl',
+            'https://example.com/archive/next.mp4'
+        );
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(component.autoEmbeddedMpv()).toBe(false);
+        expect(component.selectedPlayer()).toBe(VideoPlayer.VideoJs);
+        expect(
+            fixture.debugElement.query(By.directive(StubVjsPlayerComponent))
+        ).not.toBeNull();
+    });
+
+    it('retries the same stream once on the other scheme before embedded MPV', async () => {
+        embeddedMpvAvailability.isAvailable.mockResolvedValue(true);
+        fixture.detectChanges();
+
+        component.handlePlaybackIssue(createUnsupportedCodecDiagnostic());
+        fixture.detectChanges();
+
+        expect(component.resolvedPlayback().streamUrl).toBe(
+            'http://example.com/archive/movie.mkv'
+        );
+        expect(component.vjsOptions.sources[0].src).toBe(
+            'http://example.com/archive/movie.mkv'
+        );
+        expect(component.playbackDiagnostic()).toBeNull();
+        expect(embeddedMpvAvailability.isAvailable).not.toHaveBeenCalled();
+
+        component.handlePlaybackIssue(createUnsupportedCodecDiagnostic());
+        await flushPromises();
+        fixture.detectChanges();
+
+        expect(component.selectedPlayer()).toBe(VideoPlayer.EmbeddedMpv);
+        expect(component.embeddedMpvPlayback().streamUrl).toBe(
+            'http://example.com/archive/movie.mkv'
+        );
+    });
+
+    it('gives embedded MPV the original URL when the other scheme does not answer', async () => {
+        embeddedMpvAvailability.isAvailable.mockResolvedValue(true);
+        fixture.detectChanges();
+
+        component.handlePlaybackIssue(createUnsupportedContainerDiagnostic());
+        fixture.detectChanges();
+        component.handlePlaybackIssue(createNetworkDiagnostic());
+        await flushPromises();
+        fixture.detectChanges();
+
+        expect(component.selectedPlayer()).toBe(VideoPlayer.EmbeddedMpv);
+        expect(component.embeddedMpvPlayback().streamUrl).toBe(
+            'https://example.com/archive/movie.mkv'
+        );
+    });
+
+    it('remembers a scheme that plays and starts the next streams with it', () => {
+        fixture.detectChanges();
+        component.handlePlaybackIssue(createNetworkDiagnostic());
+        fixture.detectChanges();
+        component.onInlineTimeUpdate({ currentTime: 3, duration: 100 });
+
+        fixture.componentRef.setInput(
+            'streamUrl',
+            'https://example.com:443/archive/next.mkv'
+        );
+        fixture.detectChanges();
+
+        expect(component.resolvedPlayback().streamUrl).toBe(
+            'http://example.com/archive/next.mkv'
+        );
+    });
+
+    it('retries embedded MPV once on the other scheme when it cannot open the stream', () => {
+        fixture.componentRef.setInput(
+            'playerOverride',
+            VideoPlayer.EmbeddedMpv
+        );
+        fixture.detectChanges();
+        const mpvPlayer = () =>
+            fixture.debugElement.query(
+                By.directive(StubEmbeddedMpvPlayerComponent)
+            ).componentInstance as StubEmbeddedMpvPlayerComponent;
+
+        mpvPlayer().playbackFailed.emit();
+        fixture.detectChanges();
+        expect(mpvPlayer().playback()).toEqual(
+            expect.objectContaining({
+                streamUrl: 'http://example.com/archive/movie.mkv',
+            })
+        );
+
+        mpvPlayer().playbackFailed.emit();
+        fixture.detectChanges();
+        expect(component.resolvedPlayback().streamUrl).toBe(
+            'http://example.com/archive/movie.mkv'
+        );
     });
 
     it('keeps query-declared HLS streams on the HLS mime type', () => {
@@ -556,7 +791,7 @@ describe('WebPlayerViewComponent', () => {
 
     it('uses an inline recovery headline when external fallback actions are unavailable', () => {
         fixture.detectChanges();
-        component.handlePlaybackIssue(createNetworkDiagnostic());
+        failAfterSchemeRetry(createNetworkDiagnostic());
         fixture.detectChanges();
 
         const banner = fixture.debugElement.query(
@@ -575,47 +810,28 @@ describe('WebPlayerViewComponent', () => {
         );
     });
 
-    it('renders technical details and codec-specific hints in the diagnostic banner', () => {
+    it('renders technical details in the diagnostic banner', async () => {
         fixture.detectChanges();
         const issue = createUnsupportedCodecDiagnostic();
 
-        component.handlePlaybackIssue(issue);
+        failAfterSchemeRetry(issue);
+        await flushPromises();
         fixture.detectChanges();
 
         const details = fixture.debugElement.query(
             By.css('[data-test-id="playback-diagnostic-details"]')
-        );
-        const codecHint = fixture.debugElement.query(
-            By.css('[data-test-id="playback-codec-hint"]')
         );
 
         expect(details.nativeElement.textContent).toContain(
             'PLAYBACK_DIAGNOSTICS.DETAILS_SUMMARY'
         );
         expect(component.getDiagnosticCodecHint(issue)).toBe('HEVC, AC-3');
-        expect(component.getDiagnosticDetails(issue)).toEqual(
-            expect.arrayContaining([
-                {
-                    labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_CODE',
-                    value: 'unsupported-codec',
-                },
-                {
-                    labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_PLAYER',
-                    value: 'Video.js',
-                },
-                {
-                    labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_VIDEO_CODECS',
-                    value: 'hvc1.1.6.L93.B0',
-                },
-                {
-                    labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_AUDIO_CODECS',
-                    value: 'ac-3',
-                },
-            ])
-        );
-        expect(codecHint.nativeElement.textContent).toContain(
-            'PLAYBACK_DIAGNOSTICS.CODEC_HINT'
-        );
+        expect(component.getDiagnosticDetails(issue)).toEqual([
+            {
+                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_CODE',
+                value: 'unsupported-codec',
+            },
+        ]);
     });
 
     it('clears playback diagnostics when retrying inline playback', async () => {
@@ -629,7 +845,8 @@ describe('WebPlayerViewComponent', () => {
             expect.objectContaining({ reloadToken: 0 })
         );
 
-        component.handlePlaybackIssue(createUnsupportedCodecDiagnostic());
+        failAfterSchemeRetry(createUnsupportedCodecDiagnostic());
+        await flushPromises();
         fixture.detectChanges();
 
         const retryButton = fixture.debugElement.query(
@@ -655,6 +872,10 @@ describe('WebPlayerViewComponent', () => {
         ).toBeNull();
     });
 });
+
+function flushPromises(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, 0));
+}
 
 function createUnsupportedContainerDiagnostic(): PlaybackDiagnostic {
     return {

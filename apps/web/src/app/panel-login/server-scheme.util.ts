@@ -1,3 +1,5 @@
+import { withScheme } from '@iptvnator/shared/interfaces';
+
 const STORAGE_PREFIX = 'panel_server_scheme:';
 
 type ProbeFn = (url: string, method?: 'GET' | 'HEAD') => Promise<{ status: number }>;
@@ -23,9 +25,8 @@ function remember(server: string, scheme: 'http' | 'https'): void {
     }
 }
 
-export function withScheme(server: string, scheme: 'http' | 'https'): string {
-    return server.replace(/^https?:\/\//i, `${scheme}://`).replace(/^(http:\/\/[^/]+):443(?=\/|$)/i, '$1');
-}
+// Shared with the players' http ↔ https stream retry (drops :443 / :80).
+export { withScheme };
 
 /** Same line server, whatever the scheme and trailing slash. */
 export function sameServerHost(a?: string, b?: string): boolean {

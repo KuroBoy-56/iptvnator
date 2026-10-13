@@ -27,6 +27,7 @@ import {
 } from '../playback-diagnostics/playback-diagnostics.util';
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { HIGH_QUALITY_HLS_CONFIG } from '../playback-quality/high-quality-playback.config';
 import { PanelSyncService } from '@iptvnator/services';
 
 Artplayer.AUTO_PLAYBACK_TIMEOUT = 10000;
@@ -178,7 +179,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
                         if (this.hls) {
                             this.hls.destroy();
                         }
-                        this.hls = new Hls();
+                        this.hls = new Hls(HIGH_QUALITY_HLS_CONFIG);
                         this.hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
                             this.handleHlsManifestParsed(url, data);
                         });
