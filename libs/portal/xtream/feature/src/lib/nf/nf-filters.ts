@@ -48,14 +48,15 @@ export const NF_PLATFORMS: NfTag[] = [
         kw: ['marvel', /\bmcu\b/],
         color: '#ec1d24',
     },
-    { key: 'apple', label: 'Apple TV+', kw: ['apple'], color: '#555' },
+    { key: 'apple', label: 'Apple TV+', img: IMG + 'apple.webp', kw: ['apple'], color: '#555' },
     {
         key: 'paramount',
         label: 'Paramount+',
+        img: IMG + 'paramount.webp',
         kw: ['paramount'],
         color: '#0064ff',
     },
-    { key: 'dc', label: 'DC', kw: [/\bdc\b/, 'dc comics'], color: '#0476f2' },
+    { key: 'dc', label: 'DC', img: IMG + 'dc.webp', kw: [/\bdc\b/, 'dc comics'], color: '#0476f2' },
     {
         key: 'xmas',
         label: 'Navidad',

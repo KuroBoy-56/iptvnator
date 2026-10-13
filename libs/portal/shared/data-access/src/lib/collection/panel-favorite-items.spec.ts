@@ -22,7 +22,7 @@ describe('panelFavoritesToItems', () => {
         const resolve = jest.fn(async (id: number, type: string) =>
             (catalog[`${type}:${id}`] as XtreamContentItem) ?? null
         );
-        const entries = await panelFavoritesToItems(tree, { id: 'pl-1', name: 'LatMpx TV+' }, resolve);
+        const entries = await panelFavoritesToItems(tree, { id: 'pl-1', name: 'MPX Player' }, resolve);
 
         expect(resolve).toHaveBeenCalledWith(501, 'movie');
         expect(resolve).toHaveBeenCalledWith(42, 'series');
