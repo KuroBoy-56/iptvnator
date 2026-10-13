@@ -16,7 +16,7 @@ import {
 import { PanelAccount } from './panel-login.service';
 import { resolveReachableServer, sameServerHost } from './server-scheme.util';
 
-const DEFAULT_TITLE = 'LatMpx TV+';
+const DEFAULT_TITLE = 'MPX Player';
 const DEMO_TITLE = 'DEMO';
 
 function same(a?: string, b?: string): boolean {

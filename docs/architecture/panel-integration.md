@@ -1,6 +1,6 @@
 # Panel Integration
 
-The desktop app (product name "LatMpx TV+") is tied to the operator's IPTV
+The desktop app (product name "MPX Player"; formerly "LatMpx TV+") is tied to the operator's IPTV
 panel. The panel is the source of truth for the line (login), watch progress,
 favorites, fallback EPG and the sports agenda. There is no Firebase or other
 third-party sync.
@@ -68,7 +68,7 @@ the Android app:
      errors are always JSON.
 4. **Session.** `apps/web/src/app/panel-login/panel-session.service.ts` turns
    the line into the app session:
-   - It creates or updates one Xtream playlist, named "LatMpx TV+" or "DEMO".
+   - It creates or updates one Xtream playlist, named "MPX Player" or "DEMO".
    - It removes lines the panel no longer assigns to the device.
    - It sets the non-secret `session_*` keys (token marker, date, user, server) that `AuthGuard` reads.
    - The line password and the alert accounts stay in memory only
@@ -558,3 +558,13 @@ Two layers handle this:
 Failed provider requests are only logged. The old native "CAZADOR DE ERRORES"
 error box is gone, so background calls such as `get_account_info` no longer
 block the app.
+
+## App name and data folder
+
+The product name is **MPX Player** (`productName` in `package.json` / `electron-builder.json`,
+`app.setName` in `apps/electron-backend/src/main.ts`). The package `name` stays `LatMpx TV+` and
+`main.ts` pins `userData` to `<appData>/LatMpx TV+`, so an update keeps the session, the
+distributor code and the settings, and the NSIS uninstaller (`deleteAppDataOnUninstall`, keyed by
+the package name) still removes that folder. The default logo (`apps/web/src/assets/images/logo.png`)
+is shown in the login and the top bar when no distributor logo is set; platform tiles use
+`apps/web/src/assets/images/platforms/*.webp` (Apple TV+, Paramount+ and DC included).

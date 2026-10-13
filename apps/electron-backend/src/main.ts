@@ -1,6 +1,7 @@
 import { app, BrowserWindow, session } from 'electron';
 import { getElectronUserDataPath } from '@iptvnator/shared/database';
 import fixPath from 'fix-path';
+import { join } from 'path';
 import App from './app/app';
 import { initDatabase } from './app/database/connection';
 import DatabaseEvents from './app/events/database.events';
@@ -35,7 +36,10 @@ import { hostOf, requiresValidCertificate } from './app/util/tls-policy';
 // certificate policy below verifies them.
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-app.setName('LatMpx TV+');
+// Visible name MPX Player; the data folder keeps its old name ("LatMpx TV+") so an update keeps
+// the session, the distributor and the settings, and the uninstaller (package name) still removes it.
+app.setName('MPX Player');
+app.setPath('userData', join(app.getPath('appData'), 'LatMpx TV+'));
 app.userAgentFallback = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
 app.commandLine.appendSwitch('disable-web-security');

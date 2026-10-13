@@ -62,7 +62,7 @@ export class SettingsService {
     private storage = inject(StorageMap);
 
     /**
-     * LatMpx TV+ has a single look: the dark Netflix palette of the web
+     * MPX Player has a single look: the dark Netflix palette of the web
      * player. The workspace shell paints #141414 with off-white text, so a
      * light Material theme (an old saved "Light" setting, or "System" on a
      * light Windows desktop) produced white surfaces with white text in live

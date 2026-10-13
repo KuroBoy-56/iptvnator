@@ -10,7 +10,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 
 /** Built-in brand, used with "Omitir" and for every field the distributor leaves empty. */
-export const DEFAULT_BRAND_NAME = 'LatMpx TV+';
+export const DEFAULT_BRAND_NAME = 'MPX Player';
 
 /**
  * Distributor branding for every screen: name, logo, palette and features.

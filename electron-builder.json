@@ -1,6 +1,6 @@
 {
     "appId": "com.fourgray.iptvnator",
-    "productName": "LatMpx TV+",
+    "productName": "MPX Player",
     "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
     "directories": {
         "buildResources": "dist/apps",
@@ -29,7 +29,7 @@
     ],
     "extraMetadata": {
         "name": "LatMpx TV+",
-        "productName": "LatMpx TV+",
+        "productName": "MPX Player",
         "main": "electron-backend/main.js"
     },
     "extraResources": [
@@ -62,11 +62,11 @@
     },
     "linux": {
         "category": "Video",
-        "executableName": "LatMpx TV+",
+        "executableName": "MPX Player",
         "executableArgs": ["--ozone-platform=x11"],
         "desktop": {
             "entry": {
-                "StartupWMClass": "LatMpx TV+"
+                "StartupWMClass": "MPX Player"
             }
         },
         "target": [

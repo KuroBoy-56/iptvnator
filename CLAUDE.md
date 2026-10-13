@@ -45,7 +45,7 @@ IPTVnator is a cross-platform IPTV player application built with Angular and Ele
 
 The Mac build lives on the `macos` branch: `master` changes are merged into it, and it only adds Mac packaging (`electron-builder.json` mac block, `pnpm run make:mac` ad-hoc signing, `.github/workflows/build-macos.yml`, which is also on `master` so it can be started by hand). Shared code sends the panel app id `macos` on a Mac (`panelAppId()`).
 
-This fork ships as "LatMpx TV+" and is tied to the operator panel: panel device login (`/login`), panel-backed progress/favorites sync, panel fallback EPG and a sports section. There is no Firebase. See `docs/architecture/panel-integration.md`.
+This fork ships as "MPX Player" (formerly "LatMpx TV+"; the Electron data folder and the package `name` keep the old name so updates keep the session) and is tied to the operator panel: panel device login (`/login`), panel-backed progress/favorites sync, panel fallback EPG and a sports section. There is no Firebase. See `docs/architecture/panel-integration.md`.
 
 **Dual Environment Support**: The application is designed to work in both Electron and as a Progressive Web App (PWA). The architecture uses a factory pattern to inject environment-specific services at runtime, ensuring the same codebase works in both contexts.
 

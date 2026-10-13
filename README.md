@@ -22,7 +22,7 @@ The application is a cross-platform, open-source project built with Electron and
 
 ![IPTVnator: Channels list, player and epg list](./apps/website/public/screenshots/screenshot-player.webp)
 
-## LatMpx TV+ panel integration
+## MPX Player panel integration
 
 This build is tied to the operator panel (see [docs/architecture/panel-integration.md](docs/architecture/panel-integration.md)):
 
