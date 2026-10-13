@@ -4,7 +4,7 @@
             <span class="account-dialog__eyebrow-mark"></span>
             @if (accountInfo(); as info) {
                 {{ info.server_info.server_protocol || 'Xtream' }}
-                @if (info.server_info.timezone) {
+                @if (info.server_info.timezone && !isTrial()) {
                     <span class="account-dialog__eyebrow-divider"></span>
                     {{ info.server_info.timezone }}
                 }
@@ -171,6 +171,8 @@
                 </div>
             </section>
 
+            <!-- demo: nothing of the demo line's server -->
+            @if (!isTrial()) {
             <section class="account-panel">
                 <div class="account-panel__header">
                     <p class="account-panel__eyebrow">
@@ -207,6 +209,7 @@
                     </div>
                 </div>
             </section>
+            }
         </div>
     }
 </mat-dialog-content>

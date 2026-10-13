@@ -21,14 +21,30 @@ describe('panelLoginRequest', () => {
         expect(calls[0].url).toMatch(/\/api\/login\.php$/);
         expect(calls[0].body.get('action')).toBe('check_mac');
         const plain = JSON.parse(decryptPayload(calls[0].body.get('data') ?? '', masterKey) ?? '{}');
-        expect(plain).toEqual({ mac_address: 'AA:BB:CC:DD:EE:FF:00:11', enc: 1, platform: 'windows' });
+        expect(plain).toEqual({ mac_address: 'AA:BB:CC:DD:EE:FF:00:11', enc: 1, platform: 'windows', ts: expect.any(Number) });
+    });
+
+    it('retries once with the panel clock when the device clock is wrong (ts_expired)', async () => {
+        const calls: URLSearchParams[] = [];
+        const serverTime = Math.floor(Date.now() / 1000) + 3600;
+        const fetch: PanelFetch = async (_url, init) => {
+            calls.push(new URLSearchParams(init.body));
+            return calls.length === 1
+                ? { status: 401, text: async () => JSON.stringify({ error: 'x', code: 'ts_expired', server_time: serverTime }) }
+                : { status: 200, text: async () => '{"status":"ok"}' };
+        };
+        const result = await panelLoginRequest('submit_url', { username: 'u', password: 'p', url: 'http://dns.test' }, { fetch, masterKey, deviceId: 'ID' });
+        expect(result.ok).toBe(true);
+        expect(calls).toHaveLength(2);
+        const ts = (b: URLSearchParams) => JSON.parse(decryptPayload(b.get('data') ?? '', masterKey) ?? '{}').ts as number;
+        expect(Math.abs(ts(calls[1]) - serverTime)).toBeLessThanOrEqual(2);
     });
 
     it('sends credentials and DNS for submit_url', async () => {
         const { fetch, calls } = fakeFetch(200, '{"status":"ok"}');
         await panelLoginRequest('submit_url', { username: ' u ', password: 'p', url: 'http://dns.test' }, { fetch, masterKey, deviceId: 'ID' });
         const plain = JSON.parse(decryptPayload(calls[0].body.get('data') ?? '', masterKey) ?? '{}');
-        expect(plain).toEqual({ mac_address: 'ID', username: 'u', password: 'p', url: 'http://dns.test', platform: 'windows' });
+        expect(plain).toEqual({ mac_address: 'ID', username: 'u', password: 'p', url: 'http://dns.test', platform: 'windows', ts: expect.any(Number) });
     });
 
     it('decrypts the fetch_dns response', async () => {
@@ -64,7 +80,7 @@ describe('panelLoginRequest with a distributor', () => {
         const { fetch, calls } = fakeFetch(200, '{"exists":false}');
         await panelLoginRequest('check_mac', { tenant: '123456' }, { fetch, masterKey, deviceId: 'ID' });
         const plain = JSON.parse(decryptPayload(calls[0].body.get('data') ?? '', masterKey) ?? '{}');
-        expect(plain).toEqual({ mac_address: 'ID', tenant: '123456', app: 'windows', enc: 1, platform: 'windows' });
+        expect(plain).toEqual({ mac_address: 'ID', tenant: '123456', app: 'windows', enc: 1, platform: 'windows', ts: expect.any(Number) });
     });
 
     it('sends {code, app, device} for tenant_config and decrypts the answer', async () => {
@@ -74,7 +90,7 @@ describe('panelLoginRequest with a distributor', () => {
 
         expect(calls[0].body.get('action')).toBe('tenant_config');
         const plain = JSON.parse(decryptPayload(calls[0].body.get('data') ?? '', masterKey) ?? '{}');
-        expect(plain).toEqual({ code: '123456', app: 'windows', device: 'DEV' });
+        expect(plain).toEqual({ code: '123456', app: 'windows', device: 'DEV', ts: expect.any(Number) });
         expect(result).toEqual({ ok: true, status: 200, data: config });
     });
 
@@ -110,7 +126,7 @@ describe('panelLoginRequest with a distributor', () => {
         const result = await panelLoginRequest('auto_demo', { reseller: ' rv7k2m ' }, { fetch, masterKey, deviceId: 'ID' });
         expect(result.data).toEqual({ status: 'ok', username: 'd', password: 'x' });
         const plain = JSON.parse(decryptPayload(calls[0].body.get('data') ?? '', masterKey) ?? '{}');
-        expect(plain).toEqual({ mac_address: 'ID', reseller: 'RV7K2M', enc: 1, platform: 'windows' });
+        expect(plain).toEqual({ mac_address: 'ID', reseller: 'RV7K2M', enc: 1, platform: 'windows', ts: expect.any(Number) });
     });
 
     it('never sends a digits-only password as a reseller code', async () => {

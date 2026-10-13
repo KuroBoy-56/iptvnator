@@ -18,6 +18,8 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
+    demoEndText,
+    demoLengthText,
     resolveXtreamPortalStatus,
     type XtreamAccountInfoDialogData,
 } from '@iptvnator/shared/interfaces';
@@ -150,12 +152,17 @@ export class AccountInfoComponent {
     });
     
     readonly heroStats = computed<AccountStat[]>(() => [
-        {
-            icon: 'bolt',
-            labelKey: 'XTREAM.ACCOUNT_INFO.ACTIVE_CONNECTIONS',
-            value: this.activeConnectionsLabel(),
-            meter: this.connectionUsagePercent(),
-        },
+        // demo: no connections of the demo line
+        ...(this.isTrial()
+            ? []
+            : [
+                  {
+                      icon: 'bolt',
+                      labelKey: 'XTREAM.ACCOUNT_INFO.ACTIVE_CONNECTIONS',
+                      value: this.activeConnectionsLabel(),
+                      meter: this.connectionUsagePercent(),
+                  },
+              ]),
         {
             icon: 'live_tv',
             labelKey: 'XTREAM.ACCOUNT_INFO.LIVE_TV',
@@ -178,6 +185,14 @@ export class AccountInfoComponent {
     
     readonly userDetails = computed<AccountDetailRow[]>(() => {
         const isDemo = this.isTrial();
+        // demo: only what the panel says (its end with the exact time and its length), nothing of the demo line
+        if (isDemo) {
+            const length = demoLengthText();
+            return [
+                { labelKey: 'XTREAM.ACCOUNT_INFO.USERNAME', value: length ? `DEMO · ${length}` : 'DEMO', mono: true },
+                { labelKey: 'XTREAM.ACCOUNT_INFO.EXPIRES', value: demoEndText() || '-', tone: 'warning' },
+            ];
+        }
         const rows: AccountDetailRow[] = [
             {
                 labelKey: 'XTREAM.ACCOUNT_INFO.STATUS',

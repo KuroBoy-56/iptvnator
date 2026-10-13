@@ -259,6 +259,16 @@ every `fetch_dns` server in parallel with the typed user and password
 first server. A single server is used without probing, and probing stops
 after 12 s. Auto-Demo still uses the first server.
 
+## Anti-replay `ts`
+
+Every encrypted `login.php` payload built in the main process
+(`apps/electron-backend/src/app/panel/panel-login.service.ts`) carries `ts`
+(unix seconds). The panel accepts it within ±10 minutes and only once
+(`includes/replay_guard.php`). When the device clock is off the panel answers
+401 with `code` `ts_expired` / `ts_invalid` and `server_time`; the request is
+encrypted again once with the clock corrected (the difference is kept for the
+rest of the run).
+
 ## Demo lines (DEMO mode)
 
 A line is a demo when it comes from the **Auto-Demo** button, when
@@ -271,6 +281,14 @@ it. While it is on:
 
 - the line's user is never shown: the top bar menu and "Mi cuenta" say
   **DEMO**, and the password is never shown;
+- the account dialog shows only what the panel says about the demo: its end
+  (`demo_expires` from `check_mac` / `auto_demo`, unix seconds, shown with the
+  exact local time) and its length (`demo_duration`: "DEMO · 2 horas"); the
+  demo line's server, connections, creation and provider expiry are hidden.
+  `setSessionDemoTimes()` stores them (`session_demo_expires`,
+  `session_demo_duration`), `demoEndText()` / `demoLengthText()` format them,
+  and turning the demo off clears them. No text says "24 horas": the length
+  always comes from the panel;
 - `PanelSyncService` sends no `save`, `delete`, `fav_add` or `fav_remove` and
   reads empty "Continuar viendo" / "Mi lista"; local playback positions are not
   saved either;
