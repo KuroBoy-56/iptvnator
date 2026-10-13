@@ -12,6 +12,11 @@ on:
         tags:
             - 'mac-v*'
     workflow_dispatch:
+        inputs:
+            release_tag:
+                description: 'Publicar como versión (p. ej. mac-v1.0.0). Vacío = solo artefactos'
+                required: false
+                default: ''
 
 concurrency:
     group: build-macos-${{ github.ref }}
@@ -139,8 +144,11 @@ jobs:
     release:
         name: Release
         needs: build
-        if: startsWith(github.ref, 'refs/tags/mac-v')
+        # etiqueta mac-v* o lanzamiento a mano con release_tag (gh crea la etiqueta en el commit compilado)
+        if: startsWith(github.ref, 'refs/tags/mac-v') || startsWith(github.event.inputs.release_tag, 'mac-v')
         runs-on: ubuntu-latest
+        env:
+            TAG: ${{ github.event.inputs.release_tag || github.ref_name }}
         steps:
             - uses: actions/download-artifact@v4
               with:
@@ -150,7 +158,8 @@ jobs:
               env:
                   GH_TOKEN: ${{ github.token }}
               run: |
-                  gh release create "${GITHUB_REF_NAME}" artifacts/* \
+                  gh release create "${TAG}" artifacts/* \
                       --repo "${GITHUB_REPOSITORY}" \
-                      --title "MPX Player macOS ${GITHUB_REF_NAME#mac-v}" \
+                      --target "${GITHUB_SHA}" \
+                      --title "MPX Player macOS ${TAG#mac-v}" \
                       --notes "MPX Player para Mac: .dmg para Apple Silicon (arm64) e Intel (x64)."
