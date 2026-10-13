@@ -60,7 +60,10 @@ describe('PanelLoginService', () => {
 
     it('returns demo credentials and marks a used demo as blocked', async () => {
         request.mockResolvedValueOnce({ ok: true, status: 200, data: { status: 'ok', username: 'demo_1', password: '9' } });
-        await expect(service.autoDemo()).resolves.toEqual({ ok: true, username: 'demo_1', password: '9' });
+        await expect(service.autoDemo()).resolves.toEqual({ ok: true, username: 'demo_1', password: '9', url: '' });
+
+        request.mockResolvedValueOnce({ ok: true, status: 200, data: { status: 'ok', username: 'demo_2', password: '8', url: 'https://iptv.test:8080 ' } });
+        await expect(service.autoDemo()).resolves.toEqual({ ok: true, username: 'demo_2', password: '8', url: 'https://iptv.test:8080' });
 
         request.mockResolvedValueOnce({ ok: false, status: 403, error: 'Demo ya utilizado en este dispositivo.' });
         await expect(service.autoDemo()).resolves.toEqual({ ok: false, message: 'Demo ya utilizado en este dispositivo.', blocked: true });

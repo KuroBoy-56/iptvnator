@@ -35,26 +35,24 @@ export function sameServerHost(a?: string, b?: string): boolean {
 /**
  * The panel can hand out the line's DNS as https:// (it rewrites http to
  * https when it is itself reached over https), but many Xtream providers only
- * answer on http. Requests to https://host:443 then hang until ETIMEDOUT.
- * When an https server does not answer, http on the same host is tried and
- * the working scheme is remembered for the host.
+ * answer on http (and a few only on https). Requests to a scheme the server
+ * does not speak hang until ETIMEDOUT. Both schemes are tried, the remembered
+ * one for the host first (if it stopped answering the other one is tried),
+ * and the scheme that answers is remembered for the host.
  */
 export async function resolveReachableServer(server: string, probe?: ProbeFn): Promise<string> {
-    if (!/^https:\/\//i.test(server) || !probe) return server;
-    const known = remembered(server);
-    if (known) return withScheme(server, known);
-    const base = server.replace(/\/+$/, '');
+    if (!/^https?:\/\//i.test(server) || !probe) return server;
+    const given: 'http' | 'https' = /^https:\/\//i.test(server) ? 'https' : 'http';
+    const first = remembered(server) ?? given;
+    const order: ('http' | 'https')[] = [first, first === 'https' ? 'http' : 'https'];
     try {
-        const secure = await probe(`${base}/player_api.php`, 'GET');
-        if (secure.status > 0) {
-            remember(server, 'https');
-            return server;
-        }
-        const plain = withScheme(server, 'http');
-        const fallback = await probe(`${plain.replace(/\/+$/, '')}/player_api.php`, 'GET');
-        if (fallback.status > 0) {
-            remember(server, 'http');
-            return plain;
+        for (const scheme of order) {
+            const candidate = withScheme(server, scheme);
+            const answer = await probe(`${candidate.replace(/\/+$/, '')}/player_api.php`, 'GET');
+            if (answer.status > 0) {
+                remember(server, scheme);
+                return candidate;
+            }
         }
     } catch {
         // Probe unavailable: keep the DNS as the panel gave it.
