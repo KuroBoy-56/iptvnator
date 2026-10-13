@@ -249,7 +249,14 @@ export class LoginComponent implements OnInit {
         this.say('Demo activada. Entrando…', 'success');
         // the demo's own server first (the session tries http and https on it)
         if (demo.url) {
-            await this.enter({ server: demo.url, username: demo.username, password: demo.password, isDemo: true });
+            await this.enter({
+                server: demo.url,
+                username: demo.username,
+                password: demo.password,
+                isDemo: true,
+                demoExpires: demo.expires,
+                demoDuration: demo.duration,
+            });
             return;
         }
         const check = await this.panel.checkDevice();
@@ -263,7 +270,14 @@ export class LoginComponent implements OnInit {
             this.say('El panel no tiene servidores disponibles.', 'error');
             return;
         }
-        await this.enter({ server, username: demo.username, password: demo.password, isDemo: true });
+        await this.enter({
+            server,
+            username: demo.username,
+            password: demo.password,
+            isDemo: true,
+            demoExpires: demo.expires,
+            demoDuration: demo.duration,
+        });
     }
 
     private async enter(account: Parameters<PanelSessionService['start']>[0]): Promise<void> {

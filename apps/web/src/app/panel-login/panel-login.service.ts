@@ -22,6 +22,9 @@ export interface PanelAccount {
     username: string;
     password: string;
     isDemo: boolean;
+    /** demo: end (unix seconds) and length (seconds) as the panel says */
+    demoExpires?: number;
+    demoDuration?: number;
 }
 
 export type DeviceCheck =
@@ -31,7 +34,7 @@ export type DeviceCheck =
 
 export type DemoResult =
     /** url: the demo's server as the panel gives it ('' on older panels) */
-    | { ok: true; username: string; password: string; url: string }
+    | { ok: true; username: string; password: string; url: string; expires: number; duration: number }
     | { ok: false; message: string; blocked: boolean };
 
 export type TenantCheck =
@@ -120,7 +123,15 @@ export class PanelLoginService {
     }
 
     async checkDevice(): Promise<DeviceCheck> {
-        const res = await this.request<{ exists?: boolean; username?: string; password?: string; url?: string; demo?: boolean }>('check_mac');
+        const res = await this.request<{
+            exists?: boolean;
+            username?: string;
+            password?: string;
+            url?: string;
+            demo?: boolean;
+            demo_expires?: number;
+            demo_duration?: number;
+        }>('check_mac');
         if (!res.ok) return { status: 'error', message: res.error ?? 'No se pudo verificar el dispositivo.' };
         const data = res.data;
         // fake screen of the panel for new devices («Pantalla Falsa»)
@@ -128,7 +139,15 @@ export class PanelLoginService {
         const line = parsePanelLineUrl(data.url);
         if (!line) return { status: 'inactive', fake: parseFakeScreen(data) };
         // the panel says when the line is a demo; old panels: the "demo_" user name
-        return { status: 'active', account: { ...line, isDemo: data.demo === true || isDemoUser(line.username) } };
+        return {
+            status: 'active',
+            account: {
+                ...line,
+                isDemo: data.demo === true || isDemoUser(line.username),
+                demoExpires: Number(data.demo_expires) || 0,
+                demoDuration: Number(data.demo_duration) || 0,
+            },
+        };
     }
 
     async fetchDns(): Promise<string[]> {
@@ -144,12 +163,26 @@ export class PanelLoginService {
 
     /** A reseller demo code (see isResellerCode) registers the demo under that reseller. */
     async autoDemo(reseller?: string): Promise<DemoResult> {
-        const res = await this.request<{ status?: string; username?: string; password?: string; url?: string }>(
+        const res = await this.request<{
+            status?: string;
+            username?: string;
+            password?: string;
+            url?: string;
+            demo_expires?: number;
+            demo_duration?: number;
+        }>(
             'auto_demo',
             isResellerCode(reseller) ? { reseller: reseller.trim().toUpperCase() } : undefined
         );
         if (res.ok && res.data?.status === 'ok' && res.data.username && res.data.password) {
-            return { ok: true, username: res.data.username, password: res.data.password, url: (res.data.url ?? '').trim() };
+            return {
+                ok: true,
+                username: res.data.username,
+                password: res.data.password,
+                url: (res.data.url ?? '').trim(),
+                expires: Number(res.data.demo_expires) || 0,
+                duration: Number(res.data.demo_duration) || 0,
+            };
         }
         return {
             ok: false,

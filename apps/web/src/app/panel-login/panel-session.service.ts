@@ -11,6 +11,7 @@ import {
     PlaylistMeta,
     setSessionAlertAccounts,
     setSessionDemo,
+    setSessionDemoTimes,
     setSessionPassword,
 } from '@iptvnator/shared/interfaces';
 import { PanelAccount } from './panel-login.service';
@@ -85,6 +86,7 @@ export class PanelSessionService {
         }
         // demo: "DEMO" instead of the user/password and no progress or favorites (a normal line clears it)
         setSessionDemo(account.isDemo);
+        if (account.isDemo) setSessionDemoTimes(account.demoExpires, account.demoDuration);
         setSessionPassword(account.password);
         setSessionAlertAccounts([{ user: account.username, pass: account.password, dns: server, title }]);
 

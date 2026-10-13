@@ -271,6 +271,14 @@ it. While it is on:
 
 - the line's user is never shown: the top bar menu and "Mi cuenta" say
   **DEMO**, and the password is never shown;
+- the account dialog shows only what the panel says about the demo: its end
+  (`demo_expires` from `check_mac` / `auto_demo`, unix seconds, shown with the
+  exact local time) and its length (`demo_duration`: "DEMO · 2 horas"); the
+  demo line's server, connections, creation and provider expiry are hidden.
+  `setSessionDemoTimes()` stores them (`session_demo_expires`,
+  `session_demo_duration`), `demoEndText()` / `demoLengthText()` format them,
+  and turning the demo off clears them. No text says "24 horas": the length
+  always comes from the panel;
 - `PanelSyncService` sends no `save`, `delete`, `fav_add` or `fav_remove` and
   reads empty "Continuar viendo" / "Mi lista"; local playback positions are not
   saved either;
