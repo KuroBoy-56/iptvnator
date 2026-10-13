@@ -247,6 +247,11 @@ export class LoginComponent implements OnInit {
             return;
         }
         this.say('Demo activada. Entrando…', 'success');
+        // the demo's own server first (the session tries http and https on it)
+        if (demo.url) {
+            await this.enter({ server: demo.url, username: demo.username, password: demo.password, isDemo: true });
+            return;
+        }
         const check = await this.panel.checkDevice();
         if (check.status === 'active') {
             await this.enter(check.account);

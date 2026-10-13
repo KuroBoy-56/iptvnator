@@ -30,7 +30,8 @@ export type DeviceCheck =
     | { status: 'error'; message: string };
 
 export type DemoResult =
-    | { ok: true; username: string; password: string }
+    /** url: the demo's server as the panel gives it ('' on older panels) */
+    | { ok: true; username: string; password: string; url: string }
     | { ok: false; message: string; blocked: boolean };
 
 export type TenantCheck =
@@ -143,12 +144,12 @@ export class PanelLoginService {
 
     /** A reseller demo code (see isResellerCode) registers the demo under that reseller. */
     async autoDemo(reseller?: string): Promise<DemoResult> {
-        const res = await this.request<{ status?: string; username?: string; password?: string }>(
+        const res = await this.request<{ status?: string; username?: string; password?: string; url?: string }>(
             'auto_demo',
             isResellerCode(reseller) ? { reseller: reseller.trim().toUpperCase() } : undefined
         );
         if (res.ok && res.data?.status === 'ok' && res.data.username && res.data.password) {
-            return { ok: true, username: res.data.username, password: res.data.password };
+            return { ok: true, username: res.data.username, password: res.data.password, url: (res.data.url ?? '').trim() };
         }
         return {
             ok: false,

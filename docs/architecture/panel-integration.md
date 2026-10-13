@@ -52,7 +52,8 @@ the Android app:
 
      | Response | Behavior |
      | --- | --- |
-     | 200 | Logs in with the demo user on the first DNS. |
+     | 200 | Logs in with the demo user on the demo's own server (`url` of the reply; the session tries http and https on it). Older panels without `url`: `check_mac`, then the first DNS. |
+     | 503 | The panel could not confirm the demo line with the IPTV server; nothing was registered. Shows the message. |
      | 403 | Shows the message. The button stays enabled: the panel decides on every try, so a demo the owner deleted can be asked for again. |
      | 404 | Unknown reseller code or no demo configured: shows the panel message, the demo stays available. |
      | 429 / 400 | Shows the message. |
@@ -544,9 +545,11 @@ Two layers handle this:
 
 - **Login:** `PanelSessionService.start` runs `resolveReachableServer`
   (`apps/web/src/app/panel-login/server-scheme.util.ts`). It probes
-  `player_api.php` over https and, if that does not answer, over http. The
-  working scheme is remembered per host (`localStorage.panel_server_scheme:<host>`)
-  and saved as the playlist's `serverUrl`. Lines match by host, whatever the
+  `player_api.php` with both schemes: the remembered one for the host (else
+  the one the panel gave) first, then the other one, so a remembered scheme
+  that stopped answering never locks the app out. The working scheme is
+  remembered per host (`localStorage.panel_server_scheme:<host>`) and saved as
+  the playlist's `serverUrl`. Lines match by host, whatever the
   scheme.
 - **Electron `XTREAM_REQUEST`:** after a connection failure on https (timeout,
   refused, TLS error), the request is retried once over http. The host is
