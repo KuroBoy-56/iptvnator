@@ -668,7 +668,7 @@ language files stay as they were and fall back to Spanish.
   are translation keys (`MPX.NF.TAG_*`).
 - **TMDB:** title search and catalog matching (search, posters, trending)
   stay in `es-MX`; detail calls (plot, cast, seasons, person) use the app
-  language: `es-MX`, `en-US`, `pt-BR` or `fr-FR` (`TmdbRuntimeService`).
+  language: `es-MX`, `en-US`, `pt-BR` or `fr-FR` (`TmdbRuntimeService`). The "Similar" recommendations and the person filmography inside those details are fetched again in `es-MX` (`TmdbApiService`), because they are matched against the Spanish catalog by title.
 - **Dates:** the clock, sports times, demo end, distributor expiry and the
   account expiry use the app language's format.
 
