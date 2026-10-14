@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { TMDB_MATCH_LANGUAGE } from '@iptvnator/shared/interfaces';
 import { TMDB_API_BASE_URL } from './tmdb-config';
 import {
     TmdbMovieDetails,
@@ -57,11 +58,12 @@ export class TmdbApiService {
         language: string,
         apiKey: string
     ): Promise<TmdbMovieDetails> {
-        return this.request<TmdbMovieDetails>(
+        const details = await this.request<TmdbMovieDetails>(
             `/movie/${tmdbId}`,
             { language, append_to_response: 'credits,videos,recommendations' },
             apiKey
         );
+        return this.withMatchRecommendations(`/movie/${tmdbId}`, details, language, apiKey);
     }
 
     async getTvDetails(
@@ -69,11 +71,12 @@ export class TmdbApiService {
         language: string,
         apiKey: string
     ): Promise<TmdbTvDetails> {
-        return this.request<TmdbTvDetails>(
+        const details = await this.request<TmdbTvDetails>(
             `/tv/${tmdbId}`,
             { language, append_to_response: 'credits,videos,recommendations' },
             apiKey
         );
+        return this.withMatchRecommendations(`/tv/${tmdbId}`, details, language, apiKey);
     }
 
     /** Movies now in theaters (login poster wall) */
@@ -109,11 +112,20 @@ export class TmdbApiService {
         language: string,
         apiKey: string
     ): Promise<TmdbPersonDetails> {
-        return this.request<TmdbPersonDetails>(
+        const person = await this.request<TmdbPersonDetails>(
             `/person/${personId}`,
             { language, append_to_response: 'combined_credits' },
             apiKey
         );
+        // the filmography is matched against the Spanish catalog by title
+        if (language !== TMDB_MATCH_LANGUAGE) {
+            person.combined_credits = await this.request<TmdbPersonDetails['combined_credits']>(
+                `/person/${personId}/combined_credits`,
+                { language: TMDB_MATCH_LANGUAGE },
+                apiKey
+            ).catch(() => person.combined_credits);
+        }
+        return person;
     }
 
     async getSeasonDetails(
@@ -140,6 +152,23 @@ export class TmdbApiService {
         } catch {
             return false;
         }
+    }
+
+    /** "Similar" titles are matched against the Spanish catalog by title: always es-MX */
+    private async withMatchRecommendations<T extends TmdbMovieDetails | TmdbTvDetails>(
+        path: string,
+        details: T,
+        language: string,
+        apiKey: string
+    ): Promise<T> {
+        if (language === TMDB_MATCH_LANGUAGE) return details;
+        const d: TmdbMovieDetails | TmdbTvDetails = details;
+        d.recommendations = await this.request<TmdbSearchResponse>(
+            `${path}/recommendations`,
+            { language: TMDB_MATCH_LANGUAGE },
+            apiKey
+        ).catch(() => d.recommendations);
+        return details;
     }
 
     private async request<T>(
