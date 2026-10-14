@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, OnInit, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { TranslatePipe } from '@ngx-translate/core';
+import { UiText } from '@iptvnator/shared/interfaces';
 import { PortalStatusService } from '@iptvnator/services';
 import { pickLineServer } from './panel-login/line-server.util';
 import { LoginPostersService } from './panel-login/login-posters.service';
@@ -37,7 +39,7 @@ function fakeUnlocked(): boolean {
     templateUrl: './login.component.html',
     styleUrls: ['./login.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [FormsModule, FakeScreenComponent],
+    imports: [FormsModule, FakeScreenComponent, TranslatePipe],
 })
 export class LoginComponent implements OnInit {
     private readonly panel = inject(PanelLoginService);
@@ -54,7 +56,7 @@ export class LoginComponent implements OnInit {
     readonly busy = signal(false);
     readonly demoBusy = signal(false);
     readonly showPassword = signal(false);
-    readonly message = signal<{ text: string; kind: MessageKind } | null>(null);
+    readonly message = signal<{ text: UiText; kind: MessageKind } | null>(null);
     readonly dnsList = signal<string[]>([]);
     readonly logoFailed = signal(false);
     /** fake screen of the panel for a new device: until the code is typed or it gets registered */
@@ -63,7 +65,7 @@ export class LoginComponent implements OnInit {
     /** No distributor choice yet (first launch, or after a wipe / "Cambiar distribuidor"). */
     readonly needsDistributor = computed(() => this.branding.choice() === 'none');
     readonly distBusy = signal(false);
-    readonly distError = signal<string | null>(null);
+    readonly distError = signal<UiText | null>(null);
     private deviceCheckStarted = false;
     private readonly distInput = viewChild<ElementRef<HTMLInputElement>>('distInput');
 
@@ -137,7 +139,7 @@ export class LoginComponent implements OnInit {
 
         if (!this.panel.available) {
             this.checking.set(false);
-            this.say('El inicio de sesión del panel solo está disponible en la app de escritorio.', 'error');
+            this.say({ key: 'MPX.PANEL.ERR_DESKTOP_ONLY' }, 'error');
             return;
         }
 
@@ -149,11 +151,11 @@ export class LoginComponent implements OnInit {
             if (st === 'expired' || st === 'inactive') {
                 await this.session.clear();
                 this.checking.set(false);
-                this.say(st === 'expired' ? 'La cuenta de este equipo está vencida. Renuévala con tu distribuidor.' : 'El usuario o la contraseña de este equipo ya no son válidos en el servidor.', 'error');
+                this.say({ key: st === 'expired' ? 'MPX.LOGIN.ERR_EXPIRED' : 'MPX.LOGIN.ERR_INVALID_LINE' }, 'error');
                 await this.loadDns();
                 return;
             }
-            this.say('Dispositivo activado. Entrando…', 'success');
+            this.say({ key: 'MPX.LOGIN.DEVICE_ACTIVE' }, 'success');
             await this.enter(check.account);
             return;
         }
@@ -211,7 +213,7 @@ export class LoginComponent implements OnInit {
         const user = this.username.trim();
         const pass = this.password.trim();
         if (!user || !pass) {
-            this.say('Escribe tu usuario y contraseña.', 'error');
+            this.say({ key: 'MPX.LOGIN.ERR_EMPTY' }, 'error');
             return;
         }
         this.busy.set(true);
@@ -219,13 +221,13 @@ export class LoginComponent implements OnInit {
         const server = await this.lineServer(user, pass);
         if (!server) {
             this.busy.set(false);
-            this.say('El panel no tiene servidores disponibles.', 'error');
+            this.say({ key: 'MPX.LOGIN.ERR_NO_SERVERS' }, 'error');
             return;
         }
         const result = await this.panel.activate(user, pass, server);
         if (!result.ok) {
             this.busy.set(false);
-            this.say(result.message ?? 'No se pudo iniciar sesión.', 'error');
+            this.say(result.message ?? { key: 'MPX.LOGIN.ERR_LOGIN' }, 'error');
             return;
         }
         const check = await this.panel.checkDevice();
@@ -247,7 +249,7 @@ export class LoginComponent implements OnInit {
             this.say(demo.message, 'error');
             return;
         }
-        this.say('Demo activada. Entrando…', 'success');
+        this.say({ key: 'MPX.LOGIN.DEMO_ACTIVE' }, 'success');
         // the demo's own server first (the session tries http and https on it)
         if (demo.url) {
             await this.enter({
@@ -268,7 +270,7 @@ export class LoginComponent implements OnInit {
         const [server] = await this.loadDns();
         if (!server) {
             this.demoBusy.set(false);
-            this.say('El panel no tiene servidores disponibles.', 'error');
+            this.say({ key: 'MPX.LOGIN.ERR_NO_SERVERS' }, 'error');
             return;
         }
         await this.enter({
@@ -286,7 +288,7 @@ export class LoginComponent implements OnInit {
             await this.session.start(account);
             await this.router.navigate(['/workspace']);
         } catch {
-            this.say('No se pudo abrir la sesión.', 'error');
+            this.say({ key: 'MPX.LOGIN.ERR_SESSION' }, 'error');
         } finally {
             this.checking.set(false);
             this.busy.set(false);
@@ -294,7 +296,7 @@ export class LoginComponent implements OnInit {
         }
     }
 
-    private say(text: string, kind: MessageKind): void {
+    private say(text: UiText, kind: MessageKind): void {
         this.message.set({ text, kind });
     }
 }

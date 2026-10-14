@@ -21,6 +21,15 @@ describe('panelReportError', () => {
         expect(['windows', 'macos']).toContain(body.app);
     });
 
+    it('sends the app language with the report', async () => {
+        const d = deps();
+        await panelReportError({ kind: 'error', message: 'lang report', lang: 'en' }, d);
+        const [url, init] = d.fetch.mock.calls[0] as unknown as [string, { body: string }];
+        expect(url).toMatch(/report\.php\?lang=en$/);
+        const body = JSON.parse(decryptPayload(new URLSearchParams(init.body).get('data') ?? '', key) ?? '{}');
+        expect(body.lang).toBe('en');
+    });
+
     it('sends the same message once a minute and never without a key', async () => {
         const d = deps();
         await panelReportError({ kind: 'error', message: 'same' }, d);

@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import {
+    APP_LANGUAGE_STORAGE_KEY,
     clearTenant,
     PanelTenantCache,
     readTenantChoice,
@@ -38,6 +39,7 @@ describe('PanelTenantService (guardian)', () => {
 
     beforeEach(() => {
         localStorage.clear();
+        localStorage.setItem(APP_LANGUAGE_STORAGE_KEY, 'es');
         tenantConfig = jest.fn();
         sessionClear = jest.fn().mockResolvedValue(undefined);
         logout = jest.fn();
@@ -63,10 +65,10 @@ describe('PanelTenantService (guardian)', () => {
     });
 
     it('rejects a short code without calling the panel and shows panel errors', async () => {
-        await expect(service.submit('12')).resolves.toContain('6 dígitos');
+        await expect(service.submit('12')).resolves.toEqual({ key: 'MPX.DIST.ERR_CODE_DIGITS' });
         expect(tenantConfig).not.toHaveBeenCalled();
-        tenantConfig.mockResolvedValue({ status: 'no_key', message: 'Esta versión de la app no tiene la llave del panel' });
-        await expect(service.submit('123456')).resolves.toBe('Esta versión de la app no tiene la llave del panel');
+        tenantConfig.mockResolvedValue({ status: 'no_key', message: { key: 'MPX.PANEL.ERR_NO_KEY' } });
+        await expect(service.submit('123456')).resolves.toEqual({ key: 'MPX.PANEL.ERR_NO_KEY' });
         expect(readTenantChoice()).toBe('none');
     });
 
@@ -80,25 +82,25 @@ describe('PanelTenantService (guardian)', () => {
     it('wipes code, session and branding when the panel says the distributor expired', async () => {
         saveTenantCode(cache());
         localStorage.setItem('panel_sync_token2:u@h@t123456', 'tok');
-        tenantConfig.mockResolvedValue({ status: 'tenant_error', code: 'tenant_suspended', message: 'x' });
+        tenantConfig.mockResolvedValue({ status: 'tenant_error', code: 'tenant_suspended', message: { key: 'x' } });
         await expect(service.check()).resolves.toBe('wiped');
         expect(readTenantChoice()).toBe('none');
         expect(localStorage.getItem('panel_sync_token2:u@h@t123456')).toBeNull();
         expect(sessionClear).toHaveBeenCalled();
         expect(logout).toHaveBeenCalled();
         expect(navigate).toHaveBeenCalledWith(['/login']);
-        expect(service.notice()).toBe('Este distribuidor está suspendido. Contacta a tu distribuidor.');
+        expect(service.notice()).toEqual({ key: 'MPX.DIST.ERR_TENANT_SUSPENDED' });
     });
 
     it('treats a past expires_at as expired without asking the panel', async () => {
         saveTenantCode(cache({ expiresAt: 1767243599 }));
         await expect(service.check()).resolves.toBe('wiped');
         expect(tenantConfig).not.toHaveBeenCalled();
-        expect(service.notice()).toBe('Tu distribuidor venció el 31/12/2025 (hora de Panamá)');
+        expect(service.notice()).toEqual({ key: 'MPX.DIST.EXPIRED_ON', params: { date: '31/12/2025' } });
     });
 
     it('keeps the cache offline for 72 h, then asks to retry', async () => {
-        tenantConfig.mockResolvedValue({ status: 'network', message: 'offline' });
+        tenantConfig.mockResolvedValue({ status: 'network', message: { key: 'offline' } });
         saveTenantCode(cache({ lastOkCheck: Date.now() - 3600_000 }));
         await expect(service.check()).resolves.toBe('offline');
         expect(readTenantCode()).toBe('123456');

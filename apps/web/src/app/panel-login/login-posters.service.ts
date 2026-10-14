@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { panelEndpoint, tenantStorageSuffix, withTenantQuery } from '@iptvnator/shared/interfaces';
+import { AppLanguage, currentAppLanguage, panelEndpoint, tenantStorageSuffix, tmdbLanguageFor, withPanelLang, withTenantQuery } from '@iptvnator/shared/interfaces';
 
 const CACHE_KEY = 'login_posters_v2';
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
@@ -7,9 +7,10 @@ const POSTER_BASE = 'https://image.tmdb.org/t/p/w342';
 const MAX_POSTERS = 48;
 
 /** TMDB "now playing" page through the panel (api/tmdb.php, the panel's key). */
-export function loginPostersUrl(page: number): string {
+export function loginPostersUrl(page: number, lang: AppLanguage = currentAppLanguage()): string {
     // ?path= (not tmdb.php/movie/now_playing): many hostings don't pass PATH_INFO
-    return withTenantQuery(`${panelEndpoint('tmdb.php')}?path=movie/now_playing&language=es-ES&page=${page}`);
+    const url = `${panelEndpoint('tmdb.php')}?path=movie/now_playing&language=${tmdbLanguageFor(lang)}&page=${page}`;
+    return withTenantQuery(withPanelLang(url, lang));
 }
 
 /** Poster URLs of the panel answers; [] when the panel has no TMDB key (tmdb_key_not_set). */

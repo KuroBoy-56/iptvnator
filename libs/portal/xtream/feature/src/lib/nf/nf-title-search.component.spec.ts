@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { NfTitleSearchComponent } from './nf-title-search.component';
 
 @Component({
@@ -13,6 +14,10 @@ class HostComponent {
 
 describe('NfTitleSearchComponent', () => {
     function setup(initial = '') {
+        TestBed.configureTestingModule({ imports: [HostComponent, TranslateModule.forRoot()] });
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation('es', { MPX: { NF: { SEARCH_IN: 'Buscar en {{name}}…' } } });
+        translate.use('es');
         const fixture = TestBed.createComponent(HostComponent);
         fixture.componentInstance.q.set(initial);
         fixture.detectChanges();

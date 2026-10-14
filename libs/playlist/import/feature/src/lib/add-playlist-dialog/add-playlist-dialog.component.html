@@ -1,7 +1,7 @@
 <div class="apd">
     <div mat-dialog-title class="apd-head">
-        <h2 class="apd-title">Añadir Conexión</h2>
-        <p class="apd-sub">Ingresa tus credenciales de acceso</p>
+        <h2 class="apd-title">{{ 'MPX.ADD.TITLE' | translate }}</h2>
+        <p class="apd-sub">{{ 'MPX.ADD.SUBTITLE' | translate }}</p>
     </div>
 
     <mat-dialog-content>
@@ -19,13 +19,13 @@
                 [disabled]="isClearDisabled()"
                 (click)="clearCurrentForm()"
             >
-                Limpiar
+                {{ 'MPX.ADD.CLEAR' | translate }}
             </button>
         </div>
 
         <div class="apd-actions__decision">
             <button mat-button type="button" (click)="closeDialog()">
-                Cancelar
+                {{ 'MPX.COMMON.CANCEL' | translate }}
             </button>
 
             <button
@@ -34,7 +34,7 @@
                 [disabled]="!xtreamImport()?.form?.valid || xtreamImport()?.isTestingConnection"
                 (click)="xtreamImport()?.testConnection()"
             >
-                {{ xtreamImport()?.isTestingConnection ? 'Probando...' : 'Probar Conexión' }}
+                {{ (xtreamImport()?.isTestingConnection ? 'MPX.ADD.TESTING' : 'MPX.ADD.TEST') | translate }}
             </button>
             <button
                 mat-flat-button
@@ -43,7 +43,7 @@
                 [disabled]="!xtreamImport()?.form?.valid"
                 (click)="xtreamImport()?.addPlaylist()"
             >
-                Conectar
+                {{ 'MPX.ADD.CONNECT' | translate }}
             </button>
         </div>
     </mat-dialog-actions>

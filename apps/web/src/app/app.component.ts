@@ -1,4 +1,4 @@
-import { Component, effect, HostBinding, inject, OnInit, OnDestroy } from '@angular/core';
+import { Component, effect, HostBinding, inject, OnInit, OnDestroy, untracked } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, RouterOutlet } from '@angular/router';
 import { Actions, ofType } from '@ngrx/effects';
@@ -11,7 +11,7 @@ import { WindowControlsComponent } from '@iptvnator/ui/components';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { filter, take } from 'rxjs';
 import { DataService, RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
-import { AUTO_UPDATE_PLAYLISTS, DEMO_BLOCKED_MESSAGE, Language, OPEN_FILE, PANEL_DEMO_BLOCKED_EVENT, Settings, STORE_KEY, Theme, createDevLogger } from '@iptvnator/shared/interfaces';
+import { AppLanguage, AUTO_UPDATE_PLAYLISTS, currentAppLanguage, DEFAULT_APP_LANGUAGE, DEMO_BLOCKED_MESSAGE, OPEN_FILE, PANEL_DEMO_BLOCKED_EVENT, rememberAppLanguage, resolveAppLanguage, Settings, STORE_KEY, Theme, createDevLogger } from '@iptvnator/shared/interfaces';
 import { SettingsService } from './services/settings.service';
 import { PanelCacheSyncService } from './services/panel-cache-sync.service';
 import { AppUpdateNotificationPanelComponent } from './app-update-notification-panel.component';
@@ -48,7 +48,7 @@ export class AppComponent implements OnInit, OnDestroy {
     private externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly workspaceShellActions = inject(WORKSPACE_SHELL_ACTIONS);
 
-    private readonly DEFAULT_LANG = Language.ENGLISH;
+    private readonly DEFAULT_LANG = DEFAULT_APP_LANGUAGE;
 
     constructor() {
         if (this.runtime.usesCustomWindowControls) {
@@ -60,7 +60,7 @@ export class AppComponent implements OnInit, OnDestroy {
         }
         // demo line: "Mi lista" and the progress are not kept; the user is told so
         window.addEventListener(PANEL_DEMO_BLOCKED_EVENT, () =>
-            this.snackBar.open(DEMO_BLOCKED_MESSAGE, undefined, { duration: 3000 })
+            this.snackBar.open(this.translate.instant(DEMO_BLOCKED_MESSAGE), undefined, { duration: 3000 })
         );
 
         const electronProcess = this.dataService.remote?.process;
@@ -72,6 +72,12 @@ export class AppComponent implements OnInit, OnDestroy {
                 this.dataService.sendIpcEvent(OPEN_FILE, { filePath, fileName });
             }
         }
+        // app language: the saved choice, or the system language on "auto"; applied on every change
+        effect(() => {
+            if (!this.settingsStore.settingsLoaded()) return;
+            const lang = resolveAppLanguage(this.settingsStore.language());
+            untracked(() => this.applyLanguage(lang));
+        });
         effect(() => {
             const size = this.settingsStore.coverSize?.() ?? 'medium';
             document.documentElement.dataset.coverSize = size;
@@ -95,6 +101,8 @@ export class AppComponent implements OnInit, OnDestroy {
     ngOnInit() {
         this.store.dispatch(PlaylistActions.loadPlaylists());
         this.translate.setDefaultLang(this.DEFAULT_LANG);
+        // last language in use (or the system one on the first start) until the settings load
+        this.applyLanguage(currentAppLanguage());
         this.initSettings();
         this.triggerAutoUpdatePlaylists();
     }
@@ -108,13 +116,6 @@ export class AppComponent implements OnInit, OnDestroy {
             .getValueFromLocalStorage<Settings>(STORE_KEY.Settings)
             .subscribe((settings: Settings) => {
                 if (settings && Object.keys(settings).length > 0) {
-                    const resolvedLang = settings.language ?? this.DEFAULT_LANG;
-                    this.translate.use(resolvedLang);
-                    try {
-                        localStorage.setItem('iptvnator:preferred-language', resolvedLang);
-                    } catch {
-                        // Storage unavailable.
-                    }
                     if (this.epgBridge.supportsImport && settings.epgUrl?.length > 0 && settings.epgUrl?.some((u) => u !== '')) {
                         this.fetchStaleEpgData(settings.epgUrl);
                     }
@@ -124,6 +125,12 @@ export class AppComponent implements OnInit, OnDestroy {
                     this.detectDarkMode();
                 }
             });
+    }
+
+    private applyLanguage(lang: AppLanguage): void {
+        if (this.translate.currentLang !== lang) this.translate.use(lang);
+        rememberAppLanguage(lang);
+        document.documentElement.lang = lang;
     }
 
     detectDarkMode(): void { this.settingsService.changeTheme(Theme.SystemTheme); }

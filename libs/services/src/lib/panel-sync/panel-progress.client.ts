@@ -7,6 +7,7 @@ import {
     rememberPanelDemo,
     tenantErrorCode,
     tenantStorageSuffix,
+    withPanelLang,
 } from '@iptvnator/shared/interfaces';
 import { PanelSnapshot, SyncUserCredentials } from './panel-sync.types';
 import { rememberPanelTmdbKey } from './panel-tmdb-key';
@@ -75,8 +76,9 @@ export class PanelProgressClient {
 
     constructor(private readonly fetchFn: FetchFn = (...args) => fetch(...args)) {}
 
+    /** progress.php with ?lang= (the panel answers its texts in the app language). */
     private get url(): string {
-        return panelEndpoint('progress.php');
+        return withPanelLang(panelEndpoint('progress.php'));
     }
 
     private async authenticate(creds: SyncUserCredentials): Promise<string | null> {
@@ -142,7 +144,7 @@ export class PanelProgressClient {
         if (pending) return pending;
 
         const request = this.withToken(creds, (token) =>
-            this.fetchFn(`${this.url}?v=2`, {
+            this.fetchFn(withPanelLang(`${panelEndpoint('progress.php')}?v=2`), {
                 headers: { Authorization: `Bearer ${token}` },
             })
         )
@@ -185,7 +187,7 @@ export class PanelProgressClient {
     ): Promise<T | null> {
         try {
             const res = await this.withToken(creds, (token) =>
-                this.fetchFn(panelEndpoint(file), {
+                this.fetchFn(withPanelLang(panelEndpoint(file)), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ...body, token }),

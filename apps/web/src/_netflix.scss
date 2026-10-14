@@ -256,6 +256,18 @@ body.macos-platform .nf-header {
             color: var(--nf-gray2);
         }
     }
+
+    /* "Idioma de la app": the five choices under the menu item */
+    .langs button {
+        padding: 7px 16px 7px 46px;
+        font-size: 13px;
+        color: var(--nf-gray2);
+
+        &.on {
+            color: #fff;
+            font-weight: 700;
+        }
+    }
 }
 
 // ─── Page ────────────────────────────────────────────────────────────────────

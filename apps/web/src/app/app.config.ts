@@ -31,7 +31,7 @@ import {
 import { PLAYLIST_PLAYER_ACTIONS } from '@iptvnator/playlist/shared/util';
 import { provideXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import { DataService } from '@iptvnator/services';
-import { dbConfig } from '@iptvnator/shared/interfaces';
+import { dbConfig, DEFAULT_APP_LANGUAGE } from '@iptvnator/shared/interfaces';
 import { AppConfig } from '../environments/environment';
 import { routes } from './app.routes';
 import { ElectronService } from './services/electron.service';
@@ -51,48 +51,6 @@ import { PanelErrorHandler } from './services/panel-error-reporter';
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
     return new TranslateHttpLoader(http, './assets/i18n/', '.json');
-}
-
-/**
- * Synchronously read the user's preferred language from localStorage so the
- * very first render uses the right locale instead of flashing English first
- * and re-rendering once the IDB-backed settings finish loading.
- *
- * The hint is written by AppComponent.initSettings() whenever the saved
- * settings resolve, so first-ever boots fall back to English (no hint
- * present yet) and every subsequent boot uses the saved language.
- */
-const SUPPORTED_LANGS = new Set([
-    'ar',
-    'ary',
-    'by',
-    'de',
-    'el',
-    'en',
-    'es',
-    'fr',
-    'it',
-    'ja',
-    'ko',
-    'nl',
-    'pl',
-    'pt',
-    'ru',
-    'tr',
-    'zh',
-    'zhtw',
-]);
-export const PREFERRED_LANGUAGE_STORAGE_KEY = 'iptvnator:preferred-language';
-export function getInitialLanguage(): string {
-    try {
-        const saved = localStorage.getItem(PREFERRED_LANGUAGE_STORAGE_KEY);
-        if (saved && SUPPORTED_LANGS.has(saved)) {
-            return saved;
-        }
-    } catch {
-        // localStorage may throw in privacy modes; fall through to default.
-    }
-    return 'en';
 }
 
 /**
@@ -133,7 +91,8 @@ export const appConfig: ApplicationConfig = {
                 loadingText: 'This item is actually loading...',
             }),
             TranslateModule.forRoot({
-                defaultLanguage: getInitialLanguage(),
+                // Spanish is the fallback for missing keys; AppComponent picks the language in use
+                defaultLanguage: DEFAULT_APP_LANGUAGE,
                 loader: {
                     provide: TranslateLoader,
                     useFactory: HttpLoaderFactory,

@@ -10,17 +10,19 @@ import {
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { firstValueFrom } from 'rxjs';
 import {
+    APP_LANGUAGE_AUTO,
+    APP_LANGUAGE_MIGRATED_KEY,
     DEFAULT_DASHBOARD_RAILS_SETTINGS,
     DEFAULT_TMDB_SETTINGS,
     ElectronBridgeTrustOptions,
     EpgViewMode,
-    Language,
     Settings,
     StartupBehavior,
     STORE_KEY,
     StreamFormat,
     Theme,
     VideoPlayer,
+    migrateLegacyLanguage,
     normalizeDashboardRailsSettings,
 } from '@iptvnator/shared/interfaces';
 
@@ -28,7 +30,7 @@ const DEFAULT_SETTINGS: Settings = {
     player: VideoPlayer.VideoJs,
     streamFormat: 'm3u8' as unknown as StreamFormat,
     openStreamOnDoubleClick: false,
-    language: Language.ENGLISH,
+    language: APP_LANGUAGE_AUTO,
     showCaptions: false,
     showDashboard: true,
     startupBehavior: StartupBehavior.FirstView,
@@ -53,6 +55,22 @@ const DEFAULT_SETTINGS: Settings = {
     trustedInsecureTlsHosts: [],
     tmdb: DEFAULT_TMDB_SETTINGS,
 };
+
+function readLanguageMigrated(): boolean {
+    try {
+        return localStorage.getItem(APP_LANGUAGE_MIGRATED_KEY) === '1';
+    } catch {
+        return true; // no storage: never flip a saved choice
+    }
+}
+
+function markLanguageMigrated(): void {
+    try {
+        localStorage.setItem(APP_LANGUAGE_MIGRATED_KEY, '1');
+    } catch {
+        // storage blocked
+    }
+}
 
 let embeddedMpvPrepareScheduled = false;
 
@@ -96,6 +114,8 @@ function scheduleEmbeddedMpvPrepare(): void {
 export const SettingsStore = signalStore(
     { providedIn: 'root' },
     withState<Settings>(DEFAULT_SETTINGS),
+    // true once the saved settings were read (the app language waits for it)
+    withState({ settingsLoaded: false }),
     withComputed((store) => ({
         resolvedEpgViewMode: computed<EpgViewMode>(
             () => store.epgViewMode?.() ?? 'timeline'
@@ -109,31 +129,50 @@ export const SettingsStore = signalStore(
                 );
                 if (stored) {
                     const storedSettings = stored as Partial<Settings>;
+                    const migrated = readLanguageMigrated();
+                    const language = migrateLegacyLanguage(
+                        storedSettings.language,
+                        migrated
+                    );
                     patchState(store, {
                         ...DEFAULT_SETTINGS,
                         ...storedSettings,
+                        language,
+                        settingsLoaded: true,
                         // BUGS REMOVIDOS: Aquí estaban "quemados" el player y el streamFormat.
                         dashboardRails: normalizeDashboardRailsSettings(
                             storedSettings.dashboardRails
                         ),
                     });
+                    if (!migrated) {
+                        if (language !== storedSettings.language) {
+                            await firstValueFrom(
+                                storage.set(STORE_KEY.Settings, this.getSettings())
+                            );
+                        }
+                        markLanguageMigrated();
+                    }
                     void this.sanitizeEmbeddedMpvSelection().catch((error) => {
                         console.warn('Failed to verify embedded MPV support', error);
                     });
                 } else {
                     patchState(store, {
-                        ...DEFAULT_SETTINGS
+                        ...DEFAULT_SETTINGS,
+                        settingsLoaded: true,
                         // BUGS REMOVIDOS: Aquí también estaban quemados en el fallback.
                     });
+                    markLanguageMigrated();
                 }
             } catch (error) {
                 console.error('Failed to load settings:', error);
+                patchState(store, { settingsLoaded: true });
             }
         },
 
         async updateSettings(settings: Partial<Settings>) {
             patchState(store, {
                 ...settings,
+                settingsLoaded: true,
                 ...(settings.dashboardRails !== undefined
                     ? {
                           dashboardRails: normalizeDashboardRailsSettings(

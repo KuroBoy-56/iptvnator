@@ -85,7 +85,8 @@ export class TmdbPosterService {
         const field = kind === 'backdrop' ? 'backdrop_path' : 'poster_path';
         const toUrl = kind === 'backdrop' ? tmdbBackdropUrl : tmdbPosterUrl;
         const year = extractYear(null, raw);
-        const language = this.runtime.language();
+        // title search: es-MX whatever the app language
+        const language = this.runtime.searchLanguage();
         let fallback: TmdbSearchResult | null = null;
         for (const title of buildSearchTitleVariants(raw)) {
             const results =

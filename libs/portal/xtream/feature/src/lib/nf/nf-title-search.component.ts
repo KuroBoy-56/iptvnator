@@ -10,6 +10,7 @@ import {
     model,
     viewChild,
 } from '@angular/core';
+import { TranslatePipe } from '@ngx-translate/core';
 
 /**
  * Top-right magnifier of a platform page (web player browse.php): the button
@@ -18,13 +19,14 @@ import {
 @Component({
     selector: 'app-nf-title-search',
     standalone: true,
+    imports: [TranslatePipe],
     template: `
         <div class="nf-psearch" [class.open]="open()">
             <button
                 type="button"
                 class="nf-psearch-btn"
-                aria-label="Buscar por nombre"
-                title="Buscar por nombre"
+                [attr.aria-label]="'MPX.NF.SEARCH_BY_NAME' | translate"
+                [title]="'MPX.NF.SEARCH_BY_NAME' | translate"
                 (click)="toggle()"
             >
                 <svg
@@ -55,9 +57,11 @@ import {
                     class="nf-psearch-in"
                     type="search"
                     autocomplete="off"
-                    aria-label="Filtrar por nombre"
+                    [attr.aria-label]="'MPX.NF.FILTER_BY_NAME' | translate"
                     [placeholder]="
-                        label() ? 'Buscar en ' + label() + '…' : 'Buscar…'
+                        label()
+                            ? ('MPX.NF.SEARCH_IN' | translate: { name: label() })
+                            : ('MPX.NF.SEARCH_ANY' | translate)
                     "
                     [value]="value()"
                     (input)="value.set($any($event.target).value)"

@@ -6,6 +6,7 @@ import {
     signal,
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { TranslatePipe } from '@ngx-translate/core';
 import { injectNfCatalog } from './nf-catalog';
 import { NF_GENRES, nfAvailable } from './nf-filters';
 import { NfHeroComponent } from './nf-hero.component';
@@ -25,23 +26,29 @@ const ROWS_STEP = 10;
 @Component({
     selector: 'app-nf-browse',
     standalone: true,
-    imports: [NfHeroComponent, NfNearEndDirective, NfRowComponent, RouterLink],
+    imports: [
+        NfHeroComponent,
+        NfNearEndDirective,
+        NfRowComponent,
+        RouterLink,
+        TranslatePipe,
+    ],
     template: `
         <div class="nf-page">
             <app-nf-hero
                 [slides]="catalog.heroSlides()"
                 [playlistId]="catalog.playlistId()"
-                [kicker]="isSeries ? 'Serie' : 'Película'"
+                [kicker]="(isSeries ? 'MPX.NF.SERIES_ONE' : 'MPX.NF.MOVIE_ONE') | translate"
             />
 
             <div class="nf-titlebar">
-                <h1 class="nf-page-title">{{ label }}</h1>
+                <h1 class="nf-page-title">{{ label | translate }}</h1>
                 <select
                     class="nf-select"
-                    aria-label="Categorías"
+                    [attr.aria-label]="'MPX.NF.CATEGORIES' | translate"
                     (change)="openCategory($any($event.target).value)"
                 >
-                    <option value="">Categorías</option>
+                    <option value="">{{ 'MPX.NF.CATEGORIES' | translate }}</option>
                     @for (c of categories(); track c.id) {
                         <option [value]="c.id">{{ c.name }}</option>
                     }
@@ -49,13 +56,13 @@ const ROWS_STEP = 10;
             </div>
 
             @if (genres().length) {
-                <nav class="nf-chips" aria-label="Géneros">
+                <nav class="nf-chips" [attr.aria-label]="'MPX.NF.GENRES' | translate">
                     @for (g of genres(); track g.key) {
                         <a
                             class="nf-chip"
                             [routerLink]="explore"
                             [queryParams]="{ type: type, genre: g.key }"
-                            >{{ g.label }}</a
+                            >{{ g.label | translate }}</a
                         >
                     }
                 </nav>
@@ -64,14 +71,17 @@ const ROWS_STEP = 10;
             <div class="nf-rows">
                 @if (catalog.ready()) {
                     <app-nf-row
-                        title="Agregadas recientemente"
+                        [title]="'MPX.NF.RECENTLY_ADDED' | translate"
                         [items]="recent()"
                         [playlistId]="catalog.playlistId()"
                         [more]="explore"
                         [moreQuery]="{ type: type, sort: 'recent' }"
                     />
                     <app-nf-row
-                        [title]="'Top 10 ' + label.toLowerCase() + ' hoy'"
+                        [title]="
+                            (isSeries ? 'MPX.NF.TOP10_SERIES' : 'MPX.NF.TOP10_MOVIES')
+                                | translate
+                        "
                         [items]="top()"
                         [playlistId]="catalog.playlistId()"
                         [more]="explore"
@@ -93,13 +103,13 @@ const ROWS_STEP = 10;
                                 class="nf-grid-status"
                                 (nfNearEnd)="showMore()"
                             >
-                                Cargando más…
+                                {{ 'MPX.COMMON.LOADING_MORE' | translate }}
                             </div>
                         }
                     }
                 } @else if (catalog.loading()) {
                     <app-nf-row
-                        title="Agregadas recientemente"
+                        [title]="'MPX.NF.RECENTLY_ADDED' | translate"
                         [items]="null"
                         [playlistId]="catalog.playlistId()"
                     />
@@ -110,7 +120,10 @@ const ROWS_STEP = 10;
                     />
                 } @else {
                     <p class="nf-empty">
-                        No hay {{ label.toLowerCase() }} en tu lista.
+                        {{
+                            (isSeries ? 'MPX.NF.NO_SERIES' : 'MPX.NF.NO_MOVIES')
+                                | translate
+                        }}
                     </p>
                 }
             </div>
@@ -123,7 +136,7 @@ export class NfBrowseComponent {
     protected readonly isSeries =
         inject(ActivatedRoute).snapshot.data['nfType'] === 'series';
     protected readonly type = this.isSeries ? 'series' : 'movie';
-    protected readonly label = this.isSeries ? 'Series' : 'Películas';
+    protected readonly label = this.isSeries ? 'MPX.NAV.SERIES' : 'MPX.NAV.MOVIES';
     protected readonly catalog = injectNfCatalog([this.type]);
 
     private readonly items = computed(() =>

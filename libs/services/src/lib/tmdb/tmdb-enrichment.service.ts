@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { TmdbMediaType } from '@iptvnator/shared/interfaces';
+import { Language, TmdbMediaType } from '@iptvnator/shared/interfaces';
 import { TmdbApiService } from './tmdb-api.service';
 import { TmdbCacheService } from './tmdb-cache.service';
 import {
@@ -141,9 +141,10 @@ export class TmdbEnrichmentService {
         }
 
         const year = query.year ?? extractYear(null, query.title);
+        // search and matching always in es-MX (Spanish provider titles)
         const cacheLanguage = tmdbSearchLanguageForTitle(
             variants[0],
-            this.runtime.appLanguage()
+            Language.SPANISH
         );
         const lookupKey = buildSearchLookupKey(variants[0], year);
 
@@ -169,7 +170,7 @@ export class TmdbEnrichmentService {
             // in pickConfidentMatch instead.
             const language = tmdbSearchLanguageForTitle(
                 variant,
-                this.runtime.appLanguage()
+                Language.SPANISH
             );
             const results =
                 mediaType === 'movie'

@@ -1,4 +1,5 @@
 import {
+    currentAppLanguage,
     getPanelApiBase,
     getSessionAlertAccounts,
     panelEndpoint,
@@ -36,7 +37,8 @@ export function parsePanelAlert(raw: unknown, panelRoot: string): PanelAlert | n
         title: String(j['title'] ?? ''),
         message: String(j['message'] ?? ''),
         image,
-        button: String(j['button'] || 'ENTENDIDO'),
+        // '' = the app's own "ENTENDIDO" in the app language
+        button: String(j['button'] || ''),
     };
 }
 
@@ -47,6 +49,8 @@ function alertUrl(acc: SessionAlertAccount): string {
         pass: acc.pass,
         dns: acc.dns,
         title: acc.title ?? '',
+        // the panel answers the alert texts in the app language
+        lang: currentAppLanguage(),
     });
     // + &t=<code>&app=windows with a distributor (its own texts)
     return withTenantQuery(`${panelEndpoint('alerta.php')}?${q.toString()}`);

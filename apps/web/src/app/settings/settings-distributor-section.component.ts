@@ -1,5 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { formatTenantExpiry } from '@iptvnator/shared/interfaces';
+import { map } from 'rxjs';
 import { PanelTenantService } from '../panel-login/panel-tenant.service';
 
 /**
@@ -11,23 +15,23 @@ import { PanelTenantService } from '../panel-login/panel-tenant.service';
 @Component({
     selector: 'app-settings-distributor-section',
     standalone: true,
-    imports: [MatButtonModule],
+    imports: [MatButtonModule, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <section class="settings-distributor" data-test-id="settings-distributor">
-            <h3>Distribuidor</h3>
+            <h3>{{ 'MPX.DIST.SECTION' | translate }}</h3>
             @if (branding.tenant(); as tenant) {
-                <div class="row">Distribuidor: <b>{{ tenant.name ?? 'Sin nombre' }}</b> ({{ tenant.code }})</div>
-                @if (branding.expiry(); as expiry) {
-                    <div class="row">Vence: <b>{{ expiry }}</b> (hora de Panamá)</div>
+                <div class="row">{{ 'MPX.DIST.NAME' | translate }} <b>{{ tenant.name ?? ('MPX.DIST.NO_NAME' | translate) }}</b> ({{ tenant.code }})</div>
+                @if (expiry(); as expiry) {
+                    <div class="row">{{ 'MPX.DIST.EXPIRES' | translate }} <b>{{ expiry }}</b> {{ 'MPX.DIST.PANAMA_TIME' | translate }}</div>
                 }
             } @else {
-                <div class="row">Sin número de distribuidor.</div>
+                <div class="row">{{ 'MPX.DIST.NONE' | translate }}</div>
             }
             <button mat-stroked-button type="button" [disabled]="busy()" (click)="change()">
-                {{ branding.tenant() ? 'Cambiar distribuidor' : 'Ingresar número de distribuidor' }}
+                {{ (branding.tenant() ? 'MPX.DIST.CHANGE' : 'MPX.DIST.ENTER') | translate }}
             </button>
-            <p>Se cerrará la sesión y la app pedirá el número de distribuidor.</p>
+            <p>{{ 'MPX.DIST.CHANGE_NOTE' | translate }}</p>
         </section>
     `,
     styles: `
@@ -49,9 +53,18 @@ export class SettingsDistributorSectionComponent {
     private readonly tenantService = inject(PanelTenantService);
     protected readonly branding = this.tenantService.branding;
     protected readonly busy = signal(false);
+    private readonly translate = inject(TranslateService);
+    private readonly lang = toSignal(this.translate.onLangChange.pipe(map((e) => e.lang)), {
+        initialValue: this.translate.currentLang || this.translate.defaultLang,
+    });
+    /** Expiry date (Panama time) in the date format of the app language. */
+    protected readonly expiry = computed(() => {
+        const tenant = this.branding.tenant();
+        return tenant ? formatTenantExpiry(tenant, this.lang()) : '';
+    });
 
     async change(): Promise<void> {
-        if (!confirm('¿Cambiar de distribuidor? Se cerrará la sesión en este dispositivo.')) return;
+        if (!confirm(this.translate.instant('MPX.DIST.CHANGE_CONFIRM'))) return;
         this.busy.set(true);
         try {
             await this.tenantService.change();

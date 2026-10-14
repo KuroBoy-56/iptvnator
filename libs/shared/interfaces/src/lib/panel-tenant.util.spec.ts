@@ -111,7 +111,9 @@ describe('panel tenant util', () => {
         // 2026-01-01 04:59:59 UTC = 2025-12-31 23:59:59 in Panama
         expect(formatTenantExpiry(cache)).toBe('31/12/2025');
         expect(formatTenantExpiry({ expiresAt: 1, expiresDate: '2026-02-03' })).toBe('03/02/2026');
-        expect(tenantExpiredMessage(cache)).toBe('Tu distribuidor venció el 31/12/2025 (hora de Panamá)');
+        expect(tenantExpiredMessage(cache)).toEqual({ key: 'MPX.DIST.EXPIRED_ON', params: { date: '31/12/2025' } });
+        expect(formatTenantExpiry(cache, 'en-US')).toBe('12/31/2025');
+        expect(formatTenantExpiry({ expiresAt: 0, expiresDate: '2026-02-03' }, 'fr')).toBe('03/02/2026');
     });
 });
 

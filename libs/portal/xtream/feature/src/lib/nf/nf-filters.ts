@@ -3,6 +3,10 @@ import { NfItem } from './nf-item';
 /** Keyword groups, same tables as the web player (includes/core.php). */
 export interface NfTag {
     key: string;
+    /**
+     * Shown through the translate pipe: a translation key (genres, seasons)
+     * or a brand name, which comes back unchanged.
+     */
     label: string;
     kw: (string | RegExp)[];
     /** Platform tiles only. */
@@ -59,14 +63,14 @@ export const NF_PLATFORMS: NfTag[] = [
     { key: 'dc', label: 'DC', img: IMG + 'dc.webp', kw: [/\bdc\b/, 'dc comics'], color: '#0476f2' },
     {
         key: 'xmas',
-        label: 'Navidad',
+        label: 'MPX.NF.TAG_XMAS',
         img: IMG + 'xmas.webp',
         kw: ['navidad', 'navide', 'christmas', 'xmas'],
         color: '#1f7a3a',
     },
     {
         key: 'halloween',
-        label: 'Halloween',
+        label: 'MPX.NF.TAG_HALLOWEEN',
         img: IMG + 'halloween.webp',
         kw: ['halloween', 'terror', 'horror'],
         color: '#ff6a00',
@@ -76,12 +80,12 @@ export const NF_PLATFORMS: NfTag[] = [
 export const NF_GENRES: NfTag[] = [
     {
         key: 'accion',
-        label: 'Acción',
+        label: 'MPX.NF.TAG_ACCION',
         kw: ['accion', 'action', 'artes marciales'],
     },
     {
         key: 'suspenso',
-        label: 'Suspenso',
+        label: 'MPX.NF.TAG_SUSPENSO',
         kw: [
             'suspenso',
             'suspense',
@@ -91,14 +95,14 @@ export const NF_GENRES: NfTag[] = [
             'intriga',
         ],
     },
-    { key: 'aventura', label: 'Aventura', kw: ['aventura', 'adventure'] },
-    { key: 'anime', label: 'Anime', kw: ['anime', 'crunchyroll', 'otaku'] },
-    { key: 'drama', label: 'Drama', kw: ['drama'] },
-    { key: 'comedia', label: 'Comedia', kw: ['comedia', 'comedy', 'humor'] },
-    { key: 'terror', label: 'Terror', kw: ['terror', 'horror', 'miedo'] },
+    { key: 'aventura', label: 'MPX.NF.TAG_AVENTURA', kw: ['aventura', 'adventure'] },
+    { key: 'anime', label: 'MPX.NF.TAG_ANIME', kw: ['anime', 'crunchyroll', 'otaku'] },
+    { key: 'drama', label: 'MPX.NF.TAG_DRAMA', kw: ['drama'] },
+    { key: 'comedia', label: 'MPX.NF.TAG_COMEDIA', kw: ['comedia', 'comedy', 'humor'] },
+    { key: 'terror', label: 'MPX.NF.TAG_TERROR', kw: ['terror', 'horror', 'miedo'] },
     {
         key: 'scifi',
-        label: 'Ciencia ficción',
+        label: 'MPX.NF.TAG_SCIFI',
         kw: [
             'ciencia ficcion',
             'sci-fi',
@@ -107,20 +111,20 @@ export const NF_GENRES: NfTag[] = [
             'ficcion',
         ],
     },
-    { key: 'fantasia', label: 'Fantasía', kw: ['fantasia', 'fantasy'] },
+    { key: 'fantasia', label: 'MPX.NF.TAG_FANTASIA', kw: ['fantasia', 'fantasy'] },
     {
         key: 'romance',
-        label: 'Romance',
+        label: 'MPX.NF.TAG_ROMANCE',
         kw: ['romance', 'romantic', 'romantica', 'romantico', 'amor'],
     },
     {
         key: 'crimen',
-        label: 'Crimen',
+        label: 'MPX.NF.TAG_CRIMEN',
         kw: ['crimen', 'crime', 'policia', 'policiaco', 'mafia'],
     },
     {
         key: 'animacion',
-        label: 'Animación',
+        label: 'MPX.NF.TAG_ANIMACION',
         kw: [
             'animacion',
             'animation',
@@ -132,32 +136,32 @@ export const NF_GENRES: NfTag[] = [
     },
     {
         key: 'infantil',
-        label: 'Infantil y familia',
+        label: 'MPX.NF.TAG_INFANTIL',
         kw: ['infantil', 'kids', 'ninos', 'familia', 'family', 'familiar'],
     },
     {
         key: 'documental',
-        label: 'Documentales',
+        label: 'MPX.NF.TAG_DOCUMENTAL',
         kw: ['documental', 'documentary', 'docu'],
     },
     {
         key: 'belica',
-        label: 'Bélicas',
+        label: 'MPX.NF.TAG_BELICA',
         kw: ['belica', 'belico', 'guerra', 'war'],
     },
     {
         key: 'dorama',
-        label: 'Doramas',
+        label: 'MPX.NF.TAG_DORAMA',
         kw: ['dorama', 'k-drama', 'kdrama', 'corea', 'korean', 'asiatic'],
     },
-    { key: 'novela', label: 'Novelas', kw: ['novela', 'telenovela'] },
-    { key: 'western', label: 'Western', kw: ['western', 'vaquer', 'oeste'] },
+    { key: 'novela', label: 'MPX.NF.TAG_NOVELA', kw: ['novela', 'telenovela'] },
+    { key: 'western', label: 'MPX.NF.TAG_WESTERN', kw: ['western', 'vaquer', 'oeste'] },
     {
         key: 'musical',
-        label: 'Música',
+        label: 'MPX.NF.TAG_MUSICAL',
         kw: ['musical', 'music', 'musica', 'concierto'],
     },
-    { key: 'deportes', label: 'Deportes', kw: ['deporte', 'sport', 'futbol'] },
+    { key: 'deportes', label: 'MPX.NF.TAG_DEPORTES', kw: ['deporte', 'sport', 'futbol'] },
 ];
 
 /** Genre rows on Inicio, in the web player's order. */

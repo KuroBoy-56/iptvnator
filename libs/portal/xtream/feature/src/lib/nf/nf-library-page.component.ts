@@ -6,6 +6,7 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { TranslatePipe } from '@ngx-translate/core';
 import { map } from 'rxjs';
 import { NfCardComponent } from './nf-card.component';
 import { injectNfCatalog } from './nf-catalog';
@@ -23,16 +24,16 @@ export const NF_LIBRARY_LIST = 'nfList';
 @Component({
     selector: 'app-nf-library-page',
     standalone: true,
-    imports: [NfCardComponent, RouterLink],
+    imports: [NfCardComponent, RouterLink, TranslatePipe],
     template: `
         <div class="nf-page">
             <header class="nf-browse-head">
-                <h1>{{ heading() }}</h1>
+                <h1>{{ heading() | translate }}</h1>
                 <p>
                     @if (items()?.length; as count) {
-                        {{ count }} títulos ·
+                        {{ 'MPX.NF.TITLES_COUNT' | translate: { count } }} ·
                     }
-                    Lo más reciente primero
+                    {{ 'MPX.NF.SORT_RECENT' | translate }}
                 </p>
             </header>
             @if (items(); as list) {
@@ -47,10 +48,12 @@ export const NF_LIBRARY_LIST = 'nfList';
                         }
                     </div>
                 } @else {
-                    <p class="nf-empty">{{ empty() }}</p>
+                    <p class="nf-empty">{{ empty() | translate }}</p>
                 }
             } @else {
-                <p class="nf-grid-status">Cargando…</p>
+                <p class="nf-grid-status">
+                    {{ 'MPX.COMMON.LOADING' | translate }}
+                </p>
             }
         </div>
     `,
@@ -71,12 +74,12 @@ export class NfLibraryPageComponent {
     );
 
     protected readonly heading = computed(() =>
-        this.list() === 'myList' ? 'Mi lista' : 'Continuar viendo'
+        this.list() === 'myList' ? 'MPX.NF.MY_LIST' : 'MPX.NF.CONTINUE_WATCHING'
     );
     protected readonly empty = computed(() =>
         this.list() === 'myList'
-            ? 'Aún no agregaste títulos a Mi lista.'
-            : 'No tienes nada pendiente por ver.'
+            ? 'MPX.NF.EMPTY_MY_LIST'
+            : 'MPX.NF.EMPTY_CONTINUE'
     );
 
     protected readonly items = computed<NfItem[] | null>(() => {

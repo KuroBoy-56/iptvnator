@@ -1,42 +1,42 @@
 <main class="sp">
     <div class="sp-head">
         <div>
-            <h1>Deportes</h1>
-            <p>Partidos de hoy y mañana en tu hora local.</p>
+            <h1>{{ 'MPX.NAV.SPORTS' | translate }}</h1>
+            <p>{{ 'MPX.SPORTS.SUBTITLE' | translate }}</p>
         </div>
         @if (liveEvents().length) {
             <span class="sp-livecount">
                 <span class="sp-dot"></span>
                 {{ liveEvents().length }}
-                {{ liveEvents().length === 1 ? 'partido en vivo' : 'partidos en vivo' }}
+                {{ (liveEvents().length === 1 ? 'MPX.SPORTS.LIVE_ONE' : 'MPX.SPORTS.LIVE_MANY') | translate }}
             </span>
         }
     </div>
 
     @if (loading()) {
-        <div class="sp-empty"><b>Cargando la agenda…</b></div>
+        <div class="sp-empty"><b>{{ 'MPX.SPORTS.LOADING' | translate }}</b></div>
     } @else if (!events().length) {
         <div class="sp-empty">
-            <b>La agenda deportiva no está disponible</b>
-            Vuelve a intentarlo en unos minutos.
+            <b>{{ 'MPX.SPORTS.UNAVAILABLE' | translate }}</b>
+            {{ 'MPX.SPORTS.UNAVAILABLE_HINT' | translate }}
         </div>
     } @else {
         <div class="sp-bar">
-            <div class="sp-days" role="tablist" aria-label="Día">
-                <button type="button" role="tab" [class.on]="day() === 0" (click)="selectDay(0)">Hoy</button>
-                <button type="button" role="tab" [class.on]="day() === 1" (click)="selectDay(1)">Mañana</button>
+            <div class="sp-days" role="tablist" [attr.aria-label]="'MPX.SPORTS.DAY' | translate">
+                <button type="button" role="tab" [class.on]="day() === 0" (click)="selectDay(0)">{{ 'MPX.SPORTS.TODAY' | translate }}</button>
+                <button type="button" role="tab" [class.on]="day() === 1" (click)="selectDay(1)">{{ 'MPX.SPORTS.TOMORROW' | translate }}</button>
             </div>
             <div class="sp-search">
                 <input
                     type="search"
-                    placeholder="Buscar equipo o liga"
-                    aria-label="Buscar equipo o liga"
+                    [placeholder]="'MPX.SPORTS.SEARCH' | translate"
+                    [attr.aria-label]="'MPX.SPORTS.SEARCH' | translate"
                     (input)="onQuery($any($event.target).value)"
                 />
             </div>
             <div class="sp-chips">
                 <button type="button" class="sp-chip" [class.active]="!sport()" (click)="sport.set('')">
-                    Todos<b>{{ totalForDay() }}</b>
+                    {{ 'MPX.SPORTS.ALL' | translate }}<b>{{ totalForDay() }}</b>
                 </button>
                 @for (chip of chips(); track chip.key) {
                     <button
@@ -53,7 +53,7 @@
 
         @if (showLiveRow()) {
             <section class="sp-livewrap">
-                <h2 class="sp-h2"><span class="sp-dot"></span>En vivo ahora</h2>
+                <h2 class="sp-h2"><span class="sp-dot"></span>{{ 'MPX.SPORTS.LIVE_NOW' | translate }}</h2>
                 <div class="sp-live-row">
                     @for (e of liveEvents(); track e.id) {
                         <ng-container *ngTemplateOutlet="card; context: { $implicit: e }" />
@@ -80,8 +80,8 @@
         } @empty {
             @if (!showLiveRow()) {
                 <div class="sp-empty">
-                    <b>No hay partidos con estos filtros</b>
-                    Prueba con otro día o deporte.
+                    <b>{{ 'MPX.SPORTS.NO_MATCHES' | translate }}</b>
+                    {{ 'MPX.SPORTS.NO_MATCHES_HINT' | translate }}
                 </div>
             }
         }
@@ -95,13 +95,13 @@
             <span class="lg">{{ leagueLabel(e) }}</span>
             @switch (st) {
                 @case ('live') {
-                    <span class="sp-pill live"><span class="sp-dot"></span>En vivo</span>
+                    <span class="sp-pill live"><span class="sp-dot"></span>{{ 'MPX.SPORTS.LIVE' | translate }}</span>
                 }
                 @case ('fin') {
-                    <span class="sp-pill fin">Final</span>
+                    <span class="sp-pill fin">{{ 'MPX.SPORTS.FINAL' | translate }}</span>
                 }
                 @case ('pp') {
-                    <span class="sp-pill fin">Aplazado</span>
+                    <span class="sp-pill fin">{{ 'MPX.SPORTS.POSTPONED' | translate }}</span>
                 }
                 @default {
                     <span class="sp-pill time">{{ time(e) }}</span>
@@ -133,13 +133,13 @@
         <div class="sp-foot">
             <span class="v">{{ e.v || (st === 'soon' ? time(e) : '') }}</span>
             <button type="button" class="sp-tv" [disabled]="busyId() === e.id" (click)="open(e)">
-                {{ busyId() === e.id ? 'Buscando canal…' : e.tv?.length ? 'Ver canales' : 'TV en vivo' }}
+                {{ (busyId() === e.id ? 'MPX.SPORTS.FINDING' : e.tv?.length ? 'MPX.SPORTS.SEE_CHANNELS' : 'MPX.NAV.LIVE_TV') | translate }}
             </button>
         </div>
         @if (menuId() === e.id) {
             <div class="sp-menu" role="menu">
                 <button type="button" class="primary" role="menuitem" (click)="watch(e)">
-                    <b>▶ Ver el evento</b><small>Busca el mejor canal automáticamente</small>
+                    <b>▶ {{ 'MPX.SPORTS.WATCH_EVENT' | translate }}</b><small>{{ 'MPX.SPORTS.WATCH_EVENT_HINT' | translate }}</small>
                 </button>
                 @for (t of e.tv; track $index) {
                     <button type="button" role="menuitem" (click)="watch(e, { kind: 'tv', name: t.n })">
@@ -147,7 +147,7 @@
                     </button>
                 }
                 <button type="button" role="menuitem" (click)="watch(e, { kind: 'teams' })">
-                    <b>Buscar por equipos</b><small>En las carpetas de eventos de tu lista</small>
+                    <b>{{ 'MPX.SPORTS.BY_TEAMS' | translate }}</b><small>{{ 'MPX.SPORTS.BY_TEAMS_HINT' | translate }}</small>
                 </button>
             </div>
         }

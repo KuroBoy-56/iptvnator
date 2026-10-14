@@ -131,8 +131,8 @@ resolved later). The line password is never stored in `localStorage`.
   (`.nf-login-checking`), never the form: an active fake screen is the first
   thing the user sees.
 - **Login poster wall:** `LoginPostersService` asks the panel
-  `api/tmdb.php?path=movie/now_playing&language=es-ES&page=N` (+ `t`/`app`
-  with a distributor). The panel uses the distributor's TMDB key or, with
+  `api/tmdb.php?path=movie/now_playing&language=<es-MX|en-US|pt-BR|fr-FR>&page=N&lang=<es|en|pt|fr>`
+  (+ `t`/`app` with a distributor), in the app language (see "App language"). The panel uses the distributor's TMDB key or, with
   Omitir, the owner's; `{"error":"tmdb_key_not_set"}` means no wall. Cached
   12 h per distributor (`login_posters_v2` + `tenantStorageSuffix()`).
 
@@ -425,7 +425,7 @@ days left. `WorkspacePanelAlertComponent`
 (`libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-panel-alert/`)
 is mounted by the workspace shell and, once per app start (shell creation,
 so also after a new login), calls
-`alerta.php?format=json&user&pass&dns&title` for each in-memory alert
+`alerta.php?format=json&user&pass&dns&title&lang` for each in-memory alert
 account (`getSessionAlertAccounts()`, title = playlist name):
 
 - `type: "expiry"` (3/2/1 days, or 0 / expired): red title, no image. The
@@ -436,7 +436,8 @@ account (`getSessionAlertAccounts()`, title = playlist name):
 The notice is rendered natively from the JSON (text only, `white-space:
 pre-line`), not by loading the panel's HTML card: an `srcdoc` iframe with
 `allow-scripts allow-same-origin` would have run remote markup with the app's
-origin. "Entendido", Esc or Enter close it. Failures show nothing.
+origin. The button (the panel's text, else "Entendido" in the app language),
+Esc or Enter close it. Failures show nothing.
 
 ## Sports
 
@@ -498,7 +499,8 @@ replaces the old rail and toolbar.
   to the open Xtream line, or to the first one.
 - Search opens Explorar filtered by title (`explore?q=`), like the web player.
   Ctrl/Cmd+F focuses it.
-- Clock and a profile menu: Mi cuenta, Actualizar contenido, Descargas, Ajustes.
+- Clock (in the app language) and a profile menu: Mi cuenta, Actualizar
+  contenido, Descargas, Idioma de la app (see "App language"), Ajustes.
 - The bar is a window drag region in the frameless Windows/Linux build. It is
   transparent over a billboard and turns solid on scroll or on other pages.
 
@@ -626,6 +628,49 @@ so 4K renditions are picked whenever the bandwidth allows.
 Failed provider requests are only logged. The old native "CAZADOR DE ERRORES"
 error box is gone, so background calls such as `get_account_info` no longer
 block the app.
+
+## App language (es / en / pt / fr)
+
+The app speaks Spanish (default and fallback), English, Portuguese (Brazil,
+`pt.json`) and French through `@ngx-translate`; the MPX / Netflix UI keys
+(login, distributor, demo, top bar, Netflix pages, sports, player notices)
+live under `MPX` in `apps/web/src/assets/i18n/{es,en,pt,fr}.json`. The other
+language files stay as they were and fall back to Spanish.
+
+- **Setting:** `Settings.language` is `auto` (default) or `es`/`en`/`pt`/`fr`.
+  `auto` uses the first two letters of the system language
+  (`navigator.language`, which Electron takes from the OS); anything else
+  becomes Spanish (`resolveAppLanguage` in
+  `libs/shared/interfaces/src/lib/app-language.util.ts`). It is chosen in the
+  top bar profile menu ("Idioma de la app") or in Settings › General, with
+  the options "Automático (idioma del equipo)", Español, English, Português
+  and Français, and applies at once: `AppComponent` follows
+  `SettingsStore.language()` and calls `TranslateService.use()`.
+- **Migration:** the old default was English, so a saved `en` becomes `auto`
+  once (`migrateLegacyLanguage`, flag `mpx:language-auto-v1`); a language the
+  app no longer offers also becomes `auto`.
+- **First render:** the language in use is kept in
+  `localStorage['iptvnator:preferred-language']` (`currentAppLanguage()`), so
+  the first screen and the panel requests already use it before the settings
+  load.
+- **Panel requests:** the panel answers its own texts in the app language.
+  `lang` goes inside the encrypted `login.php` payload of every action
+  (validated `es|en|pt|fr` in the main process), and `?lang=` on
+  `progress.php`, `epg.php`, `sports.php`, `tmdb.php`, `alerta.php` and
+  `report.php` (`withPanelLang`; `report.php` also carries it in the encrypted
+  body). Error-code handling is unchanged; local failures (network, missing
+  key, bad reply) are shown with the app's own translated text
+  (`panelErrorText`), the panel's own `error`/`message` as sent.
+- **Not translated:** server and TMDB titles and names, category names, panel
+  texts (alerts, panel errors, fake screen, sports labels sent by the panel),
+  brand names and the "DEMO" badge. The Netflix keyword tables in
+  `nf/nf-filters.ts` still match the Spanish server data; only their labels
+  are translation keys (`MPX.NF.TAG_*`).
+- **TMDB:** title search and catalog matching (search, posters, trending)
+  stay in `es-MX`; detail calls (plot, cast, seasons, person) use the app
+  language: `es-MX`, `en-US`, `pt-BR` or `fr-FR` (`TmdbRuntimeService`).
+- **Dates:** the clock, sports times, demo end, distributor expiry and the
+  account expiry use the app language's format.
 
 ## App name and data folder
 

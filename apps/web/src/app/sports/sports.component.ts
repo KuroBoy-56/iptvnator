@@ -7,7 +7,10 @@ import {
     OnInit,
     signal,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { map } from 'rxjs';
 import { NgTemplateOutlet } from '@angular/common';
 import { Router } from '@angular/router';
 import { PanelSportMeta } from '@iptvnator/services';
@@ -37,17 +40,31 @@ interface SportChip {
     selector: 'app-sports',
     templateUrl: './sports.component.html',
     styleUrl: './sports.component.scss',
-    imports: [NgTemplateOutlet],
+    imports: [NgTemplateOutlet, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SportsComponent implements OnInit {
     private readonly data = inject(SportsDataService);
     private readonly router = inject(Router);
     private readonly snackBar = inject(MatSnackBar);
+    private readonly translate = inject(TranslateService);
+    private readonly lang = toSignal(this.translate.onLangChange.pipe(map((e) => e.lang)), {
+        initialValue: this.translate.currentLang || this.translate.defaultLang,
+    });
 
     readonly loading = signal(true);
     readonly events = signal<SportsCard[]>([]);
-    readonly meta = signal<Record<string, PanelSportMeta>>(DEFAULT_SPORTS_META);
+    /** Sports of the panel agenda (its labels come in the app language). */
+    private readonly panelMeta = signal<Record<string, PanelSportMeta>>({});
+    /** Built-in sport labels in the app language, overridden by the panel's. */
+    readonly meta = computed<Record<string, PanelSportMeta>>(() => {
+        this.lang();
+        const local: Record<string, PanelSportMeta> = {};
+        for (const [key, m] of Object.entries(DEFAULT_SPORTS_META)) {
+            local[key] = { ...m, label: this.translate.instant(m.label) };
+        }
+        return { ...local, ...this.panelMeta() };
+    });
     readonly day = signal<0 | 1>(0);
     readonly sport = signal('');
     readonly query = signal('');
@@ -55,7 +72,9 @@ export class SportsComponent implements OnInit {
     readonly busyId = signal<string | null>(null);
     /** Event whose "where to watch" menu is open. */
     readonly menuId = signal<string | null>(null);
-    private readonly timeFormat = new Intl.DateTimeFormat('es', { hour: 'numeric', minute: '2-digit' });
+    private readonly timeFormat = computed(
+        () => new Intl.DateTimeFormat(this.lang() || 'es', { hour: 'numeric', minute: '2-digit' })
+    );
     private queryTimer: ReturnType<typeof setTimeout> | undefined;
 
     readonly dayKeys = computed(() => {
@@ -107,7 +126,7 @@ export class SportsComponent implements OnInit {
     async ngOnInit(): Promise<void> {
         const agenda = await this.data.loadAgenda();
         if (agenda) {
-            this.meta.set({ ...DEFAULT_SPORTS_META, ...agenda.sports });
+            this.panelMeta.set(agenda.sports ?? {});
             this.events.set(toSportsCards(agenda.events));
         }
         // Nothing left today: open tomorrow, like the web player.
@@ -137,7 +156,7 @@ export class SportsComponent implements OnInit {
     }
 
     time(e: SportsCard): string {
-        return this.timeFormat.format(new Date(e.start));
+        return this.timeFormat().format(new Date(e.start));
     }
 
     leagueLabel(e: SportsCard): string {
@@ -163,7 +182,8 @@ export class SportsComponent implements OnInit {
     tvLine(e: SportsCard): string {
         const tv = e.tv ?? [];
         if (!tv.length) return '';
-        return 'En TV: ' + tv.slice(0, 4).map((t) => t.n).join(' · ') + (tv.length > 4 ? `  +${tv.length - 4}` : '');
+        const names = tv.slice(0, 4).map((t) => t.n).join(' · ') + (tv.length > 4 ? `  +${tv.length - 4}` : '');
+        return this.translate.instant('MPX.SPORTS.ON_TV', { channels: names });
     }
 
     /** With broadcast channels: the menu (watch, each channel, by teams); without: straight to the search. */
@@ -177,7 +197,7 @@ export class SportsComponent implements OnInit {
         const st = this.status(e);
         const isToday = e.dayKey === this.dayKeys()[0];
         if (!isToday || st === 'fin' || st === 'pp') {
-            this.toast(st === 'fin' && isToday ? 'Este evento ya terminó' : 'El evento no está en línea');
+            this.toast(st === 'fin' && isToday ? 'MPX.SPORTS.ENDED' : 'MPX.SPORTS.NOT_LIVE');
             return;
         }
         if (this.busyId()) return;
@@ -185,12 +205,13 @@ export class SportsComponent implements OnInit {
         try {
             const target = await this.data.findChannel(e, mode);
             if (!target) {
-                this.toast(mode.kind === 'tv' ? `No encontramos ${mode.name} ni el evento en tu lista` : 'No encontramos un canal para este evento');
+                if (mode.kind === 'tv') this.toast('MPX.SPORTS.NO_TV_CHANNEL', { name: mode.name });
+                else this.toast('MPX.SPORTS.NO_CHANNEL');
                 return;
             }
-            if (target.missing) this.toast(`No tienes ${target.missing}; te mostramos ${target.name}`);
+            if (target.missing) this.toast('MPX.SPORTS.MISSING_CHANNEL', { missing: target.missing, name: target.name });
             if (target.partial) {
-                this.toast(`Aún no aparece el canal exacto, te mostramos ${target.name}`);
+                this.toast('MPX.SPORTS.PARTIAL_CHANNEL', { name: target.name });
                 await this.router.navigate(['/workspace', 'xtreams', target.playlistId, 'live', target.categoryId]);
                 return;
             }
@@ -207,7 +228,7 @@ export class SportsComponent implements OnInit {
         }
     }
 
-    private toast(message: string): void {
-        this.snackBar.open(message, undefined, { duration: 3000 });
+    private toast(key: string, params?: Record<string, string>): void {
+        this.snackBar.open(this.translate.instant(key, params), undefined, { duration: 3000 });
     }
 }

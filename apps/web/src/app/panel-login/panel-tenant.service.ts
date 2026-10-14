@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { PanelBrandingService } from '@iptvnator/services';
 import {
     clearTenant,
+    currentAppLanguage,
     forgetTenantStorage,
     isTenantCode,
     isTenantErrorCode,
@@ -16,6 +17,7 @@ import {
     saveTenantCode,
     saveTenantSkip,
     tenantExpiredMessage,
+    UiText,
 } from '@iptvnator/shared/interfaces';
 import { AuthService } from '../auth.service';
 import { PanelLoginService } from './panel-login.service';
@@ -42,9 +44,9 @@ export class PanelTenantService {
     readonly branding = inject(PanelBrandingService);
 
     /** Message shown on the distributor step after a wipe. */
-    readonly notice = signal<string | null>(null);
+    readonly notice = signal<UiText | null>(null);
     /** Set when the panel could not confirm the distributor for 72 h: login shows "Reintentar". */
-    readonly retryMessage = signal<string | null>(null);
+    readonly retryMessage = signal<UiText | null>(null);
 
     private started = false;
     private checking: Promise<TenantGuardResult> | null = null;
@@ -85,13 +87,13 @@ export class PanelTenantService {
         if (!code) return 'ok';
         const cached = readTenantCache();
         if (cached && isTenantExpired(cached)) {
-            await this.wipe(tenantExpiredMessage(cached));
+            await this.wipe(tenantExpiredMessage(cached, currentAppLanguage()));
             return 'wiped';
         }
         const res = await this.panel.tenantConfig(code);
         if (res.status === 'ok') {
             if (isTenantExpired(res.cache)) {
-                await this.wipe(tenantExpiredMessage(res.cache));
+                await this.wipe(tenantExpiredMessage(res.cache, currentAppLanguage()));
                 return 'wiped';
             }
             saveTenantCode(res.cache);
@@ -104,7 +106,7 @@ export class PanelTenantService {
         }
         // network, 5xx, 429…: the cache keeps working for a while
         if (cached && Date.now() - cached.lastOkCheck < TENANT_OFFLINE_GRACE_MS) return 'offline';
-        this.retryMessage.set('No se pudo verificar tu distribuidor con el panel. Revisa tu conexión e inténtalo de nuevo.');
+        this.retryMessage.set({ key: 'MPX.DIST.RETRY_MESSAGE' });
         await this.injector.get(Router).navigate(['/login']);
         return 'retry';
     }
@@ -113,12 +115,12 @@ export class PanelTenantService {
      * Distributor step "Continuar": validates the code against the panel and
      * stores it. Returns the error message to show, or null on success.
      */
-    async submit(code: string): Promise<string | null> {
+    async submit(code: string): Promise<UiText | null> {
         const value = code.trim();
-        if (!isTenantCode(value)) return 'Escribe los 6 dígitos de tu número de distribuidor.';
+        if (!isTenantCode(value)) return { key: 'MPX.DIST.ERR_CODE_DIGITS' };
         const res = await this.panel.tenantConfig(value);
         if (res.status !== 'ok') return res.message;
-        if (isTenantExpired(res.cache)) return tenantExpiredMessage(res.cache);
+        if (isTenantExpired(res.cache)) return tenantExpiredMessage(res.cache, currentAppLanguage());
         saveTenantCode(res.cache);
         this.notice.set(null);
         this.retryMessage.set(null);
@@ -137,11 +139,13 @@ export class PanelTenantService {
         await this.wipe(null);
     }
 
-    private messageFor(code: PanelTenantErrorCode, cache = readTenantCache()): string {
-        return code === 'tenant_expired' && cache ? tenantExpiredMessage(cache) : PANEL_TENANT_MESSAGES[code];
+    private messageFor(code: PanelTenantErrorCode, cache = readTenantCache()): UiText {
+        return code === 'tenant_expired' && cache
+            ? tenantExpiredMessage(cache, currentAppLanguage())
+            : { key: PANEL_TENANT_MESSAGES[code] };
     }
 
-    private async wipe(message: string | null): Promise<void> {
+    private async wipe(message: UiText | null): Promise<void> {
         const code = readTenantCode();
         clearTenant();
         if (code) forgetTenantStorage(code);

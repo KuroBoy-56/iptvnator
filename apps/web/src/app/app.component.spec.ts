@@ -11,8 +11,9 @@ import {
 import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
 import { MockProvider } from 'ng-mocks';
 import { EMPTY, of } from 'rxjs';
-import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
+import { DataService, RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
+    APP_LANGUAGE_STORAGE_KEY,
     Language,
     Settings,
     StartupBehavior,
@@ -174,9 +175,9 @@ describe('AppComponent', () => {
         expect(storeDispatchSpy).toHaveBeenCalledWith(
             PlaylistActions.loadPlaylists()
         );
-        expect(translateService.setDefaultLang).toHaveBeenCalledWith(
-            Language.ENGLISH
-        );
+        // Spanish is the fallback; the language in use is applied at once
+        expect(translateService.setDefaultLang).toHaveBeenCalledWith('es');
+        expect(translateService.use).toHaveBeenCalled();
         expect(component.initSettings).toHaveBeenCalledTimes(1);
     });
 
@@ -215,12 +216,10 @@ describe('AppComponent', () => {
         });
         settingsService.getValueFromLocalStorage.mockReturnValue(of(settings));
         jest.spyOn(settingsService, 'changeTheme');
-        jest.spyOn(translateService, 'use');
 
         component.initSettings();
         await fixture.whenStable();
 
-        expect(translateService.use).toHaveBeenCalledWith(Language.SPANISH);
         expect(settingsService.changeTheme).toHaveBeenCalledWith(
             Theme.DarkTheme
         );
@@ -245,5 +244,22 @@ describe('AppComponent', () => {
 
         expect(epgBridge.checkFreshness).not.toHaveBeenCalled();
         expect(epgService.fetchEpg).not.toHaveBeenCalled();
+    });
+
+    it('applies the saved app language at once and follows the system language on "auto"', async () => {
+        const settingsStore = TestBed.inject(SettingsStore);
+        fixture.detectChanges();
+
+        await settingsStore.updateSettings({ language: 'fr' });
+        TestBed.tick();
+        fixture.detectChanges();
+        expect(translateService.use).toHaveBeenLastCalledWith('fr');
+        expect(localStorage.getItem(APP_LANGUAGE_STORAGE_KEY)).toBe('fr');
+
+        await settingsStore.updateSettings({ language: 'auto' });
+        TestBed.tick();
+        fixture.detectChanges();
+        // jsdom reports en-US as the system language
+        expect(translateService.use).toHaveBeenLastCalledWith('en');
     });
 });

@@ -39,7 +39,8 @@ export class TmdbTrendingService {
         mediaType: 'movie' | 'tv'
     ): Promise<TmdbTrendingEntry[]> {
         try {
-            const language = this.runtime.language();
+            // matched against the catalog by title: es-MX like every search
+            const language = this.runtime.searchLanguage();
             const lookupKey = 'trending:week';
 
             const cached = await this.cache.get(

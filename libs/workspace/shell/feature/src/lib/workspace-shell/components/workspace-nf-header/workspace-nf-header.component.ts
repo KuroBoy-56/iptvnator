@@ -11,11 +11,21 @@ import {
     viewChild,
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
-import { PanelBrandingService } from '@iptvnator/services';
-import { DEMO_LABEL, isSessionDemo } from '@iptvnator/shared/interfaces';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { PanelBrandingService, SettingsStore } from '@iptvnator/services';
+import {
+    APP_LANGUAGE_OPTIONS,
+    AppLanguageSetting,
+    DEMO_LABEL,
+    isAppLanguage,
+    isSessionDemo,
+} from '@iptvnator/shared/interfaces';
+import { map } from 'rxjs';
 
 interface NfNavLink {
+    /** translation key */
     label: string;
     path: string[];
     exact?: boolean;
@@ -28,7 +38,7 @@ interface NfNavLink {
 @Component({
     selector: 'app-workspace-nf-header',
     standalone: true,
-    imports: [MatIcon, RouterLink, RouterLinkActive],
+    imports: [MatIcon, RouterLink, RouterLinkActive, TranslatePipe],
     templateUrl: './workspace-nf-header.component.html',
     host: {
         class: 'nf-header',
@@ -60,6 +70,20 @@ export class WorkspaceNfHeaderComponent {
     protected readonly menuOpen = signal(false);
     protected readonly now = signal(new Date());
     protected readonly user = readUser();
+    private readonly settings = inject(SettingsStore);
+    private readonly translate = inject(TranslateService);
+    /** UI language in use: clock and date follow it. */
+    private readonly uiLang = toSignal(
+        this.translate.onLangChange.pipe(map((e) => e.lang)),
+        { initialValue: this.translate.currentLang || this.translate.defaultLang || 'es' }
+    );
+    /** "Idioma de la app" in the profile menu: Automático + es/en/pt/fr. */
+    protected readonly languageOptions = APP_LANGUAGE_OPTIONS;
+    protected readonly langOpen = signal(false);
+    protected readonly language = computed<AppLanguageSetting>(() => {
+        const value = this.settings.language();
+        return isAppLanguage(value) ? value : 'auto';
+    });
 
     protected readonly root = computed(() => {
         const id = this.playlistId();
@@ -69,30 +93,30 @@ export class WorkspaceNfHeaderComponent {
         const root = this.root();
         // the distributor can turn the sports section off
         const sports: NfNavLink[] = this.branding.features().sports
-            ? [{ label: 'Deportes', path: ['/workspace', 'sports'] }]
+            ? [{ label: 'MPX.NAV.SPORTS', path: ['/workspace', 'sports'] }]
             : [];
         if (!root)
             return [
-                { label: 'Inicio', path: ['/workspace', 'sources'] },
+                { label: 'MPX.NAV.HOME', path: ['/workspace', 'sources'] },
                 ...sports,
             ];
         return [
-            { label: 'Inicio', path: [...root, 'home'] },
-            { label: 'Series', path: [...root, 'series'] },
-            { label: 'Películas', path: [...root, 'vod'] },
-            { label: 'TV en vivo', path: [...root, 'live'] },
+            { label: 'MPX.NAV.HOME', path: [...root, 'home'] },
+            { label: 'MPX.NAV.SERIES', path: [...root, 'series'] },
+            { label: 'MPX.NAV.MOVIES', path: [...root, 'vod'] },
+            { label: 'MPX.NAV.LIVE_TV', path: [...root, 'live'] },
             ...sports,
-            { label: 'Explorar', path: [...root, 'explore'] },
+            { label: 'MPX.NAV.EXPLORE', path: [...root, 'explore'] },
         ];
     });
     protected readonly time = computed(() =>
-        this.now().toLocaleTimeString('es', {
+        this.now().toLocaleTimeString(this.uiLang(), {
             hour: '2-digit',
             minute: '2-digit',
         })
     );
     protected readonly date = computed(() =>
-        this.now().toLocaleDateString('es', {
+        this.now().toLocaleDateString(this.uiLang(), {
             weekday: 'short',
             day: 'numeric',
             month: 'short',
@@ -141,6 +165,19 @@ export class WorkspaceNfHeaderComponent {
     protected toggleMenu(event: Event): void {
         event.stopPropagation();
         this.menuOpen.update((open) => !open);
+        this.langOpen.set(false);
+    }
+
+    protected toggleLanguages(event: Event): void {
+        event.stopPropagation();
+        this.langOpen.update((open) => !open);
+    }
+
+    /** Saved in the settings and applied at once (AppComponent follows the setting). */
+    protected setLanguage(value: AppLanguageSetting): void {
+        this.menuOpen.set(false);
+        this.langOpen.set(false);
+        void this.settings.updateSettings({ language: value });
     }
 
     protected closeMenu(event: Event): void {

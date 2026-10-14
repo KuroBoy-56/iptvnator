@@ -6,16 +6,16 @@ export type SportsEventStatus = 'live' | 'fin' | 'pp' | 'soon';
 const FINISHED = /^(FT|AET|AOT|PEN|Match Finished|Finished|After Over Time|Final)$/i;
 const DEFAULT_MINUTES = 120;
 
-/** Built-in sport labels; the panel's `sports` map overrides them. */
+/** Built-in sports (label = translation key); the panel's `sports` map overrides them. */
 export const DEFAULT_SPORTS_META: Record<string, PanelSportMeta> = {
-    Soccer: { label: 'Fútbol', icon: '⚽', minutes: 120 },
-    Basketball: { label: 'Baloncesto', icon: '🏀', minutes: 150 },
-    'American Football': { label: 'Fútbol americano', icon: '🏈', minutes: 210 },
-    Baseball: { label: 'Béisbol', icon: '⚾', minutes: 190 },
-    Fighting: { label: 'Combate', icon: '🥊', minutes: 240 },
-    Motorsport: { label: 'Motor', icon: '🏁', minutes: 150 },
-    Tennis: { label: 'Tenis', icon: '🎾', minutes: 150 },
-    'Ice Hockey': { label: 'Hockey', icon: '🏒', minutes: 160 },
+    Soccer: { label: 'MPX.SPORTS.SPORT_SOCCER', icon: '⚽', minutes: 120 },
+    Basketball: { label: 'MPX.SPORTS.SPORT_BASKETBALL', icon: '🏀', minutes: 150 },
+    'American Football': { label: 'MPX.SPORTS.SPORT_AMERICAN_FOOTBALL', icon: '🏈', minutes: 210 },
+    Baseball: { label: 'MPX.SPORTS.SPORT_BASEBALL', icon: '⚾', minutes: 190 },
+    Fighting: { label: 'MPX.SPORTS.SPORT_FIGHTING', icon: '🥊', minutes: 240 },
+    Motorsport: { label: 'MPX.SPORTS.SPORT_MOTORSPORT', icon: '🏁', minutes: 150 },
+    Tennis: { label: 'MPX.SPORTS.SPORT_TENNIS', icon: '🎾', minutes: 150 },
+    'Ice Hockey': { label: 'MPX.SPORTS.SPORT_ICE_HOCKEY', icon: '🏒', minutes: 160 },
 };
 
 export interface SportsCard extends PanelSportsEvent {

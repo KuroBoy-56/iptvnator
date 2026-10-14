@@ -13,7 +13,7 @@
         @for (link of links(); track link.label) {
             <li>
                 <a [routerLink]="link.path" routerLinkActive="active">{{
-                    link.label
+                    link.label | translate
                 }}</a>
             </li>
         }
@@ -26,7 +26,7 @@
             <button
                 class="nf-icon-btn"
                 type="button"
-                aria-label="Buscar"
+                [attr.aria-label]="'MPX.COMMON.SEARCH' | translate"
                 (click)="toggleSearch()"
             >
                 <mat-icon>search</mat-icon>
@@ -34,8 +34,8 @@
             <input
                 #searchInput
                 type="search"
-                placeholder="Títulos, personas, géneros"
-                aria-label="Buscar"
+                [placeholder]="'MPX.NAV.SEARCH_PLACEHOLDER' | translate"
+                [attr.aria-label]="'MPX.COMMON.SEARCH' | translate"
                 (keydown.enter)="search(searchInput.value)"
                 (keydown.escape)="searchOpen.set(false)"
                 (blur)="blurSearch(searchInput.value)"
@@ -52,7 +52,7 @@
         <button
             class="nf-icon-btn"
             type="button"
-            aria-label="Perfil"
+            [attr.aria-label]="'MPX.NAV.PROFILE' | translate"
             [attr.aria-expanded]="menuOpen()"
             (click)="toggleMenu($event)"
         >
@@ -66,7 +66,7 @@
                 }
                 @if (canOpenAccount()) {
                     <button type="button" role="menuitem" (click)="account()">
-                        <mat-icon>person</mat-icon>Mi cuenta
+                        <mat-icon>person</mat-icon>{{ 'MPX.NAV.MY_ACCOUNT' | translate }}
                     </button>
                 }
                 @if (canRefresh()) {
@@ -78,21 +78,44 @@
                     >
                         <mat-icon>refresh</mat-icon
                         >{{
-                            refreshing()
-                                ? 'Actualizando…'
-                                : 'Actualizar contenido'
+                            (refreshing()
+                                ? 'MPX.NAV.REFRESHING'
+                                : 'MPX.NAV.REFRESH') | translate
                         }}
                     </button>
                 }
                 <button type="button" role="menuitem" (click)="downloads()">
-                    <mat-icon>download</mat-icon>Descargas
+                    <mat-icon>download</mat-icon>{{ 'MPX.NAV.DOWNLOADS' | translate }}
                 </button>
+                <button
+                    type="button"
+                    role="menuitem"
+                    [attr.aria-expanded]="langOpen()"
+                    (click)="toggleLanguages($event)"
+                >
+                    <mat-icon>language</mat-icon>{{ 'MPX.LANGUAGE.TITLE' | translate }}
+                </button>
+                @if (langOpen()) {
+                    <div class="langs" role="group" [attr.aria-label]="'MPX.LANGUAGE.TITLE' | translate">
+                        @for (option of languageOptions; track option.value) {
+                            <button
+                                type="button"
+                                role="menuitemradio"
+                                [class.on]="language() === option.value"
+                                [attr.aria-checked]="language() === option.value"
+                                (click)="setLanguage(option.value)"
+                            >
+                                {{ option.label | translate }}
+                            </button>
+                        }
+                    </div>
+                }
                 <button
                     type="button"
                     role="menuitem"
                     (click)="go(['/workspace', 'settings'])"
                 >
-                    <mat-icon>settings</mat-icon>Ajustes
+                    <mat-icon>settings</mat-icon>{{ 'MPX.NAV.SETTINGS' | translate }}
                 </button>
             </div>
         }
