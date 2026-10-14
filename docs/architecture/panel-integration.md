@@ -669,6 +669,10 @@ language files stay as they were and fall back to Spanish.
 - **TMDB:** title search and catalog matching (search, posters, trending)
   stay in `es-MX`; detail calls (plot, cast, seasons, person) use the app
   language: `es-MX`, `en-US`, `pt-BR` or `fr-FR` (`TmdbRuntimeService`). The "Similar" recommendations and the person filmography inside those details are fetched again in `es-MX` (`TmdbApiService`), because they are matched against the Spanish catalog by title.
+  The synopsis follows the app language: a non-empty TMDB overview (movie,
+  series, Stalker item and each episode of a TMDB season) replaces the
+  provider's plot in the field-level merge (`tmdb-merge.ts`,
+  `tmdb-episode-merge.ts`); an empty one keeps the provider plot.
 - **Dates:** the clock, sports times, demo end, distributor expiry and the
   account expiry use the app language's format.
 
