@@ -37,8 +37,9 @@ export function fillDetailsFromFallback(
     if (!fallback || hasText(primary.overview)) {
         return primary;
     }
+    // marked: the merge only uses it when the provider has no plot
     return hasText(fallback.overview)
-        ? { ...primary, overview: fallback.overview }
+        ? { ...primary, overview: fallback.overview, overviewFromFallback: true }
         : primary;
 }
 
@@ -85,12 +86,13 @@ export function fillSeasonFromFallback(
         if (!source) {
             return episode;
         }
+        const fromFallback =
+            !hasText(episode.overview) && hasText(source.overview);
         return {
             ...episode,
             name: hasText(episode.name) ? episode.name : source.name,
-            overview: hasText(episode.overview)
-                ? episode.overview
-                : source.overview,
+            overview: fromFallback ? source.overview : episode.overview,
+            ...(fromFallback ? { overviewFromFallback: true } : {}),
         };
     });
 

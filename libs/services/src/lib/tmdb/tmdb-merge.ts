@@ -125,6 +125,19 @@ function prefer(tmdbValue: string | null | undefined, providerValue: string) {
     return tmdbValue?.trim() ? tmdbValue : providerValue;
 }
 
+/**
+ * Synopsis: TMDB's overview in the app language wins; one taken from the
+ * original-language fallback (e.g. Korean) only fills an empty provider plot.
+ */
+export function preferOverview(
+    tmdb: { overview?: string; overviewFromFallback?: boolean },
+    providerValue: string | undefined
+): string {
+    const provider = providerValue ?? '';
+    if (tmdb.overviewFromFallback && provider.trim()) return provider;
+    return prefer(tmdb.overview, provider);
+}
+
 export function mergeVodInfoWithTmdb(
     info: XtreamVodInfo,
     details: TmdbMovieDetails
@@ -145,8 +158,8 @@ export function mergeVodInfoWithTmdb(
     return {
         ...info,
         tmdb_id: details.id,
-        plot: prefer(details.overview, info.plot),
-        description: prefer(details.overview, info.description),
+        plot: preferOverview(details, info.plot),
+        description: preferOverview(details, info.description),
         cast: prefer(cast, info.cast),
         actors: prefer(cast, info.actors),
         director: prefer(director, info.director),
@@ -185,7 +198,7 @@ export function mergeSerieInfoWithTmdb(
 
     return {
         ...info,
-        plot: prefer(details.overview, info.plot),
+        plot: preferOverview(details, info.plot),
         cast: prefer(cast, info.cast),
         director: prefer(creators, info.director),
         genre: prefer(genre, info.genre),
@@ -234,7 +247,7 @@ export function mergeStalkerInfoWithTmdb(
 
     return {
         ...info,
-        description: prefer(details.overview, info.description),
+        description: preferOverview(details, info.description),
         actors: prefer(cast, info.actors),
         director: prefer(director, info.director),
         genre: prefer(genre, info.genre),
