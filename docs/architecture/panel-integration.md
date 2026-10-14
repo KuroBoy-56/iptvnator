@@ -672,7 +672,10 @@ language files stay as they were and fall back to Spanish.
   The synopsis follows the app language: a non-empty TMDB overview (movie,
   series, Stalker item and each episode of a TMDB season) replaces the
   provider's plot in the field-level merge (`tmdb-merge.ts`,
-  `tmdb-episode-merge.ts`); an empty one keeps the provider plot.
+  `tmdb-episode-merge.ts`); an empty one keeps the provider plot. An overview
+  taken from the original-language fallback (TMDB has none in the app
+  language, e.g. a Korean one) is marked `overviewFromFallback` and only fills
+  an empty provider plot, in every language.
 - **Dates:** the clock, sports times, demo end, distributor expiry and the
   account expiry use the app language's format.
 

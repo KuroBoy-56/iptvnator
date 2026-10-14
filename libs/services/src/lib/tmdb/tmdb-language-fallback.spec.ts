@@ -47,6 +47,8 @@ describe('fillDetailsFromFallback', () => {
         );
         expect(merged.overview).toBe('Русское описание');
         expect(merged.original_language).toBe('ru');
+        // marked so the merge keeps a provider plot over it
+        expect(merged.overviewFromFallback).toBe(true);
     });
 
     it('keeps an existing overview', () => {
@@ -55,6 +57,7 @@ describe('fillDetailsFromFallback', () => {
             { id: 1, overview: 'Русское описание' }
         );
         expect(merged.overview).toBe('English plot');
+        expect(merged.overviewFromFallback).toBeUndefined();
     });
 });
 
@@ -106,6 +109,7 @@ describe('season fallback', () => {
         const merged = fillSeasonFromFallback(emptySeason, russianSeason);
         expect(merged.overview).toBe('Описание сезона');
         expect(merged.episodes?.[0].overview).toBe('Текст 1');
+        expect(merged.episodes?.[0].overviewFromFallback).toBe(true);
         // Existing (non-empty) names stay in the app language
         expect(merged.episodes?.[0].name).toBe('Episode 1');
         expect(merged.episodes?.[1].name).toBe('Эпизод 2');

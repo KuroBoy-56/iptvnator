@@ -73,6 +73,8 @@ export interface TmdbVideo {
 interface TmdbDetailsBase {
     id: number;
     overview?: string;
+    /** The overview came from the original-language fallback, not the app language */
+    overviewFromFallback?: boolean;
     /** ISO 639-1 code of the content's original language ("ru") */
     original_language?: string;
     genres?: TmdbGenre[];
@@ -106,6 +108,8 @@ export interface TmdbEpisode {
     season_number?: number;
     name?: string;
     overview?: string;
+    /** The overview came from the original-language fallback, not the app language */
+    overviewFromFallback?: boolean;
     still_path?: string | null;
     air_date?: string;
     vote_average?: number;

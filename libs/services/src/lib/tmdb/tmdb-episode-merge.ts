@@ -3,6 +3,7 @@ import {
     XtreamSerieEpisodeInfo,
 } from '@iptvnator/shared/interfaces';
 import { tmdbStillUrl } from './tmdb-config';
+import { preferOverview } from './tmdb-merge';
 import { TmdbEpisode } from './tmdb.types';
 
 /**
@@ -66,7 +67,9 @@ export function mergeEpisodesWithTmdb(
                     : episode.title,
             info: {
                 ...info,
-                ...(tmdb.overview?.trim() ? { plot: tmdb.overview } : {}),
+                ...(tmdb.overview?.trim()
+                    ? { plot: preferOverview(tmdb, info.plot) }
+                    : {}),
                 ...(still ? { movie_image: still } : {}),
                 releasedate: info.releasedate || (tmdb.air_date ?? ''),
                 ...(info.rating === undefined && rating !== null

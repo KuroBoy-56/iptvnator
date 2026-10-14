@@ -466,4 +466,47 @@ describe('synopsis follows the app language', () => {
             'Sinopsis del episodio (proveedor)'
         );
     });
+
+    it('uses an original-language fallback overview only when the provider plot is empty', () => {
+        const korean = { overview: '한국어 줄거리', overviewFromFallback: true };
+        const vod = mergeVodInfoWithTmdb(
+            providerVodInfo({ plot: 'Sinopsis del proveedor', description: 'Sinopsis del proveedor' }),
+            { ...frMovie, ...korean }
+        );
+        expect(vod.plot).toBe('Sinopsis del proveedor');
+        expect(vod.description).toBe('Sinopsis del proveedor');
+        expect(mergeSerieInfoWithTmdb(serieInfo, { ...frTv, ...korean }).plot).toBe('Sinopsis del proveedor');
+        expect(
+            mergeStalkerInfoWithTmdb(stalkerInfo, { ...frMovie, ...korean }, 'movie').description
+        ).toBe('Sinopsis del proveedor');
+
+        // no provider plot: the fallback overview is better than nothing
+        const empty = mergeVodInfoWithTmdb(providerVodInfo({ plot: '', description: '' }), { ...frMovie, ...korean });
+        expect(empty.plot).toBe('한국어 줄거리');
+        expect(empty.description).toBe('한국어 줄거리');
+        expect(mergeSerieInfoWithTmdb({ ...serieInfo, plot: '' }, { ...frTv, ...korean }).plot).toBe('한국어 줄거리');
+        expect(
+            mergeStalkerInfoWithTmdb({ ...stalkerInfo, description: '' }, { ...frMovie, ...korean }, 'movie').description
+        ).toBe('한국어 줄거리');
+    });
+
+    it('applies the fallback rule to episode overviews too', () => {
+        const episode = (plot: string) =>
+            ({
+                id: '1',
+                episode_num: 4,
+                title: 'Episodio 4',
+                container_extension: 'mp4',
+                info: plot ? { plot } : {},
+                custom_sid: '',
+                added: '',
+                season: 1,
+                direct_source: '',
+            }) as unknown as XtreamSerieEpisode;
+        const korean: TmdbEpisode = { episode_number: 4, overview: '에피소드 줄거리', overviewFromFallback: true };
+        const plotOf = (e: XtreamSerieEpisode) => (e.info as { plot?: string }).plot;
+
+        expect(plotOf(mergeEpisodesWithTmdb([episode('Sinopsis del proveedor')], [korean])[0])).toBe('Sinopsis del proveedor');
+        expect(plotOf(mergeEpisodesWithTmdb([episode('')], [korean])[0])).toBe('에피소드 줄거리');
+    });
 });
