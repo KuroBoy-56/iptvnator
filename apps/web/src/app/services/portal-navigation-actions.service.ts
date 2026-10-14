@@ -1,6 +1,7 @@
 import { inject, Injectable, Provider } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 import {
     PORTAL_NAVIGATION_ACTIONS,
     PortalNavigationActions,
@@ -16,6 +17,7 @@ export class AppPortalNavigationActionsService
     private readonly dialog = inject(MatDialog);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly snackBar = inject(MatSnackBar);
+    private readonly translate = inject(TranslateService);
 
     openAccountInfo(): void {
         const data = {
@@ -40,7 +42,11 @@ export class AppPortalNavigationActionsService
         // BLOQUEO ABSOLUTO DE SEGURIDAD
         // Se elimina la llamada al componente visual y se bloquea la extracción de datos.
         // Nadie podrá ver credenciales ni URLs desde el reproductor.
-        this.snackBar.open('Detalles de cuenta bloqueados por seguridad.', 'CERRAR', { duration: 4000 });
+        this.snackBar.open(
+            this.translate.instant('MPX.NAV.ACCOUNT_LOCKED'),
+            this.translate.instant('CLOSE'),
+            { duration: 4000 }
+        );
     }
 
     openSettings(): void {

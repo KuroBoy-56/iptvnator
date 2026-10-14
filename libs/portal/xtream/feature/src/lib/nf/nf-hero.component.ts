@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
+import { TranslatePipe } from '@ngx-translate/core';
 import { NfHeroSlide } from './nf-hero.service';
 import { nfLink } from './nf-item';
 
@@ -19,7 +20,7 @@ const ROTATE_MS = 9000;
 @Component({
     selector: 'app-nf-hero',
     standalone: true,
-    imports: [MatIcon, RouterLink],
+    imports: [MatIcon, RouterLink, TranslatePipe],
     host: {
         class: 'nf-hero',
         '[class.loading]': 'slides() === null',
@@ -43,9 +44,9 @@ const ROTATE_MS = 9000;
                     <span class="n">N</span
                     >{{
                         kicker() ||
-                            (slide.item.type === 'series'
-                                ? 'Serie'
-                                : 'Película')
+                            ((slide.item.type === 'series'
+                                ? 'MPX.NF.SERIES_ONE'
+                                : 'MPX.NF.MOVIE_ONE') | translate)
                     }}
                 </div>
                 <h1 class="nf-hero-title">{{ slide.title }}</h1>
@@ -65,10 +66,12 @@ const ROTATE_MS = 9000;
                 }
                 <div class="nf-hero-btns">
                     <a class="nf-btn nf-btn-white" [routerLink]="link(slide)">
-                        <mat-icon>play_arrow</mat-icon>Reproducir
+                        <mat-icon>play_arrow</mat-icon
+                        >{{ 'MPX.NF.PLAY' | translate }}
                     </a>
                     <a class="nf-btn nf-btn-gray" [routerLink]="link(slide)">
-                        <mat-icon>info_outline</mat-icon>Más información
+                        <mat-icon>info_outline</mat-icon
+                        >{{ 'MPX.NF.MORE_INFO' | translate }}
                     </a>
                 </div>
             </div>
@@ -78,7 +81,9 @@ const ROTATE_MS = 9000;
                         <button
                             type="button"
                             [class.on]="i === index()"
-                            [attr.aria-label]="'Destacado ' + (i + 1)"
+                            [attr.aria-label]="
+                                'MPX.NF.FEATURED_N' | translate: { n: i + 1 }
+                            "
                             (click)="show(i)"
                         ></button>
                     }

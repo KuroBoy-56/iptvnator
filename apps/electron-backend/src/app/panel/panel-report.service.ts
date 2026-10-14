@@ -41,9 +41,11 @@ export async function panelReportError(report: PanelErrorReport, deps: PanelRepo
         server: String(report.server ?? '').slice(0, 200),
     };
     if (report.tenant && /^\d{6}$/.test(report.tenant)) body.tenant = report.tenant;
+    const lang = /^(es|en|pt|fr)$/.test(report.lang ?? '') ? (report.lang as string) : '';
+    if (lang) body.lang = lang;
     try {
         const form = new URLSearchParams({ data: encryptPayload(JSON.stringify(body), deps.masterKey) });
-        const res = await deps.fetch(panelEndpoint('report.php'), {
+        const res = await deps.fetch(panelEndpoint('report.php') + (lang ? `?lang=${lang}` : ''), {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: form.toString(),

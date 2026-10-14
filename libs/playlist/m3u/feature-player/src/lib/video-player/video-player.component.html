@@ -65,11 +65,11 @@
             <div class="video-player" style="display: flex; align-items: center; justify-content: center; background-color: #050505; height: 100%; width: 100%;">
                 <div style="text-align: center;">
                     <mat-icon style="font-size: 80px; width: 80px; height: 80px; color: #4dabf7; opacity: 0.9;">movie_creation</mat-icon>
-                    <h2 style="color: #ffffff; margin-top: 20px; font-weight: 500; font-size: 26px;">Reproduciendo en MPV</h2>
+                    <h2 style="color: #ffffff; margin-top: 20px; font-weight: 500; font-size: 26px;">{{ 'MPX.PLAYER.PLAYING_IN_MPV' | translate }}</h2>
                     <p style="color: #adb5bd; font-size: 18px; margin-top: 8px;">{{ timelineChannelName() }}</p>
-                    <p style="color: #6c757d; font-size: 14px; margin-top: 4px;">El progreso se guarda automáticamente.</p>
+                    <p style="color: #6c757d; font-size: 14px; margin-top: 4px;">{{ 'MPX.PLAYER.PROGRESS_SAVED' | translate }}</p>
                     <button mat-flat-button style="margin-top: 30px; background-color: var(--nf-red, #e50914); color: var(--nf-on-accent, white); padding: 0 30px; border-radius: 20px; font-size: 16px;" (click)="closeMpv()">
-                        <mat-icon>stop</mat-icon> Detener y Volver
+                        <mat-icon>stop</mat-icon> {{ 'MPX.PLAYER.STOP_AND_BACK' | translate }}
                     </button>
                 </div>
             </div>

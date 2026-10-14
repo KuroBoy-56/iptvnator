@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { TranslateModule } from '@ngx-translate/core';
 import { WorkspacePanelAlertComponent } from './workspace-panel-alert.component';
 import * as util from './panel-alert.util';
 
@@ -6,6 +7,7 @@ describe('WorkspacePanelAlertComponent', () => {
     afterEach(() => jest.restoreAllMocks());
 
     async function setup(alert: util.PanelAlert | null) {
+        TestBed.configureTestingModule({ imports: [WorkspacePanelAlertComponent, TranslateModule.forRoot()] });
         jest.spyOn(util, 'fetchPanelAlert').mockResolvedValue(alert);
         const fixture = TestBed.createComponent(WorkspacePanelAlertComponent);
         fixture.detectChanges();

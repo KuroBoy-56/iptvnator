@@ -8,6 +8,7 @@ import {
     viewChild,
     effect,
 } from '@angular/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { fetchPanelAlert, PanelAlert } from './panel-alert.util';
 
 /**
@@ -17,6 +18,7 @@ import { fetchPanelAlert, PanelAlert } from './panel-alert.util';
  */
 @Component({
     selector: 'app-workspace-panel-alert',
+    imports: [TranslatePipe],
     templateUrl: './workspace-panel-alert.component.html',
     styleUrl: './workspace-panel-alert.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,

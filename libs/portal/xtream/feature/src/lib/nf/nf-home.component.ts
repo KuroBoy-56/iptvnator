@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { TranslatePipe } from '@ngx-translate/core';
 import { injectNfCatalog } from './nf-catalog';
 import {
     NF_GENRES,
@@ -15,7 +16,9 @@ import { NfRowComponent } from './nf-row.component';
 
 interface HomeRow {
     key: string;
+    /** translation key (a brand name passes through unchanged) */
     title: string;
+    titleParams?: Record<string, string>;
     items: NfItem[];
     more: string[] | null;
     query?: Record<string, string>;
@@ -28,33 +31,36 @@ const PLATFORM_ROWS = 5;
 @Component({
     selector: 'app-nf-home',
     standalone: true,
-    imports: [NfHeroComponent, NfRowComponent, RouterLink],
+    imports: [NfHeroComponent, NfRowComponent, RouterLink, TranslatePipe],
     template: `
         <div class="nf-page">
             <app-nf-hero
                 [slides]="catalog.heroSlides()"
                 [playlistId]="catalog.playlistId()"
-                kicker="Destacado"
+                [kicker]="'MPX.NF.FEATURED' | translate"
             />
 
             @if (platforms().length) {
-                <nav class="nf-platforms" aria-label="Plataformas">
+                <nav
+                    class="nf-platforms"
+                    [attr.aria-label]="'MPX.NF.PLATFORMS' | translate"
+                >
                     @for (p of platforms(); track p.key) {
                         <a
                             class="nf-plat"
                             [routerLink]="explore"
                             [queryParams]="{ platform: p.key }"
-                            [title]="p.label"
+                            [title]="p.label | translate"
                         >
                             @if (p.img) {
                                 <img
                                     [src]="p.img"
-                                    [alt]="p.label"
+                                    [alt]="p.label | translate"
                                     loading="lazy"
                                 />
                             } @else {
                                 <span class="txt" [style.color]="p.color">{{
-                                    p.label
+                                    p.label | translate
                                 }}</span>
                             }
                         </a>
@@ -66,7 +72,7 @@ const PLATFORM_ROWS = 5;
                 @if (library(); as lib) {
                     @if (lib.continueWatching.length) {
                         <app-nf-row
-                            title="Continuar viendo"
+                            [title]="'MPX.NF.CONTINUE_WATCHING' | translate"
                             [items]="lib.continueWatching"
                             [playlistId]="catalog.playlistId()"
                             [more]="libraryLink('continue-watching')"
@@ -75,7 +81,7 @@ const PLATFORM_ROWS = 5;
                     }
                     @if (lib.myList.length) {
                         <app-nf-row
-                            title="Mi lista"
+                            [title]="'MPX.NF.MY_LIST' | translate"
                             [items]="lib.myList"
                             [playlistId]="catalog.playlistId()"
                             [more]="libraryLink('my-list')"
@@ -86,7 +92,7 @@ const PLATFORM_ROWS = 5;
                 @if (catalog.ready()) {
                     @for (row of rows(); track row.key) {
                         <app-nf-row
-                            [title]="row.title"
+                            [title]="row.title | translate: row.titleParams"
                             [items]="row.items"
                             [playlistId]="catalog.playlistId()"
                             [more]="row.more"
@@ -96,23 +102,23 @@ const PLATFORM_ROWS = 5;
                     }
                 } @else if (catalog.loading()) {
                     <app-nf-row
-                        title="Top 10 de hoy"
+                        [title]="'MPX.NF.TOP10_TODAY' | translate"
                         [items]="null"
                         [playlistId]="catalog.playlistId()"
                     />
                     <app-nf-row
-                        title="Películas agregadas recientemente"
+                        [title]="'MPX.NF.MOVIES_RECENT' | translate"
                         [items]="null"
                         [playlistId]="catalog.playlistId()"
                     />
                     <app-nf-row
-                        title="Series nuevas"
+                        [title]="'MPX.NF.NEW_SERIES' | translate"
                         [items]="null"
                         [playlistId]="catalog.playlistId()"
                     />
                 } @else {
                     <p class="nf-empty">
-                        Aún no hay películas ni series en tu lista.
+                        {{ 'MPX.NF.EMPTY_HOME' | translate }}
                     </p>
                 }
             </div>
@@ -153,7 +159,7 @@ export class NfHomeComponent {
         const rows: HomeRow[] = [
             {
                 key: 'top',
-                title: 'Top 10 de hoy',
+                title: 'MPX.NF.TOP10_TODAY',
                 items: topRated(newestFirst(movies).slice(0, 300)),
                 more: explore,
                 query: { type: 'all', sort: 'rating' },
@@ -161,14 +167,14 @@ export class NfHomeComponent {
             },
             {
                 key: 'movies',
-                title: 'Películas agregadas recientemente',
+                title: 'MPX.NF.MOVIES_RECENT',
                 items: newestFirst(movies),
                 more: explore,
                 query: { type: 'movie', sort: 'recent' },
             },
             {
                 key: 'series',
-                title: 'Series nuevas',
+                title: 'MPX.NF.NEW_SERIES',
                 items: newestFirst(series),
                 more: explore,
                 query: { type: 'series', sort: 'recent' },
@@ -178,10 +184,10 @@ export class NfHomeComponent {
             .filter((p) => p.key !== 'xmas' && p.key !== 'halloween')
             .slice(0, PLATFORM_ROWS);
         for (const p of platformRows)
-            rows.push(this.tagRow(p, 'Lo mejor de ' + p.label));
+            rows.push(this.tagRow(p, 'MPX.NF.BEST_OF', { name: p.label }));
         rows.push({
             key: 'series-for-you',
-            title: 'Series para ti',
+            title: 'MPX.NF.SERIES_FOR_YOU',
             items: dailyShuffle(series, 'series').slice(0, 24),
             more: [
                 '/workspace',
@@ -197,18 +203,23 @@ export class NfHomeComponent {
         }
         rows.push({
             key: 'movies-for-you',
-            title: 'Películas para ti',
+            title: 'MPX.NF.MOVIES_FOR_YOU',
             items: dailyShuffle(movies, 'movies').slice(0, 24),
             more: ['/workspace', 'xtreams', this.catalog.playlistId(), 'vod'],
         });
         return rows.filter((r) => r.items.length > 0);
     });
 
-    private tagRow(tag: NfTag, title: string): HomeRow {
+    private tagRow(
+        tag: NfTag,
+        title: string,
+        titleParams?: Record<string, string>
+    ): HomeRow {
         const isPlatform = NF_PLATFORMS.includes(tag);
         return {
             key: tag.key,
             title,
+            titleParams,
             items: newestFirst(
                 nfTagItems(this.allItems(), this.allCategories(), tag)
             ).slice(0, 30),

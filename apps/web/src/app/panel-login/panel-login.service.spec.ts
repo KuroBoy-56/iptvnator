@@ -1,4 +1,5 @@
 import {
+    APP_LANGUAGE_STORAGE_KEY,
     clearTenant,
     PANEL_TENANT_ERROR_EVENT,
     parseTenantConfig,
@@ -12,6 +13,7 @@ describe('PanelLoginService', () => {
     const service = new PanelLoginService();
 
     beforeEach(() => {
+        localStorage.setItem(APP_LANGUAGE_STORAGE_KEY, 'pt');
         request = jest.fn();
         Object.defineProperty(window, 'electron', {
             configurable: true,
@@ -42,9 +44,10 @@ describe('PanelLoginService', () => {
         });
         await expect(service.checkDevice()).resolves.toEqual({
             status: 'active',
-            account: { server: 'https://srv.test', username: 'demo_1', password: '2', isDemo: true },
+            account: { server: 'https://srv.test', username: 'demo_1', password: '2', isDemo: true, demoExpires: 0, demoDuration: 0 },
         });
-        expect(request).toHaveBeenCalledWith('check_mac', undefined);
+        // the panel answers its texts in the app language
+        expect(request).toHaveBeenCalledWith('check_mac', { lang: 'pt' });
     });
 
     it('reports an inactive device', async () => {
@@ -55,29 +58,35 @@ describe('PanelLoginService', () => {
     it('activates with submit_url', async () => {
         request.mockResolvedValue({ ok: true, status: 200, data: { status: 'ok' } });
         await expect(service.activate('u', 'p', 'http://dns.test')).resolves.toEqual({ ok: true });
-        expect(request).toHaveBeenCalledWith('submit_url', { username: 'u', password: 'p', url: 'http://dns.test' });
+        expect(request).toHaveBeenCalledWith('submit_url', { username: 'u', password: 'p', url: 'http://dns.test', lang: 'pt' });
     });
 
     it('returns demo credentials and marks a used demo as blocked', async () => {
         request.mockResolvedValueOnce({ ok: true, status: 200, data: { status: 'ok', username: 'demo_1', password: '9' } });
-        await expect(service.autoDemo()).resolves.toEqual({ ok: true, username: 'demo_1', password: '9', url: '' });
+        await expect(service.autoDemo()).resolves.toEqual({ ok: true, username: 'demo_1', password: '9', url: '', expires: 0, duration: 0 });
 
         request.mockResolvedValueOnce({ ok: true, status: 200, data: { status: 'ok', username: 'demo_2', password: '8', url: 'https://iptv.test:8080 ' } });
-        await expect(service.autoDemo()).resolves.toEqual({ ok: true, username: 'demo_2', password: '8', url: 'https://iptv.test:8080' });
+        await expect(service.autoDemo()).resolves.toEqual({ ok: true, username: 'demo_2', password: '8', url: 'https://iptv.test:8080', expires: 0, duration: 0 });
 
         request.mockResolvedValueOnce({ ok: false, status: 403, error: 'Demo ya utilizado en este dispositivo.' });
-        await expect(service.autoDemo()).resolves.toEqual({ ok: false, message: 'Demo ya utilizado en este dispositivo.', blocked: true });
+        await expect(service.autoDemo()).resolves.toEqual({ ok: false, message: { key: 'Demo ya utilizado en este dispositivo.' }, blocked: true });
 
         request.mockResolvedValueOnce({ ok: false, status: 429, error: 'Demasiadas demos desde esta conexión.' });
         await expect(service.autoDemo()).resolves.toMatchObject({ ok: false, blocked: false });
     });
 
-    it('shows the missing-key error from the main process', async () => {
+    it('shows the missing-key error from the main process in the app language', async () => {
         request.mockResolvedValue({ ok: false, status: 0, code: 'NO_MASTER_KEY', error: 'Esta compilación no tiene la clave del panel (PANEL_MASTER_KEY).' });
-        await expect(service.checkDevice()).resolves.toEqual({
-            status: 'error',
-            message: 'Esta compilación no tiene la clave del panel (PANEL_MASTER_KEY).',
-        });
+        await expect(service.checkDevice()).resolves.toEqual({ status: 'error', message: { key: 'MPX.PANEL.ERR_NO_KEY' } });
+    });
+
+    it("shows the panel's own error text and a translated one for local failures", async () => {
+        request.mockResolvedValueOnce({ ok: false, status: 400, code: 'HTTP', data: { error: 'Usuario no válido' }, error: 'Usuario no válido' });
+        await expect(service.activate('u', 'p', 'http://dns.test')).resolves.toEqual({ ok: false, message: { key: 'Usuario no válido' } });
+        request.mockResolvedValueOnce({ ok: false, status: 502, code: 'HTTP', data: {} });
+        await expect(service.activate('u', 'p', 'http://dns.test')).resolves.toEqual({ ok: false, message: { key: 'MPX.PANEL.ERR_HTTP', params: { status: 502 } } });
+        request.mockResolvedValueOnce({ ok: false, status: 0, code: 'NETWORK', error: 'No se pudo conectar con el panel.' });
+        await expect(service.activate('u', 'p', 'http://dns.test')).resolves.toEqual({ ok: false, message: { key: 'MPX.PANEL.ERR_NETWORK' } });
     });
 });
 
@@ -92,6 +101,7 @@ describe('PanelLoginService with a distributor', () => {
     };
 
     beforeEach(() => {
+        localStorage.setItem(APP_LANGUAGE_STORAGE_KEY, 'fr');
         request = jest.fn();
         Object.defineProperty(window, 'electron', { configurable: true, value: { panelLoginRequest: request } });
     });
@@ -105,29 +115,29 @@ describe('PanelLoginService with a distributor', () => {
         request.mockResolvedValue({ ok: true, status: 200, data: [] });
         saveTenantSkip();
         await service.fetchDns();
-        expect(request).toHaveBeenLastCalledWith('fetch_dns', undefined);
+        expect(request).toHaveBeenLastCalledWith('fetch_dns', { lang: 'fr' });
 
         saveTenantCode(parseTenantConfig(config)!);
         await service.fetchDns();
-        expect(request).toHaveBeenLastCalledWith('fetch_dns', { tenant: '123456' });
+        expect(request).toHaveBeenLastCalledWith('fetch_dns', { tenant: '123456', lang: 'fr' });
     });
 
     it('maps tenant_config answers', async () => {
         request.mockResolvedValueOnce({ ok: true, status: 200, data: config });
         await expect(service.tenantConfig('123456')).resolves.toMatchObject({ status: 'ok', cache: { code: '123456', name: 'Mi TV' } });
-        expect(request).toHaveBeenCalledWith('tenant_config', { tenant: '123456' });
+        expect(request).toHaveBeenCalledWith('tenant_config', { tenant: '123456', lang: 'fr' });
 
         request.mockResolvedValueOnce({ ok: false, status: 404, code: 'HTTP', data: { error: 'x', code: 'tenant_invalid' } });
         await expect(service.tenantConfig('000000')).resolves.toEqual({
             status: 'tenant_error',
             code: 'tenant_invalid',
-            message: 'Número de distribuidor no válido',
+            message: { key: 'MPX.DIST.ERR_TENANT_INVALID' },
         });
 
         request.mockResolvedValueOnce({ ok: false, status: 0, code: 'NO_MASTER_KEY' });
         await expect(service.tenantConfig('123456')).resolves.toEqual({
             status: 'no_key',
-            message: 'Esta versión de la app no tiene la llave del panel',
+            message: { key: 'MPX.PANEL.ERR_NO_KEY' },
         });
 
         request.mockResolvedValueOnce({ ok: false, status: 502, code: 'BAD_RESPONSE' });

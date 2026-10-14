@@ -1,4 +1,5 @@
 import { Language } from './language.enum';
+import { AppLanguageSetting } from './app-language.util';
 import { StreamFormat } from './stream-format.enum';
 import { Theme } from './theme.enum';
 import { TmdbSettings } from './tmdb.interface';
@@ -81,7 +82,8 @@ export interface Settings {
     epgUrl: string[];
     streamFormat: StreamFormat;
     openStreamOnDoubleClick: boolean;
-    language: Language;
+    /** "auto" (system language) or es/en/pt/fr; older saves may hold another Language. */
+    language: AppLanguageSetting | Language;
     showCaptions: boolean;
     showDashboard: boolean;
     startupBehavior: StartupBehavior;

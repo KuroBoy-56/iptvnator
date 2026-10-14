@@ -38,6 +38,8 @@ export interface PanelLoginPayload {
      * (see isResellerCode).
      */
     reseller?: string;
+    /** App language (es/en/pt/fr): the panel answers its texts in it. Sent with every action. */
+    lang?: string;
 }
 
 /** One error for the panel («Errores de las apps»): see api/report.php. */
@@ -49,6 +51,8 @@ export interface PanelErrorReport {
     user?: string;
     server?: string;
     tenant?: string;
+    /** App language (es/en/pt/fr) */
+    lang?: string;
 }
 
 /**

@@ -47,6 +47,18 @@ describe('panelLoginRequest', () => {
         expect(plain).toEqual({ mac_address: 'ID', username: 'u', password: 'p', url: 'http://dns.test', platform: 'windows', ts: expect.any(Number) });
     });
 
+    it('sends the app language inside the encrypted payload of every action', async () => {
+        const { fetch, calls } = fakeFetch(200, '{"status":"ok"}');
+        await panelLoginRequest('submit_url', { username: 'u', password: 'p', url: 'http://dns.test', lang: 'pt' }, { fetch, masterKey, deviceId: 'ID' });
+        await panelLoginRequest('tenant_config', { tenant: '123456', lang: 'fr' }, { fetch, masterKey, deviceId: 'ID' });
+        await panelLoginRequest('check_mac', { lang: 'xx' }, { fetch, masterKey, deviceId: 'ID' });
+        const plain = (i: number) => JSON.parse(decryptPayload(calls[i].body.get('data') ?? '', masterKey) ?? '{}');
+        expect(plain(0).lang).toBe('pt');
+        expect(plain(1).lang).toBe('fr');
+        // only es/en/pt/fr go to the panel
+        expect(plain(2).lang).toBeUndefined();
+    });
+
     it('decrypts the fetch_dns response', async () => {
         const { fetch } = fakeFetch(200, encryptPayload('["http://a.test","http://b.test"]', masterKey));
         const result = await panelLoginRequest('fetch_dns', undefined, { fetch, masterKey, deviceId: 'ID' });

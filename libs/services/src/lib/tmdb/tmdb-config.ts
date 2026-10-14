@@ -37,7 +37,7 @@ const TMDB_LANGUAGE_MAP: Record<Language, string> = {
     [Language.KOREAN]: 'ko-KR',
     [Language.RUSSIAN]: 'ru-RU',
     [Language.GERMAN]: 'de-DE',
-    [Language.SPANISH]: 'es-ES',
+    [Language.SPANISH]: 'es-MX',
     [Language.CHINESE]: 'zh-CN',
     [Language.TRADITIONAL_CHINESE]: 'zh-TW',
     [Language.FRENCH]: 'fr-FR',
@@ -47,7 +47,7 @@ const TMDB_LANGUAGE_MAP: Record<Language, string> = {
     [Language.DUTCH]: 'nl-NL',
     [Language.BELARUSIAN]: 'be-BY',
     [Language.POLISH]: 'pl-PL',
-    [Language.PORTUGUESE]: 'pt-PT',
+    [Language.PORTUGUESE]: 'pt-BR',
     [Language.GREEK]: 'el-GR',
 };
 

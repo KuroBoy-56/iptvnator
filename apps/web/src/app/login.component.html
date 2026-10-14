@@ -4,7 +4,7 @@
 <!-- first panel check of this device: a dark screen, never the login form before the panel says
      whether the fake screen («Pantalla Falsa») goes first -->
 @if (checking() && !fakeScreen() && !needsDistributor() && !tenant.retryMessage()) {
-    <div class="nf-login-checking loading" role="status" aria-label="Verificando el dispositivo">
+    <div class="nf-login-checking loading" role="status" [attr.aria-label]="'MPX.LOGIN.CHECKING_DEVICE' | translate">
         <span class="nf-spinner" aria-hidden="true"></span>
     </div>
 } @else {
@@ -36,58 +36,58 @@
     <main class="nf-login-main">
         @if (needsDistributor()) {
             <form class="nf-login-box" (ngSubmit)="continueWithCode()" autocomplete="off" novalidate>
-                <h1>Número de distribuidor</h1>
+                <h1>{{ 'MPX.DIST.TITLE' | translate }}</h1>
                 @if (distError() ?? tenant.notice(); as msg) {
-                    <div class="nf-login-msg error" role="alert">{{ msg }}</div>
+                    <div class="nf-login-msg error" role="alert">{{ msg.key | translate: msg.params }}</div>
                 }
                 <label class="nf-field">
                     <input #distInput type="text" name="distCode" placeholder=" " inputmode="numeric" maxlength="6" pattern="[0-9]{6}" autocomplete="off" spellcheck="false" [value]="distCode" (input)="onDistInput($event)" />
-                    <span>6 dígitos</span>
+                    <span>{{ 'MPX.DIST.DIGITS' | translate }}</span>
                 </label>
                 <button class="nf-btn-red nf-btn-block" type="submit" [class.loading]="distBusy()" [disabled]="distBusy()">
-                    <span class="lbl">Continuar</span>
+                    <span class="lbl">{{ 'MPX.COMMON.CONTINUE' | translate }}</span>
                     <span class="nf-spinner" aria-hidden="true"></span>
                 </button>
                 <button class="nf-btn-dark nf-btn-block" type="button" [disabled]="distBusy()" (click)="skipDistributor()">
-                    <span class="lbl">Omitir</span>
+                    <span class="lbl">{{ 'MPX.COMMON.SKIP' | translate }}</span>
                 </button>
-                <p class="nf-login-hint">Si tu distribuidor te dio un número, escríbelo para usar su servicio. Si no tienes uno, pulsa Omitir.</p>
+                <p class="nf-login-hint">{{ 'MPX.DIST.HINT' | translate }}</p>
             </form>
         } @else if (tenant.retryMessage(); as retry) {
             <div class="nf-login-box">
-                <h1>Sin conexión</h1>
-                <div class="nf-login-msg error" role="alert">{{ retry }}</div>
+                <h1>{{ 'MPX.COMMON.OFFLINE' | translate }}</h1>
+                <div class="nf-login-msg error" role="alert">{{ retry.key | translate: retry.params }}</div>
                 <button class="nf-btn-red nf-btn-block" type="button" [class.loading]="distBusy()" [disabled]="distBusy()" (click)="retryTenant()">
-                    <span class="lbl">Reintentar</span>
+                    <span class="lbl">{{ 'MPX.COMMON.RETRY' | translate }}</span>
                     <span class="nf-spinner" aria-hidden="true"></span>
                 </button>
             </div>
         } @else {
         <form class="nf-login-box" (ngSubmit)="login()" autocomplete="on" novalidate>
-            <h1>Iniciar sesión</h1>
+            <h1>{{ 'MPX.LOGIN.TITLE' | translate }}</h1>
 
             @if (message(); as msg) {
-                <div class="nf-login-msg" [class]="'nf-login-msg ' + msg.kind" role="alert">{{ msg.text }}</div>
+                <div class="nf-login-msg" [class]="'nf-login-msg ' + msg.kind" role="alert">{{ msg.text.key | translate: msg.text.params }}</div>
             }
 
             @if (checking()) {
-                <p class="nf-login-hint">Verificando el dispositivo…</p>
+                <p class="nf-login-hint">{{ 'MPX.LOGIN.CHECKING_DEVICE' | translate }}</p>
             } @else {
                 <label class="nf-field">
                     <input type="text" name="username" placeholder=" " autocomplete="username" autocapitalize="none" spellcheck="false" [(ngModel)]="username" />
-                    <span>Usuario</span>
+                    <span>{{ 'MPX.LOGIN.USERNAME' | translate }}</span>
                 </label>
 
                 <label class="nf-field">
                     <input [type]="showPassword() ? 'text' : 'password'" name="password" placeholder=" " autocomplete="current-password" [(ngModel)]="password" />
-                    <span>Contraseña</span>
-                    <button type="button" class="nf-eye" [class.on]="showPassword()" aria-label="Mostrar contraseña" (click)="showPassword.set(!showPassword())">
+                    <span>{{ 'MPX.LOGIN.PASSWORD' | translate }}</span>
+                    <button type="button" class="nf-eye" [class.on]="showPassword()" [attr.aria-label]="'MPX.LOGIN.SHOW_PASSWORD' | translate" (click)="showPassword.set(!showPassword())">
                         <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 5c-5 0-9 4.5-10 7 1 2.5 5 7 10 7s9-4.5 10-7c-1-2.5-5-7-10-7zm0 11.5A4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 0 1 0 9zm0-7a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"/></svg>
                     </button>
                 </label>
 
                 <button class="nf-btn-red nf-btn-block" type="submit" [class.loading]="busy()" [disabled]="busy() || demoBusy()">
-                    <span class="lbl">Iniciar sesión</span>
+                    <span class="lbl">{{ 'MPX.LOGIN.SUBMIT' | translate }}</span>
                     <span class="nf-spinner" aria-hidden="true"></span>
                 </button>
 
@@ -100,15 +100,15 @@
             }
 
             @if (deviceId()) {
-                <p class="nf-device">ID del dispositivo <code>{{ deviceId() }}</code></p>
+                <p class="nf-device">{{ 'MPX.LOGIN.DEVICE_ID' | translate }} <code>{{ deviceId() }}</code></p>
             }
             <p class="nf-login-hint">
-                {{ branding.features().demo ? 'Ingresa con el usuario y la contraseña de tu suscripción o activa una demo.' : 'Ingresa con el usuario y la contraseña de tu suscripción.' }}
+                {{ (branding.features().demo ? 'MPX.LOGIN.HINT_DEMO' : 'MPX.LOGIN.HINT') | translate }}
             </p>
             @if (branding.choice() === 'skip') {
                 <!-- se eligió "Omitir" antes (queda guardado en el equipo): volver a la pantalla del distribuidor -->
                 <button class="nf-login-link" type="button" [disabled]="busy()" (click)="chooseDistributor()">
-                    ¿Tienes un número de distribuidor?
+                    {{ 'MPX.DIST.HAVE_CODE' | translate }}
                 </button>
             }
         </form>

@@ -58,7 +58,8 @@ describe('sports schedule utils', () => {
         expect(matchesSportsQuery(card, 'getafe')).toBe(true);
         expect(matchesSportsQuery(card, 'boca')).toBe(false);
         const groups = groupByLeague([card, other], DEFAULT_SPORTS_META);
-        expect(groups.map((g) => g.name)).toEqual(['La Liga', 'Tenis']);
+        // built-in labels are translation keys (the page translates them)
+        expect(groups.map((g) => g.name)).toEqual(['La Liga', 'MPX.SPORTS.SPORT_TENNIS']);
         expect(sportCounts([card, other], card.dayKey)).toEqual({ Soccer: 1, Tennis: 1 });
     });
 });

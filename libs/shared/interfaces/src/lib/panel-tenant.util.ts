@@ -1,4 +1,5 @@
 import { dispatchTenantEvent, tenantStorage } from './panel-tenant-env';
+import type { UiText } from './app-language.util';
 
 /**
  * Distributor ("tenant") of the panel, chosen once on the first launch.
@@ -68,13 +69,14 @@ export type PanelTenantErrorCode =
     | 'app_required'
     | 'too_many_attempts';
 
+/** Translation keys of the distributor errors (texts in apps/web/src/assets/i18n, MPX.DIST). */
 export const PANEL_TENANT_MESSAGES: Record<PanelTenantErrorCode, string> = {
-    tenant_invalid: 'Número de distribuidor no válido',
-    tenant_expired: 'El servicio de este distribuidor venció. Contacta a tu distribuidor.',
-    tenant_suspended: 'Este distribuidor está suspendido. Contacta a tu distribuidor.',
-    app_not_linked: 'Este número de distribuidor no está habilitado para esta aplicación.',
-    app_required: 'Error de la aplicación: falta indicar la app al panel. Actualiza la aplicación.',
-    too_many_attempts: 'Demasiados intentos. Espera 15 minutos e inténtalo de nuevo.',
+    tenant_invalid: 'MPX.DIST.ERR_TENANT_INVALID',
+    tenant_expired: 'MPX.DIST.ERR_TENANT_EXPIRED',
+    tenant_suspended: 'MPX.DIST.ERR_TENANT_SUSPENDED',
+    app_not_linked: 'MPX.DIST.ERR_APP_NOT_LINKED',
+    app_required: 'MPX.DIST.ERR_APP_REQUIRED',
+    too_many_attempts: 'MPX.DIST.ERR_TOO_MANY_ATTEMPTS',
 };
 
 /** Errors that end the distributor on this device (code + branding + session wiped). */
@@ -275,19 +277,24 @@ export function isTenantExpired(cache: Pick<PanelTenantCache, 'expiresAt'>, now 
     return cache.expiresAt > 0 && now > cache.expiresAt * 1000;
 }
 
-/** DD/MM/AAAA of the expiry in Panama time (UTC−5, no DST); '' when it never expires. */
-export function formatTenantExpiry(cache: Pick<PanelTenantCache, 'expiresAt' | 'expiresDate'>): string {
+/**
+ * Expiry date in Panama time (UTC−5, no DST); '' when it never expires.
+ * DD/MM/AAAA, or the date format of the given locale.
+ */
+export function formatTenantExpiry(cache: Pick<PanelTenantCache, 'expiresAt' | 'expiresDate'>, locale?: string): string {
     const m = cache.expiresDate ? DATE_RE.exec(cache.expiresDate) : null;
-    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
-    if (!cache.expiresAt) return '';
-    const d = new Date(cache.expiresAt * 1000 + PANAMA_OFFSET_MS);
+    let d: Date;
+    if (m) d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12));
+    else if (cache.expiresAt) d = new Date(cache.expiresAt * 1000 + PANAMA_OFFSET_MS);
+    else return '';
+    if (locale) return d.toLocaleDateString(locale, { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric' });
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
 }
 
-export function tenantExpiredMessage(cache: Pick<PanelTenantCache, 'expiresAt' | 'expiresDate'>): string {
-    const date = formatTenantExpiry(cache);
-    return date ? `Tu distribuidor venció el ${date} (hora de Panamá)` : PANEL_TENANT_MESSAGES.tenant_expired;
+export function tenantExpiredMessage(cache: Pick<PanelTenantCache, 'expiresAt' | 'expiresDate'>, locale?: string): UiText {
+    const date = formatTenantExpiry(cache, locale);
+    return date ? { key: 'MPX.DIST.EXPIRED_ON', params: { date } } : { key: PANEL_TENANT_MESSAGES.tenant_expired };
 }
 
 /** Removes every per-distributor cache (panel token, TMDB key…) stored for a code. */

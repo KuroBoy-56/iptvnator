@@ -16,28 +16,21 @@
 
     <div class="setting-item">
         <div class="setting-item__meta">
-            <h4>{{ 'SETTINGS.LANGUAGE' | translate }}</h4>
-            <p>{{ 'SETTINGS.LANGUAGE_DESCRIPTION' | translate }}</p>
+            <h4>{{ 'MPX.LANGUAGE.TITLE' | translate }}</h4>
+            <p>{{ 'MPX.LANGUAGE.DESCRIPTION' | translate }}</p>
         </div>
         <div class="setting-item__control">
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>{{
-                    'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
-                }}</mat-label>
+                <mat-label>{{ 'MPX.LANGUAGE.TITLE' | translate }}</mat-label>
                 <mat-select
                     formControlName="language"
                     data-test-id="select-language"
                 >
-                    @for (
-                        language of languageEnum() | keyvalue;
-                        track language
-                    ) {
+                    @for (option of languageOptions; track option.value) {
                         <mat-option
-                            [value]="language.value"
-                            [attr.data-test-id]="language.value"
-                            >{{
-                                'LANGUAGES.' + language.key | translate
-                            }}</mat-option
+                            [value]="option.value"
+                            [attr.data-test-id]="option.value"
+                            >{{ option.label | translate }}</mat-option
                         >
                     }
                 </mat-select>

@@ -1,4 +1,5 @@
 import {
+    APP_LANGUAGE_STORAGE_KEY,
     clearSessionCredentials,
     clearTenant,
     getPanelApiBase,
@@ -56,7 +57,8 @@ describe('fetchPanelAlert', () => {
     const reply = (body: unknown) =>
         Promise.resolve({ ok: true, json: () => Promise.resolve(body) } as Response);
 
-    it('asks alerta.php for JSON with the line credentials', async () => {
+    it('asks alerta.php for JSON with the line credentials and the app language', async () => {
+        localStorage.setItem(APP_LANGUAGE_STORAGE_KEY, 'en');
         setSessionAlertAccounts([{ user: 'u', pass: 'p&q', dns: 'http://dns:80', title: 'Línea' }]);
         const fetcher = jest.fn(() => reply({ type: 'welcome', title: 'W', message: '' }));
         const alert = await fetchPanelAlert(fetcher as unknown as typeof fetch);
@@ -69,6 +71,7 @@ describe('fetchPanelAlert', () => {
             pass: 'p&q',
             dns: 'http://dns:80',
             title: 'Línea',
+            lang: 'en',
         });
     });
 

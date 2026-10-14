@@ -10,7 +10,7 @@ import { firstValueFrom } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     XtreamAccountInfo,
     XtreamApiService,
@@ -19,7 +19,8 @@ import {
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     demoEndText,
-    demoLengthText,
+    demoLength,
+    demoLengthKey,
     resolveXtreamPortalStatus,
     type XtreamAccountInfoDialogData,
 } from '@iptvnator/shared/interfaces';
@@ -61,6 +62,7 @@ export class AccountInfoComponent {
     private readonly xtreamApiService = inject(XtreamApiService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly http = inject(HttpClient);
+    private readonly translate = inject(TranslateService);
     private readonly logger = createLogger('XtreamAccountInfo');
 
     readonly currentPlaylist = computed(
@@ -187,10 +189,13 @@ export class AccountInfoComponent {
         const isDemo = this.isTrial();
         // demo: only what the panel says (its end with the exact time and its length), nothing of the demo line
         if (isDemo) {
-            const length = demoLengthText();
+            const length = demoLength();
+            const lengthKey = length ? demoLengthKey(length) : null;
+            const lengthText = lengthKey ? this.translate.instant(lengthKey.key, lengthKey.params) : '';
+            const locale = this.translate.currentLang || this.translate.defaultLang;
             return [
-                { labelKey: 'XTREAM.ACCOUNT_INFO.USERNAME', value: length ? `DEMO · ${length}` : 'DEMO', mono: true },
-                { labelKey: 'XTREAM.ACCOUNT_INFO.EXPIRES', value: demoEndText() || '-', tone: 'warning' },
+                { labelKey: 'XTREAM.ACCOUNT_INFO.USERNAME', value: lengthText ? `DEMO · ${lengthText}` : 'DEMO', mono: true },
+                { labelKey: 'XTREAM.ACCOUNT_INFO.EXPIRES', value: demoEndText(undefined, locale) || '-', tone: 'warning' },
             ];
         }
         const rows: AccountDetailRow[] = [
@@ -309,7 +314,9 @@ export class AccountInfoComponent {
         
         const dateMs = value < 10000000000 ? value * 1000 : value;
         
-        return new Date(dateMs).toLocaleString('es-PA', { 
+        // Panama time, in the date format of the app language
+        const lang = this.translate.currentLang || this.translate.defaultLang || 'es';
+        return new Date(dateMs).toLocaleString(lang === 'es' ? 'es-PA' : lang, {
             timeZone: 'America/Panama',
             year: 'numeric',
             month: '2-digit',

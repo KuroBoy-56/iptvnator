@@ -5,6 +5,9 @@ describe('toTmdbLanguage', () => {
     it('maps app languages to TMDB codes', () => {
         expect(toTmdbLanguage(Language.GERMAN)).toBe('de-DE');
         expect(toTmdbLanguage(Language.RUSSIAN)).toBe('ru-RU');
+        // Latin American Spanish and Brazilian Portuguese
+        expect(toTmdbLanguage(Language.SPANISH)).toBe('es-MX');
+        expect(toTmdbLanguage(Language.PORTUGUESE)).toBe('pt-BR');
     });
 
     it('falls back to en-US for unknown values', () => {

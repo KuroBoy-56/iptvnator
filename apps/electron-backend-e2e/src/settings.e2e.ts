@@ -159,7 +159,7 @@ test.describe('Electron Settings', () => {
             await selectSettingsOption(
                 firstLaunch.mainWindow,
                 'select-language',
-                'de'
+                'fr'
             );
             await firstLaunch.mainWindow
                 .locator('[data-test-id="DARK_THEME"]')
@@ -199,7 +199,7 @@ test.describe('Electron Settings', () => {
 
             await expect(
                 secondLaunch.mainWindow.getByTestId('select-language')
-            ).toContainText('Deutsch');
+            ).toContainText('Français');
             await expect(
                 secondLaunch.mainWindow.locator('[data-test-id="DARK_THEME"]')
             ).toHaveAttribute('aria-checked', 'true');

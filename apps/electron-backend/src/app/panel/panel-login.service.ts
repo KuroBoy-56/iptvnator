@@ -83,6 +83,8 @@ export async function panelLoginRequest(
     if (tenant && !isTenantCode(tenant)) {
         return { ok: false, status: 0, code: 'BAD_RESPONSE', error: 'Número de distribuidor no válido' };
     }
+    // app language for the panel's own texts; anything else stays out of the payload
+    const lang = /^(es|en|pt|fr)$/.test(payload?.lang ?? '') ? payload?.lang : undefined;
     if (action === 'tenant_config' && !tenant) {
         return { ok: false, status: 0, code: 'BAD_RESPONSE', error: 'Número de distribuidor no válido' };
     }
@@ -90,7 +92,7 @@ export async function panelLoginRequest(
     // 401 ts_expired with its own time and the request is sent once more with the clock corrected
     const plainFor = (ts: number) => JSON.stringify(
         action === 'tenant_config'
-            ? { code: tenant, app: PANEL_APP_ID, device: deps.deviceId, ts }
+            ? { code: tenant, app: PANEL_APP_ID, device: deps.deviceId, lang, ts }
             : {
                   mac_address: deps.deviceId,
                   username: payload?.username?.trim() || undefined,
@@ -106,6 +108,7 @@ export async function panelLoginRequest(
                   enc: LINE_REPLY.includes(action) ? 1 : undefined,
                   // device type of this MAC in the panel (Clientes MAC › Dispositivo) and the fake screen
                   platform: PANEL_APP_ID,
+                  lang,
                   ts,
               }
     );

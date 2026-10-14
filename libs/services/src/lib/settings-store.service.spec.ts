@@ -115,4 +115,30 @@ describe('SettingsStore dashboard rail settings', () => {
             })
         );
     });
+
+    it('turns the old English default into "auto" once and saves it', async () => {
+        localStorage.removeItem('mpx:language-auto-v1');
+        storedSettings = { language: Language.ENGLISH } as Partial<Settings>;
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.language()).toBe('auto');
+        expect(store.settingsLoaded()).toBe(true);
+        expect(storage.set).toHaveBeenCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({ language: 'auto' })
+        );
+        expect(localStorage.getItem('mpx:language-auto-v1')).toBe('1');
+    });
+
+    it('keeps a language chosen after the migration', async () => {
+        localStorage.setItem('mpx:language-auto-v1', '1');
+        storedSettings = { language: Language.ENGLISH } as Partial<Settings>;
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.language()).toBe('en');
+    });
 });

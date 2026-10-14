@@ -8,8 +8,10 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { NfCardComponent } from './nf-card.component';
 import { injectNfCatalog } from './nf-catalog';
+import { UiText } from '@iptvnator/shared/interfaces';
 import { nfFindTag, nfNorm, nfTagItems } from './nf-filters';
 import { NfItem, nfLink, newestFirst, topRated } from './nf-item';
 import { NfNearEndDirective } from './nf-near-end.directive';
@@ -29,6 +31,7 @@ const PAGE = 120;
         NfNearEndDirective,
         NfTitleSearchComponent,
         RouterLink,
+        TranslatePipe,
     ],
     template: `
         <div class="nf-page">
@@ -37,12 +40,12 @@ const PAGE = 120;
                     @if (tag()?.img; as img) {
                         <img [src]="img" alt="" />
                     }
-                    {{ heading() }}
+                    {{ headingText() }}
                 </h1>
-                <p>{{ subtitle() }}</p>
+                <p>{{ subtitle() | translate }}</p>
                 @if (platform()) {
                     <app-nf-title-search
-                        [label]="heading()"
+                        [label]="headingText()"
                         [(value)]="filter"
                     />
                 }
@@ -51,38 +54,49 @@ const PAGE = 120;
             <div class="nf-filterbar">
                 <div class="row1">
                     @if (!category()) {
-                        <div class="nf-seg" role="group" aria-label="Tipo">
+                        <div
+                            class="nf-seg"
+                            role="group"
+                            [attr.aria-label]="'MPX.NF.TYPE' | translate"
+                        >
                             @for (t of types; track t.key) {
                                 <button
                                     type="button"
                                     [class.active]="type() === t.key"
                                     (click)="set({ type: t.key })"
                                 >
-                                    {{ t.label }}
+                                    {{ t.label | translate }}
                                 </button>
                             }
                         </div>
                     }
                     <select
                         class="nf-select"
-                        aria-label="Ordenar"
+                        [attr.aria-label]="'MPX.NF.SORT' | translate"
                         [value]="sort()"
                         (change)="set({ sort: $any($event.target).value })"
                     >
-                        <option value="recent">Agregadas recientemente</option>
-                        <option value="rating">Mejor valoradas</option>
+                        <option value="recent">
+                            {{ 'MPX.NF.RECENTLY_ADDED' | translate }}
+                        </option>
+                        <option value="rating">
+                            {{ 'MPX.NF.TOP_RATED' | translate }}
+                        </option>
                         <option value="az">A – Z</option>
                     </select>
                     @if (!platform()) {
                         <input
                             class="nf-input"
                             type="search"
-                            placeholder="Filtrar por título"
+                            [placeholder]="'MPX.NF.FILTER_TITLE' | translate"
                             [value]="filter()"
                             (input)="filter.set($any($event.target).value)"
                         />
                     }
-                    <span class="nf-count">{{ results().length }} títulos</span>
+                    <span class="nf-count">{{
+                        'MPX.NF.TITLES_COUNT'
+                            | translate: { count: results().length }
+                    }}</span>
                 </div>
             </div>
 
@@ -103,21 +117,21 @@ const PAGE = 120;
                                 class="nf-grid-status"
                                 (nfNearEnd)="limit.set(limit() + page)"
                             >
-                                Cargando más…
+                                {{ 'MPX.COMMON.LOADING_MORE' | translate }}
                             </div>
                         }
                     }
                 } @else {
                     <p class="nf-empty">
-                        No encontramos títulos con estos filtros.
+                        {{ 'MPX.NF.NO_RESULTS' | translate }}
                     </p>
                 }
             } @else {
                 <p class="nf-grid-status">
                     {{
-                        catalog.loading()
-                            ? 'Cargando catálogo…'
-                            : 'Aún no hay contenido.'
+                        (catalog.loading()
+                            ? 'MPX.NF.LOADING_CATALOG'
+                            : 'MPX.NF.NO_CONTENT') | translate
                     }}
                 </p>
             }
@@ -128,12 +142,13 @@ const PAGE = 120;
 export class NfExploreComponent {
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
+    private readonly translate = inject(TranslateService);
     protected readonly catalog = injectNfCatalog([]);
     protected readonly page = PAGE;
     protected readonly types: { key: ExploreType; label: string }[] = [
-        { key: 'all', label: 'Todo' },
-        { key: 'movie', label: 'Películas' },
-        { key: 'series', label: 'Series' },
+        { key: 'all', label: 'MPX.NF.ALL' },
+        { key: 'movie', label: 'MPX.NAV.MOVIES' },
+        { key: 'series', label: 'MPX.NAV.SERIES' },
     ];
 
     private readonly params = toSignal(this.route.queryParamMap, {
@@ -161,30 +176,49 @@ export class NfExploreComponent {
             this.type() === 'series'
                 ? this.catalog.seriesCategories()
                 : this.catalog.movieCategories();
-        return list.find((c) => c.id === id) ?? { id, name: 'Categoría' };
+        return (
+            list.find((c) => c.id === id) ?? {
+                id,
+                name: this.translate.instant('MPX.NF.CATEGORY'),
+            }
+        );
     });
     protected readonly filter = linkedSignal(
         () => this.params().get('q') ?? ''
     );
     protected readonly limit = signal(PAGE);
 
-    protected readonly heading = computed(() => {
-        const label = this.category()?.name ?? this.tag()?.label;
-        if (label) return label;
+    /** Category names are shown as the server sends them; tags and the rest are translated. */
+    protected readonly heading = computed<UiText & { raw?: string }>(() => {
+        const category = this.category();
+        if (category) return { key: '', raw: category.name };
+        const label = this.tag()?.label;
+        if (label) return { key: label };
         const q = this.params().get('q');
-        if (q) return `Resultados para "${q}"`;
-        return this.type() === 'series'
-            ? 'Series'
-            : this.type() === 'movie'
-              ? 'Películas'
-              : 'Explorar';
+        if (q) return { key: 'MPX.NF.RESULTS_FOR', params: { q } };
+        return {
+            key:
+                this.type() === 'series'
+                    ? 'MPX.NAV.SERIES'
+                    : this.type() === 'movie'
+                      ? 'MPX.NAV.MOVIES'
+                      : 'MPX.NAV.EXPLORE',
+        };
+    });
+    private readonly lang = toSignal(this.translate.onLangChange, {
+        initialValue: null,
+    });
+    protected readonly headingText = computed(() => {
+        this.lang();
+        const h = this.heading();
+        return h.raw ?? this.translate.instant(h.key, h.params);
     });
     protected readonly subtitle = computed(() =>
         this.sort() === 'rating'
-            ? 'Las mejor valoradas'
+            ? 'MPX.NF.SORT_RATING'
             : this.sort() === 'az'
-              ? 'Por orden alfabético'
-              : 'Lo más reciente primero'
+              ? 'MPX.NF.SORT_AZ'
+              : 'MPX.NF.SORT_RECENT'
     );
     protected readonly accent = computed(() => {
         const color = this.tag()?.color;

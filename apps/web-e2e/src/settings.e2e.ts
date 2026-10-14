@@ -52,19 +52,16 @@ test.describe('Settings', () => {
         await openSettings(page);
         const languageSelect = page.locator('[data-test-id="select-language"]');
 
-        await expect(languageSelect).toContainText(
-            'English'
-        );
+        // first start: "Automático (idioma del equipo)" in the browser's language
+        await expect(languageSelect).toContainText(/Automatic|Automático|Automatique/);
         await languageSelect.click();
-        await page.locator('mat-option[data-test-id="de"]').click();
+        await page.locator('mat-option[data-test-id="pt"]').click();
 
         await saveSettings(page);
         await page.reload();
         await openSettings(page);
 
-        await expect(languageSelect).toContainText(
-            'Deutsch'
-        );
+        await expect(languageSelect).toContainText('Português');
     });
 
     test.afterEach(async ({ page }, testInfo) => {

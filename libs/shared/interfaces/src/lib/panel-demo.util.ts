@@ -8,7 +8,8 @@ export const SESSION_DEMO_KEY = 'session_demo';
 export const SESSION_DEMO_EXPIRES_KEY = 'session_demo_expires';
 export const SESSION_DEMO_DURATION_KEY = 'session_demo_duration';
 export const DEMO_LABEL = 'DEMO';
-export const DEMO_BLOCKED_MESSAGE = 'No disponible en la DEMO';
+/** Translation key of the notice shown when a demo tries to save progress or favorites. */
+export const DEMO_BLOCKED_MESSAGE = 'MPX.DEMO.BLOCKED';
 /** Fired on window when the demo flag changes. */
 export const PANEL_DEMO_EVENT = 'panel-demo-changed';
 /** Fired on window when a demo user tries something a demo cannot do (the shell shows a notice). */
@@ -80,19 +81,34 @@ export function sessionDemoExpires(): number {
     return readSeconds(SESSION_DEMO_EXPIRES_KEY);
 }
 
-/** "1 hora", "2 horas", "30 minutos", "1 día"… from the panel's demo length ('' when unknown). */
-export function demoLengthText(seconds = readSeconds(SESSION_DEMO_DURATION_KEY)): string {
-    if (!(seconds > 0)) return '';
-    if (seconds % 86400 === 0) return seconds === 86400 ? '1 día' : `${seconds / 86400} días`;
-    if (seconds % 3600 === 0) return seconds === 3600 ? '1 hora' : `${seconds / 3600} horas`;
-    const m = Math.round(seconds / 60);
-    return m === 1 ? '1 minuto' : `${m} minutos`;
+export interface DemoLength {
+    unit: 'DAY' | 'HOUR' | 'MINUTE';
+    count: number;
 }
 
-/** End of the demo with the exact local time: "13/10/2026 18:45" ('' when unknown). */
-export function demoEndText(expires = sessionDemoExpires()): string {
+/** Length of the demo as the panel says it, in days, hours or minutes (null when unknown). */
+export function demoLength(seconds = readSeconds(SESSION_DEMO_DURATION_KEY)): DemoLength | null {
+    if (!(seconds > 0)) return null;
+    if (seconds % 86400 === 0) return { unit: 'DAY', count: seconds / 86400 };
+    if (seconds % 3600 === 0) return { unit: 'HOUR', count: seconds / 3600 };
+    return { unit: 'MINUTE', count: Math.round(seconds / 60) };
+}
+
+/** Translation key + params of a demo length: MPX.DEMO.HOUR "1 hora", MPX.DEMO.HOURS "{{count}} horas"… */
+export function demoLengthKey(length: DemoLength): { key: string; params: { count: number } } {
+    return { key: `MPX.DEMO.${length.unit}${length.count === 1 ? '' : 'S'}`, params: { count: length.count } };
+}
+
+/**
+ * End of the demo with the exact local time ('' when unknown): "13/10/2026 18:45",
+ * or in the given locale's own date format.
+ */
+export function demoEndText(expires = sessionDemoExpires(), locale?: string): string {
     if (!(expires > 0)) return '';
     const d = new Date(expires * 1000);
+    if (locale) {
+        return d.toLocaleString(locale, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
     const p = (n: number) => String(n).padStart(2, '0');
     return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }

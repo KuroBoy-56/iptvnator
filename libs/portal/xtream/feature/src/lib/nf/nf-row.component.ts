@@ -10,6 +10,7 @@ import {
 import { NgTemplateOutlet } from '@angular/common';
 import { MatIcon } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
+import { TranslatePipe } from '@ngx-translate/core';
 import { NfCardComponent } from './nf-card.component';
 import { NfItem, nfLink } from './nf-item';
 
@@ -17,7 +18,13 @@ import { NfItem, nfLink } from './nf-item';
 @Component({
     selector: 'app-nf-row',
     standalone: true,
-    imports: [MatIcon, NfCardComponent, NgTemplateOutlet, RouterLink],
+    imports: [
+        MatIcon,
+        NfCardComponent,
+        NgTemplateOutlet,
+        RouterLink,
+        TranslatePipe,
+    ],
     host: { class: 'nf-row', '[class.nf-top]': "variant() === 'top'" },
     template: `
         <div class="nf-row-head">
@@ -27,7 +34,7 @@ import { NfItem, nfLink } from './nf-item';
                     class="nf-row-more"
                     [routerLink]="link"
                     [queryParams]="moreQuery()"
-                    >Ver todo ›</a
+                    >{{ 'MPX.NF.SEE_ALL' | translate }} ›</a
                 >
             }
         </div>
@@ -36,7 +43,7 @@ import { NfItem, nfLink } from './nf-item';
                 <button
                     class="nf-arrow l"
                     type="button"
-                    aria-label="Anterior"
+                    [attr.aria-label]="'MPX.COMMON.PREVIOUS' | translate"
                     (click)="scroll(-1)"
                 >
                     <mat-icon>chevron_left</mat-icon>
@@ -77,7 +84,7 @@ import { NfItem, nfLink } from './nf-item';
             <button
                 class="nf-arrow r"
                 type="button"
-                aria-label="Siguiente"
+                [attr.aria-label]="'MPX.COMMON.NEXT' | translate"
                 (click)="scroll(1)"
             >
                 <mat-icon>chevron_right</mat-icon>

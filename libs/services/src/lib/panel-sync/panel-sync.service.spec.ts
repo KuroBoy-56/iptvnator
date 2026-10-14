@@ -47,7 +47,9 @@ describe('PanelSyncService', () => {
         const auth = calls.filter((c) => c.init?.method === 'POST');
         expect(auth).toHaveLength(1);
         expect(JSON.parse(String(auth[0].init?.body))).toEqual({ action: 'auth', user: 'line1', pass: 'secret', dns: 'http://dns.test:8080', platform: 'windows' });
-        expect(calls[1].url).toContain('progress.php?v=2');
+        expect(calls[1].url).toContain('progress.php?v=2&lang=');
+        // the panel answers its texts in the app language
+        expect(calls[0].url).toMatch(/progress\.php\?lang=(es|en|pt|fr)$/);
         expect((calls[1].init?.headers as Record<string, string>)['Authorization']).toBe('Bearer tok');
         expect(localStorage.getItem('panel_sync_token2:line1@dns.test:8080')).toBe('tok');
         expect(JSON.stringify(localStorage)).not.toContain('secret');
@@ -259,7 +261,7 @@ describe('PanelSyncService', () => {
         global.fetch = jest.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
             const body = init?.body ? JSON.parse(String(init.body)) : null;
             if (body?.action === 'auth') return jsonResponse({ success: true, token: 'tok' });
-            if (String(url).endsWith('epg.php')) {
+            if (String(url).includes('epg.php?lang=')) {
                 epgBodies.push(body);
                 return jsonResponse({ epg: { [body.channels[0].id]: [{ s: 1, e: 2, t: 'x' }] } });
             }

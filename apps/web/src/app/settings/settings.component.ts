@@ -40,7 +40,6 @@ import {
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     ElectronBridgeAppUpdateStatus,
     EpgViewMode,
-    Language,
     StreamFormat,
     Theme,
     VideoPlayer,
@@ -147,7 +146,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
     );
 
     @Input() isDialog = this.dialogData?.isDialog ?? false;
-    readonly languageEnum = Language;
     readonly streamFormatEnum = StreamFormat;
 
     readonly isDesktop = this.runtime.isElectron;
@@ -592,9 +590,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
                 }
             }
         }
-        this.translate.use(
-            this.settingsForm.value.language ?? Language.ENGLISH
-        );
+        // the app language follows the saved setting (AppComponent)
         this.settingsService.changeTheme(
             this.settingsForm.value.theme ?? Theme.SystemTheme
         );

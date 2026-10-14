@@ -1,5 +1,5 @@
 import { ErrorHandler, Injectable } from '@angular/core';
-import { PanelErrorReport, readTenantCode } from '@iptvnator/shared/interfaces';
+import { currentAppLanguage, PanelErrorReport, readTenantCode } from '@iptvnator/shared/interfaces';
 
 type ReportBridge = { panelReportError?: (r: PanelErrorReport) => Promise<boolean> };
 
@@ -28,6 +28,7 @@ export function reportPanelError(kind: PanelErrorReport['kind'], message: string
             user,
             server,
             tenant: readTenantCode() || undefined,
+            lang: currentAppLanguage(),
         })
         .catch(() => undefined);
 }
