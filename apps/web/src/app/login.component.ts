@@ -8,6 +8,7 @@ import { pickLineServer } from './panel-login/line-server.util';
 import { LoginPostersService } from './panel-login/login-posters.service';
 import { PanelLoginService } from './panel-login/panel-login.service';
 import { PanelSessionService } from './panel-login/panel-session.service';
+import { PanelSessionGuardService } from './panel-login/panel-session-guard.service';
 import { PanelTenantService } from './panel-login/panel-tenant.service';
 import { FakeScreenComponent } from './panel-login/fake-screen/fake-screen.component';
 import { PanelFakeScreen } from './panel-login/fake-screen/fake-screen.util';
@@ -44,6 +45,7 @@ function fakeUnlocked(): boolean {
 export class LoginComponent implements OnInit {
     private readonly panel = inject(PanelLoginService);
     private readonly session = inject(PanelSessionService);
+    private readonly guard = inject(PanelSessionGuardService);
     private readonly portalStatus = inject(PortalStatusService);
     private readonly posterService = inject(LoginPostersService);
     private readonly router = inject(Router);
@@ -286,6 +288,7 @@ export class LoginComponent implements OnInit {
     private async enter(account: Parameters<PanelSessionService['start']>[0]): Promise<void> {
         try {
             await this.session.start(account);
+            this.guard.watch(account);
             await this.router.navigate(['/workspace']);
         } catch {
             this.say({ key: 'MPX.LOGIN.ERR_SESSION' }, 'error');

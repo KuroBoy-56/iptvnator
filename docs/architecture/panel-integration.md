@@ -102,6 +102,13 @@ expired or rejected line clears the session and stays on the login screen with
 the reason. An unreachable server does not block the entry (the scheme is
 resolved later). The line password is never stored in `localStorage`.
 
+While the app runs, `PanelSessionGuardService`
+(`apps/web/src/app/panel-login/panel-session-guard.service.ts`, started by the
+login's `enter()`) keeps the session tied to the panel: a demo ends at its exact
+`demo_expires`, and every 10 minutes `check_mac` is asked again; when the panel
+says the device has no line (deleted, expired demo) the lines are removed and the
+app goes back to `/login`. A panel that does not answer changes nothing.
+
 ### Platform, fake screen and error reports
 
 - **Platform.** Every `login.php` payload and the `progress.php` `auth` body
