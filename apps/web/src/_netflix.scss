@@ -6,7 +6,8 @@
 // that has colours, applyTenantTheme() (libs/shared/interfaces
 // panel-tenant-theme.util.ts) injects <style id="panel-tenant-theme"> that
 // redefines --nf-red (accent), --nf-on-accent, --nf-bg, --nf-surface,
-// --nf-card, --nf-text and --nf-gray2 (text at 65%).
+// --nf-card, --nf-text and --nf-gray2 (text at 65%), y --nf-focus (borde de
+// foco: el acento del distribuidor; sin paleta, blanco como siempre).
 
 :root {
     --nf-red: #e50914;
@@ -17,6 +18,7 @@
     --nf-card: #2f2f2f;
     --nf-text: #e5e5e5;
     --nf-gray2: #b3b3b3;
+    --nf-focus: #fff;
     --nf-pad: 4%;
     --nf-header: 68px;
     --card-w: clamp(118px, 13.2vw, 230px);
@@ -108,6 +110,14 @@ body.macos-platform .nf-header {
             font-weight: 700;
         }
     }
+}
+
+// foco de teclado (menú, chips, botones del billboard): color del distribuidor
+.nf-nav a:focus-visible,
+.nf-chip:focus-visible,
+.nf-btn:focus-visible {
+    outline: 2px solid var(--nf-focus);
+    outline-offset: 3px;
 }
 
 .nf-header-right {
@@ -770,6 +780,12 @@ body.macos-platform .nf-header {
         opacity: 1;
     }
 
+    // foco de teclado con el color del distribuidor
+    &:focus-visible {
+        outline: 2px solid var(--nf-focus);
+        outline-offset: 2px;
+    }
+
     .rt {
         position: absolute;
         top: 6px;
@@ -817,7 +833,6 @@ body.macos-platform .nf-header {
         transform: scale(1.12);
         z-index: 5;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75);
-        outline: none;
     }
 
     .nf-slider .nf-card:first-child:hover {
@@ -967,17 +982,25 @@ body.macos-platform .nf-header {
         padding: 6px;
     }
 
+    &:hover {
+        border-color: #fff;
+    }
+
     &:hover,
     &:focus-visible {
         transform: scale(1.06);
-        border-color: #fff;
         outline: none;
+    }
+
+    &:focus-visible {
+        border-color: var(--nf-focus);
     }
 }
 
 // ─── Explore grid ("Ver todo", platforms, genres) ───────────────────────────
 .nf-browse-head {
     position: relative;
+    isolation: isolate;
     padding: calc(var(--nf-header) + 26px) var(--nf-pad) 6px;
     background: radial-gradient(
         1200px 300px at 0% 0%,
@@ -1059,7 +1082,7 @@ body.macos-platform .nf-header {
     outline: 0;
 
     &:focus {
-        border-color: #fff;
+        border-color: var(--nf-focus);
     }
 }
 
@@ -1067,6 +1090,18 @@ body.macos-platform .nf-header {
     color: var(--nf-gray2);
     font-size: 13px;
     margin-left: auto;
+}
+
+// Último banner de fondo del encabezado (sin pantalla negra al cambiar de filtro)
+.nf-browse-bg {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-size: cover;
+    background-position: center 20%;
+    opacity: 0.35;
+    mask-image: linear-gradient(180deg, #000 30%, transparent);
+    pointer-events: none;
 }
 
 // Platform page magnifier (top-right of .nf-browse-head)

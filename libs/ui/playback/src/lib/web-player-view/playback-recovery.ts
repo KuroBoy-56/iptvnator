@@ -94,6 +94,8 @@ export class PlaybackRecovery {
     private playedUrl: string | null = null;
     private issueBeforeSchemeRetry: PlaybackDiagnostic | null = null;
     private revertSchemeOnSwitch = false;
+    /** Embedded MPV was not available for this stream: keep the diagnostic, no more attempts. */
+    private mpvUnavailable = false;
 
     constructor(private readonly availability: EmbeddedMpvAvailabilityService) {}
 
@@ -127,6 +129,9 @@ export class PlaybackRecovery {
         if (this.tryOtherScheme(url)) {
             this.issueBeforeSchemeRetry = issue;
             return 'retry-other-scheme';
+        }
+        if (this.mpvUnavailable) {
+            return 'none';
         }
         if (shouldAutoSwitchToEmbeddedMpv(issue)) {
             return 'embedded-mpv';
@@ -167,6 +172,9 @@ export class PlaybackRecovery {
             return false;
         }
         this.pending.set(false);
+        if (!available) {
+            this.mpvUnavailable = true;
+        }
         if (!available || !stillFailing()) {
             return false;
         }
@@ -191,6 +199,7 @@ export class PlaybackRecovery {
         this.playedUrl = null;
         this.issueBeforeSchemeRetry = null;
         this.revertSchemeOnSwitch = false;
+        this.mpvUnavailable = false;
         this.pending.set(false);
         this.startTime.set(null);
         this.schemeUrl.set(null);

@@ -183,8 +183,27 @@ export function nfNorm(text: string): string {
     return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
+// nombres de categoría normalizados (pocos cientos; se vacía si pasa de 5000)
+const categoryNorm = new Map<string, string>();
+const titleNorm = new WeakMap<NfItem, string>();
+
+/** Título normalizado de un item, calculado una sola vez (filtro por título sin congelar). */
+export function nfTitleNorm(item: NfItem): string {
+    let norm = titleNorm.get(item);
+    if (norm === undefined) {
+        norm = nfNorm(item.title);
+        titleNorm.set(item, norm);
+    }
+    return norm;
+}
+
 export function nfMatches(text: string, tag: NfTag): boolean {
-    const t = nfNorm(text);
+    const cached = categoryNorm.get(text);
+    const t = cached ?? nfNorm(text);
+    if (cached === undefined) {
+        if (categoryNorm.size > 5000) categoryNorm.clear();
+        categoryNorm.set(text, t);
+    }
     return tag.kw.some((kw) =>
         typeof kw === 'string' ? t.includes(kw) : kw.test(t)
     );

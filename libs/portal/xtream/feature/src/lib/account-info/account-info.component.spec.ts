@@ -16,7 +16,9 @@ describe('AccountInfoComponent', () => {
     let xtreamApiService: {
         getAccountInfo: jest.Mock;
     };
-    let currentPlaylist: WritableSignal<null>;
+    let currentPlaylist: WritableSignal<{ id: string } | null>;
+    let liveStreams: WritableSignal<unknown[]>;
+    let contentLoadStateByType: WritableSignal<Record<string, string>>;
 
     beforeEach(async () => {
         xtreamApiService = {
@@ -34,7 +36,13 @@ describe('AccountInfoComponent', () => {
                 },
             }),
         };
-        currentPlaylist = signal(null);
+        currentPlaylist = signal<{ id: string } | null>(null);
+        liveStreams = signal<unknown[]>([]);
+        contentLoadStateByType = signal<Record<string, string>>({
+            live: 'loading',
+            vod: 'ready',
+            series: 'ready',
+        });
 
         await TestBed.configureTestingModule({
             imports: [
@@ -63,6 +71,11 @@ describe('AccountInfoComponent', () => {
                     provide: XtreamStore,
                     useValue: {
                         currentPlaylist,
+                        liveStreams,
+                        vodStreams: signal([{}, {}]),
+                        serialStreams: signal([]),
+                        contentLoadStateByType,
+                        contentInitBlockReason: signal(null),
                     },
                 },
             ],
@@ -90,6 +103,25 @@ describe('AccountInfoComponent', () => {
             '-',
             '-',
             '-',
+        ]);
+    });
+
+    it('counts the loaded catalog of the same playlist, "…" while a type still loads', () => {
+        currentPlaylist.set({ id: 'dialog-playlist' });
+        expect(component.heroStats().map((stat) => stat.value)).toEqual([
+            '0/0',
+            '…',
+            '2',
+            '0',
+        ]);
+
+        liveStreams.set([{}, {}, {}]);
+        contentLoadStateByType.set({ live: 'ready', vod: 'ready', series: 'ready' });
+        expect(component.heroStats().map((stat) => stat.value)).toEqual([
+            '0/0',
+            '3',
+            '2',
+            '0',
         ]);
     });
 

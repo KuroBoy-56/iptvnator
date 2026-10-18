@@ -1,13 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
+import { PanelBrandingService } from '@iptvnator/services';
 import { injectNfCatalog } from './nf-catalog';
 import {
     NF_GENRES,
     NF_HOME_GENRES,
     NF_PLATFORMS,
     nfAvailable,
-    nfTagItems,
+    nfCategoryIds,
     NfTag,
 } from './nf-filters';
 import { NfHeroComponent } from './nf-hero.component';
@@ -148,19 +149,24 @@ export class NfHomeComponent {
         ...this.catalog.series(),
     ]);
 
+    private readonly branding = inject(PanelBrandingService);
+    /** Sin plataformas (features.platforms false): ni tiles ni filas de plataforma. */
     protected readonly platforms = computed(() =>
-        nfAvailable(NF_PLATFORMS, this.allCategories())
+        this.branding.platforms()
+            ? nfAvailable(NF_PLATFORMS, this.allCategories())
+            : []
     );
 
     protected readonly rows = computed<HomeRow[]>(() => {
         const movies = this.catalog.movies();
         const series = this.catalog.series();
         const explore = this.explore;
+        const recentMovies = newestFirst(movies);
         const rows: HomeRow[] = [
             {
                 key: 'top',
                 title: 'MPX.NF.TOP10_TODAY',
-                items: topRated(newestFirst(movies).slice(0, 300)),
+                items: topRated(recentMovies.slice(0, 300)),
                 more: explore,
                 query: { type: 'all', sort: 'rating' },
                 variant: 'top',
@@ -168,7 +174,7 @@ export class NfHomeComponent {
             {
                 key: 'movies',
                 title: 'MPX.NF.MOVIES_RECENT',
-                items: newestFirst(movies),
+                items: recentMovies,
                 more: explore,
                 query: { type: 'movie', sort: 'recent' },
             },
@@ -210,6 +216,11 @@ export class NfHomeComponent {
         return rows.filter((r) => r.items.length > 0);
     });
 
+    /** Items por categoría, una sola pasada (antes cada fila recorría todo el catálogo). */
+    private readonly itemsByCategory = computed(() =>
+        this.catalog.byCategory(this.allItems())
+    );
+
     private tagRow(
         tag: NfTag,
         title: string,
@@ -221,7 +232,9 @@ export class NfHomeComponent {
             title,
             titleParams,
             items: newestFirst(
-                nfTagItems(this.allItems(), this.allCategories(), tag)
+                [...nfCategoryIds(this.allCategories(), tag)].flatMap(
+                    (id) => this.itemsByCategory().get(id) ?? []
+                )
             ).slice(0, 30),
             more: this.explore,
             query: isPlatform ? { platform: tag.key } : { genre: tag.key },

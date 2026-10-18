@@ -12,7 +12,9 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { NfCardComponent } from './nf-card.component';
 import { injectNfCatalog } from './nf-catalog';
 import { UiText } from '@iptvnator/shared/interfaces';
-import { nfFindTag, nfNorm, nfTagItems } from './nf-filters';
+import { PanelBrandingService } from '@iptvnator/services';
+import { NfHeroService, nfCssUrl } from './nf-hero.service';
+import { nfFindTag, nfNorm, nfTagItems, nfTitleNorm } from './nf-filters';
 import { NfItem, nfLink, newestFirst, topRated } from './nf-item';
 import { NfNearEndDirective } from './nf-near-end.directive';
 import { NfTitleSearchComponent } from './nf-title-search.component';
@@ -21,6 +23,8 @@ type ExploreType = 'all' | 'movie' | 'series';
 type ExploreSort = 'recent' | 'rating' | 'az';
 
 const PAGE = 120;
+/** Un solo Collator: localeCompare(…, 'es') crea uno por comparación y congela A–Z con catálogos grandes. */
+const TITLE_COLLATOR = new Intl.Collator('es');
 
 /** "Ver todo", platforms, genres and categories as a poster grid (web player browse.php). */
 @Component({
@@ -36,6 +40,9 @@ const PAGE = 120;
     template: `
         <div class="nf-page">
             <header class="nf-browse-head" [style.--accent]="accent()">
+                @if (backdrop()) {
+                    <div class="nf-browse-bg" [style.background-image]="backdrop()"></div>
+                }
                 <h1>
                     @if (tag()?.img; as img) {
                         <img [src]="img" alt="" />
@@ -143,6 +150,13 @@ export class NfExploreComponent {
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
     private readonly translate = inject(TranslateService);
+    private readonly branding = inject(PanelBrandingService);
+    private readonly lastBackdrop = inject(NfHeroService).lastBackdrop;
+    /** El último banner queda de fondo al recorrer plataformas y géneros. */
+    protected readonly backdrop = computed(() => {
+        const url = this.lastBackdrop();
+        return url ? nfCssUrl(url) : '';
+    });
     protected readonly catalog = injectNfCatalog([]);
     protected readonly page = PAGE;
     protected readonly types: { key: ExploreType; label: string }[] = [
@@ -162,12 +176,16 @@ export class NfExploreComponent {
         const s = this.params().get('sort');
         return s === 'rating' || s === 'az' ? s : 'recent';
     });
+    /** ?platform= solo cuenta si el distribuidor separa por plataformas. */
+    private readonly platformKey = computed(() =>
+        this.branding.platforms() ? this.params().get('platform') : null
+    );
     protected readonly tag = computed(() =>
-        nfFindTag(this.params().get('platform') ?? this.params().get('genre'))
+        nfFindTag(this.platformKey() ?? this.params().get('genre'))
     );
     /** Platform page (Netflix, Disney+…): the name filter is the top-right magnifier. */
     protected readonly platform = computed(
-        () => !!this.params().get('platform') && !this.category()
+        () => !!this.platformKey() && !this.category()
     );
     protected readonly category = computed(() => {
         const id = this.params().get('category');
@@ -225,7 +243,8 @@ export class NfExploreComponent {
         return color ? color + '66' : null;
     });
 
-    protected readonly results = computed<NfItem[]>(() => {
+    /** Tipo, categoría/etiqueta y orden; el filtro por título va aparte (no reordena al teclear). */
+    private readonly sorted = computed<NfItem[]>(() => {
         const type = this.type();
         let items: NfItem[] = [
             ...(type !== 'series' ? this.catalog.movies() : []),
@@ -241,18 +260,21 @@ export class NfExploreComponent {
             ];
             items = nfTagItems(items, categories, tag);
         }
-        const q = nfNorm(this.filter().trim());
-        if (q) items = items.filter((i) => nfNorm(i.title).includes(q));
         switch (this.sort()) {
             case 'rating':
                 return topRated(items);
             case 'az':
                 return [...items].sort((a, b) =>
-                    a.title.localeCompare(b.title, 'es')
+                    TITLE_COLLATOR.compare(a.title, b.title)
                 );
             default:
                 return newestFirst(items);
         }
+    });
+    protected readonly results = computed<NfItem[]>(() => {
+        const q = nfNorm(this.filter().trim());
+        const items = this.sorted();
+        return q ? items.filter((i) => nfTitleNorm(i).includes(q)) : items;
     });
     protected readonly shown = computed(() =>
         this.results().slice(0, this.limit())

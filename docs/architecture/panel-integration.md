@@ -204,7 +204,18 @@ lines, alerts, TMDB key, sports, name, logo and colours. The panel contract
   TheSportsDB key/disciplines (never the owner's); an empty `tmdbKey` in a
   `progress.php` reply removes the stored key (`rememberPanelTmdbKey`).
 - **Features:** `demo=false` hides Auto-Demo, `alerts=false` skips the panel
-  alert, `sports=false` hides "Deportes" and guards `/workspace/sports`.
+  alert, `sports=false` hides "Deportes" and guards `/workspace/sports`,
+  `platforms=false` (default true; caches without it count as true) hides the
+  platform tiles and "Lo mejor de …" rows on Inicio and makes Explorar ignore
+  `?platform=` (`PanelBrandingService.platforms()`); genre filters stay.
+  `features.ffmpeg` (panel audio/subtitle engine) is not read: this app never
+  calls the engine, it plays directly or through MPV/VLC/embedded MPV.
+- **Brand mark and focus:** the billboard kicker shows the first letter of the
+  distributor name (no name or Omitir: "M" of MPX Player) instead of the
+  Netflix "N", in `--nf-red` (the distributor accent). Keyboard focus on cards,
+  platform tiles and the Explorar inputs uses `--nf-focus`: white by default,
+  the accent with a palette (lifted 40 % toward white when the accent is
+  nearly black, so it still shows on the dark background).
 - **Branding:** `PanelBrandingService` (`libs/services/src/lib/panel-sync/`)
   exposes name / logo / features / expiry signals for the login, the top bar
   and Settings, sets the window title and calls `applyTenantTheme()`
@@ -517,6 +528,9 @@ replaces the old rail and toolbar.
   Ctrl/Cmd+F focuses it.
 - Clock (in the app language) and a profile menu: Mi cuenta, Actualizar
   contenido, Descargas, Idioma de la app (see "App language"), Ajustes.
+  Mi cuenta (`AccountInfoComponent`) shows "Canales en vivo", "Películas" and
+  "Series" of the loaded catalog; the counts follow the store and read "…"
+  while that type is still loading.
 - The bar is a window drag region in the frameless Windows/Linux build. It is
   transparent over a billboard and turns solid on scroll or on other pages.
 
@@ -547,6 +561,9 @@ Shared pieces:
 
 - The billboard (`NfHeroService`) uses provider backdrops. When a title has
   none, it falls back to the TMDB backdrop (`TmdbPosterService.findBackdrop`).
+  The last backdrop shown (`NfHeroService.lastBackdrop`) stays behind the next
+  billboard while it loads, and faded behind the Explorar header (platforms,
+  genres, categories), so moving between pages never shows a black banner.
 - Platforms and genres match category names with the web player's keyword
   tables (`nf-filters.ts`).
 - Cards open the existing detail pages. Playback, resume and favorites are
@@ -625,8 +642,10 @@ runtime are bundled), `WebPlayerViewComponent` switches that stream to
 embedded MPV automatically, from the last inline position for VOD (live stays
 live). It overrides the player only for the current stream (reset when the
 stream URL changes) and never changes the saved player setting. Without
-embedded MPV the diagnostic banner stays as before. The order is: other
-scheme once → embedded MPV (with the URL that answered) → diagnostic. Logic:
+embedded MPV the diagnostic banner stays as before and that stream asks no
+more (no reload loop, no new availability check until the stream changes).
+The order is: other scheme once → embedded MPV (with the URL that answered) →
+diagnostic. Logic:
 `libs/ui/playback/src/lib/web-player-view/playback-recovery.ts`.
 
 Embedded MPV ships in the Mac build (`.github/workflows/build-macos.yml`

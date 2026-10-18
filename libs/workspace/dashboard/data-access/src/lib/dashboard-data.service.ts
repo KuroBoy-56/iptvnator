@@ -441,7 +441,9 @@ export class DashboardDataService {
             });
         });
 
+        // ventana oculta (p. ej. MPV externo en primer plano): no se pregunta al panel
         setInterval(() => {
+            if (typeof document !== 'undefined' && document.hidden) return;
             void this.syncFromPanel();
         }, 10000);
         
@@ -565,8 +567,20 @@ export class DashboardDataService {
         return items;
     }
 
+    /** Una sincronización a la vez: si el panel tarda más de 10 s no se apilan. */
+    private panelSyncRunning = false;
+
     private async syncFromPanel() {
-        if (!this.panelSync) return;
+        if (!this.panelSync || this.panelSyncRunning) return;
+        this.panelSyncRunning = true;
+        try {
+            await this.syncFromPanelOnce();
+        } finally {
+            this.panelSyncRunning = false;
+        }
+    }
+
+    private async syncFromPanelOnce() {
         const playlists = this.playlists();
         const win = window as any;
         const ipc = win.electron?.ipcRenderer;

@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import {
     XtreamApiService,
     XtreamCredentials,
@@ -21,6 +21,11 @@ const MAX_SLIDES = 6;
 
 type Info = Record<string, unknown>;
 
+/** `url("…")` para background-image. */
+export function nfCssUrl(url: string): string {
+    return `url("${url.replace(/"/g, '%22')}")`;
+}
+
 function str(value: unknown): string {
     return value == null ? '' : String(value).trim();
 }
@@ -41,6 +46,8 @@ export class NfHeroService {
     private readonly api = inject(XtreamApiService);
     private readonly tmdb = inject(TmdbPosterService);
     private readonly cache = new Map<string, Promise<NfHeroSlide[]>>();
+    /** Último fondo mostrado: queda de fondo mientras carga otro billboard (nunca pantalla negra). */
+    readonly lastBackdrop = signal('');
 
     slides(
         key: string,

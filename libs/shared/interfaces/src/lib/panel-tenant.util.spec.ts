@@ -33,7 +33,7 @@ const CONFIG = {
         tz: 'America/Panama',
         rev: 7,
     },
-    features: { demo: false, alerts: true, sports: false },
+    features: { demo: false, alerts: true, sports: false, platforms: false },
     recheck_after: 3600,
     server_time: 1700000000,
 };
@@ -52,7 +52,7 @@ describe('panel tenant util', () => {
             logoRev: 3,
             palette: { accent: '#FFD700', bg: '#00102A' },
             expiresAt: 1767243599,
-            features: { demo: false, alerts: true, sports: false },
+            features: { demo: false, alerts: true, sports: false, platforms: false },
             rev: 7,
             recheckAfter: 3600,
             lastOkCheck: 1000,
@@ -66,6 +66,8 @@ describe('panel tenant util', () => {
             recheck_after: undefined,
         });
         expect(cache).toMatchObject({ name: null, logoUrl: null, palette: null, expiresDate: null, expiresAt: 0, recheckAfter: 21600 });
+        // sin features.platforms: se muestran las plataformas
+        expect(parseTenantConfig({ ...CONFIG, features: {} })?.features.platforms).toBe(true);
         expect(isTenantExpired(cache!)).toBe(false);
         expect(formatTenantExpiry(cache!)).toBe('');
     });
@@ -84,7 +86,7 @@ describe('panel tenant util', () => {
         expect(panelTenantFields()).toEqual({});
         expect(withTenantQuery('https://p/api/alerta.php?a=1')).toBe('https://p/api/alerta.php?a=1');
         expect(tenantStorageSuffix()).toBe('');
-        expect(readTenantFeatures()).toEqual({ demo: true, alerts: true, sports: true });
+        expect(readTenantFeatures()).toEqual({ demo: true, alerts: true, sports: true, platforms: true });
 
         saveTenantCode(parseTenantConfig(CONFIG)!);
         expect(readTenantChoice()).toBe('code');
@@ -125,12 +127,16 @@ describe('panel tenant theme', () => {
         expect(theme.textMuted).toBe('rgba(229, 229, 229, 0.65)');
         // 8% of the way from #181818 to #E5E5E5
         expect(theme.card).toBe('#282828');
+        expect(theme.focus).toBe('#E50914');
+        // acento casi negro: el foco se aclara para verse sobre fondo oscuro
+        expect(deriveTenantTheme({ accent: '#0A0A40', bg: '#141414', surface: '#181818', text: '#E5E5E5' }).focus).toBe('#6C6C8C');
     });
 
     it('builds CSS only for a palette', () => {
         expect(buildTenantThemeCss(null)).toBe('');
         const css = buildTenantThemeCss({ accent: '#1E88E5', bg: '#0B1220', surface: '#131C2E', text: '#E6EDF7' });
         expect(css).toContain('--nf-red: #1E88E5;');
+        expect(css).toContain('--nf-focus: #1E88E5;');
         expect(css).toContain('--nf-bg: #0B1220;');
         expect(css).toContain('body.dark-theme');
     });

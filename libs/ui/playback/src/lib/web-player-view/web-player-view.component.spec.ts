@@ -315,6 +315,28 @@ describe('WebPlayerViewComponent', () => {
         ).not.toBeNull();
     });
 
+    it('stops trying once embedded MPV is unavailable: the banner stays, no reload or new check', async () => {
+        fixture.detectChanges();
+        failAfterSchemeRetry(createUnsupportedCodecDiagnostic());
+        await flushPromises();
+        fixture.detectChanges();
+        const url = component.resolvedPlayback().streamUrl;
+
+        // the inline player reports the same failure again
+        component.handlePlaybackIssue(createUnsupportedCodecDiagnostic());
+        await flushPromises();
+        fixture.detectChanges();
+
+        expect(embeddedMpvAvailability.isAvailable).toHaveBeenCalledTimes(1);
+        expect(component.resolvedPlayback().streamUrl).toBe(url);
+        expect(component.selectedPlayer()).toBe(VideoPlayer.VideoJs);
+        expect(component.visiblePlaybackDiagnostic()).toEqual(
+            expect.objectContaining({
+                code: PlaybackDiagnosticCode.UnsupportedCodec,
+            })
+        );
+    });
+
     it('does not switch to embedded MPV for network errors', async () => {
         embeddedMpvAvailability.isAvailable.mockResolvedValue(true);
         fixture.detectChanges();

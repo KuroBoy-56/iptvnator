@@ -11,7 +11,8 @@ import {
 import { MatIcon } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { NfHeroSlide } from './nf-hero.service';
+import { PanelBrandingService } from '@iptvnator/services';
+import { NfHeroService, NfHeroSlide, nfCssUrl } from './nf-hero.service';
 import { nfLink } from './nf-item';
 
 const ROTATE_MS = 9000;
@@ -23,10 +24,13 @@ const ROTATE_MS = 9000;
     imports: [MatIcon, RouterLink, TranslatePipe],
     host: {
         class: 'nf-hero',
-        '[class.loading]': 'slides() === null',
+        '[class.loading]': 'slides() === null && !hold()',
         '[class.none]': 'slides()?.length === 0',
     },
     template: `
+        @if (hold(); as backdrop) {
+            <div class="nf-hero-bg on" [style.background-image]="css(backdrop)"></div>
+        }
         @for (
             slide of list();
             track slide.item.type + slide.item.id;
@@ -35,13 +39,13 @@ const ROTATE_MS = 9000;
             <div
                 class="nf-hero-bg"
                 [class.on]="i === index()"
-                [style.background-image]="bg(slide)"
+                [style.background-image]="css(slide.backdrop)"
             ></div>
         }
         @if (current(); as slide) {
             <div class="nf-hero-info">
                 <div class="nf-hero-kicker">
-                    <span class="n">N</span
+                    <span class="n">{{ initial() }}</span
                     >{{
                         kicker() ||
                             ((slide.item.type === 'series'
@@ -105,8 +109,22 @@ export class NfHeroComponent {
         () => this.list()[this.index()] ?? null
     );
     private timer: ReturnType<typeof setInterval> | null = null;
+    private readonly hero = inject(NfHeroService);
+    private readonly branding = inject(PanelBrandingService);
+    /** Inicial de la marca del distribuidor (sin nombre: la de MPX Player), en lugar de la "N". */
+    protected readonly initial = computed(
+        () => (Array.from(this.branding.brandName().trim())[0] ?? 'M').toUpperCase()
+    );
+    /** Mientras carga, el último fondo mostrado se queda (sin pantalla negra). */
+    protected readonly hold = computed(() =>
+        this.slides() === null ? this.hero.lastBackdrop() : ''
+    );
 
     constructor() {
+        effect(() => {
+            const backdrop = this.current()?.backdrop;
+            if (backdrop) this.hero.lastBackdrop.set(backdrop);
+        });
         effect(() => {
             const count = this.list().length;
             this.index.set(0);
@@ -124,8 +142,8 @@ export class NfHeroComponent {
         return nfLink(this.playlistId(), slide.item);
     }
 
-    protected bg(slide: NfHeroSlide): string {
-        return `url("${slide.backdrop.replace(/"/g, '%22')}")`;
+    protected css(url: string): string {
+        return nfCssUrl(url);
     }
 
     private restart(count: number): void {
