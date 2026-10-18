@@ -91,7 +91,7 @@
                     <span class="nf-spinner" aria-hidden="true"></span>
                 </button>
 
-                @if (branding.features().demo) {
+                @if (showDemo()) {
                 <button class="nf-btn-dark nf-btn-block" type="button" [class.loading]="demoBusy()" [disabled]="busy() || demoBusy()" (click)="autoDemo()">
                     <span class="lbl">Auto-Demo</span>
                     <span class="nf-spinner" aria-hidden="true"></span>
@@ -107,14 +107,12 @@
                 <p class="nf-device">{{ 'MPX.LOGIN.DEVICE_ID' | translate }} <code>{{ deviceId() }}</code></p>
             }
             <p class="nf-login-hint">
-                {{ (branding.features().demo ? 'MPX.LOGIN.HINT_DEMO' : 'MPX.LOGIN.HINT') | translate }}
+                {{ (showDemo() ? 'MPX.LOGIN.HINT_DEMO' : 'MPX.LOGIN.HINT') | translate }}
             </p>
-            @if (branding.choice() === 'skip') {
-                <!-- se eligió "Omitir" antes (queda guardado en el equipo): volver a la pantalla del distribuidor -->
-                <button class="nf-login-link" type="button" [disabled]="busy()" (click)="chooseDistributor()">
-                    {{ 'MPX.DIST.HAVE_CODE' | translate }}
-                </button>
-            }
+            <!-- siempre visible (con número guardado o tras Omitir): vuelve a la pantalla «Número de distribuidor» -->
+            <button class="nf-login-link" type="button" [disabled]="busy() || demoBusy()" (click)="chooseDistributor()">
+                {{ 'MPX.DIST.CHANGE_LINK' | translate }}
+            </button>
         </form>
         }
     </main>

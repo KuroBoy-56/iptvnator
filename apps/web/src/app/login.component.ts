@@ -53,7 +53,8 @@ export class LoginComponent implements OnInit {
     protected readonly tenant = inject(PanelTenantService);
     protected readonly branding = this.tenant.branding;
 
-    readonly posters = signal<string[]>(this.posterService.cached());
+    /** pósters del login: solo los que el panel entrega ahora (nada guardado de antes) */
+    readonly posters = signal<string[]>([]);
     readonly deviceId = signal('');
     readonly checking = signal(true);
     readonly busy = signal(false);
@@ -67,6 +68,10 @@ export class LoginComponent implements OnInit {
     private fakePoll: ReturnType<typeof setInterval> | null = null;
     /** No distributor choice yet (first launch, or after a wipe / "Cambiar distribuidor"). */
     readonly needsDistributor = computed(() => this.branding.choice() === 'none');
+    /** features del panel (demo configurada); null = sin respuesta o panel viejo */
+    private readonly panelDemo = signal<boolean | null>(null);
+    /** Botón Autodemo: lo que diga features; si no respondió, lo de antes (tenant_config / visible con Omitir) */
+    readonly showDemo = computed(() => this.panelDemo() ?? this.branding.features().demo);
     readonly distBusy = signal(false);
     readonly distError = signal<UiText | null>(null);
     private deviceCheckStarted = false;
@@ -82,10 +87,14 @@ export class LoginComponent implements OnInit {
     }
 
     async ngOnInit(): Promise<void> {
-        // the panel decides: without its TMDB key (owner or distributor) there is no poster wall
-        void this.posterService.load().then((list) => this.posters.set(list));
+        this.loadPosters();
         if (this.needsDistributor() || this.tenant.retryMessage()) return;
         await this.startDeviceCheck();
+    }
+
+    /** the panel decides: without its TMDB key (owner or distributor) there is no poster wall */
+    private loadPosters(): void {
+        void this.posterService.load().then((list) => this.posters.set(list));
     }
 
     /** Keeps only digits (max 6) in the distributor field. */
@@ -107,11 +116,14 @@ export class LoginComponent implements OnInit {
             return;
         }
         this.distCode = '';
+        this.loadPosters();
         await this.startDeviceCheck(true);
     }
 
-    /** Login after "Omitir": back to the distributor step to type a number. */
+    /** «Cambiar distribuidor» del login (siempre visible): olvida el anterior y vuelve al paso del número. */
     async chooseDistributor(): Promise<void> {
+        this.posters.set([]);
+        this.panelDemo.set(null);
         await this.tenant.change();
     }
 
@@ -119,6 +131,7 @@ export class LoginComponent implements OnInit {
     async skipDistributor(): Promise<void> {
         this.tenant.skip();
         this.distError.set(null);
+        this.loadPosters();
         await this.startDeviceCheck(true);
     }
 
@@ -146,6 +159,9 @@ export class LoginComponent implements OnInit {
             return;
         }
 
+        // features: el botón Autodemo solo si el panel tiene una demo configurada
+        this.panelDemo.set(null);
+        void this.panel.demoAvailable().then((demo) => this.panelDemo.set(demo));
         this.deviceId.set(await this.panel.deviceId());
         const check = await this.panel.checkDevice();
         if (check.status === 'active') {

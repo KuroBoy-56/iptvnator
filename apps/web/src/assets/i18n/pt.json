@@ -1304,6 +1304,7 @@
         },
         "PANEL": {
             "ERR_NO_KEY": "Esta versão do app não tem a chave do painel.",
+            "CACHE_CLEAR": "Seu provedor atualizou o aplicativo. O cache será apagado e o aplicativo será reiniciado.",
             "ERR_DESKTOP_ONLY": "O login do painel só está disponível no app para computador.",
             "ERR_NETWORK": "Não foi possível conectar ao painel. Verifique sua conexão.",
             "ERR_CONNECT": "Não foi possível conectar ao painel. Verifique sua conexão.",
@@ -1336,7 +1337,7 @@
             "TITLE": "Número do distribuidor",
             "DIGITS": "6 dígitos",
             "HINT": "Se o seu distribuidor lhe deu um número, digite-o para usar o serviço dele. Se não tiver um, toque em Pular.",
-            "HAVE_CODE": "Você tem um número de distribuidor?",
+            "CHANGE_LINK": "Trocar distribuidor",
             "RETRY_MESSAGE": "Não foi possível verificar seu distribuidor com o painel. Verifique sua conexão e tente novamente.",
             "ERR_CODE_DIGITS": "Digite os 6 dígitos do seu número de distribuidor.",
             "ERR_TENANT_INVALID": "Número de distribuidor inválido",

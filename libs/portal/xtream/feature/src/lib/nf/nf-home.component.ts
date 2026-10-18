@@ -232,8 +232,9 @@ export class NfHomeComponent {
             title,
             titleParams,
             items: newestFirst(
-                [...nfCategoryIds(this.allCategories(), tag)].flatMap(
-                    (id) => this.itemsByCategory().get(id) ?? []
+                [...nfCategoryIds(this.allCategories(), tag)].reduce(
+                    (all, id) => all.concat(this.itemsByCategory().get(id) ?? []),
+                    [] as NfItem[]
                 )
             ).slice(0, 30),
             more: this.explore,

@@ -10,5 +10,6 @@ export function createPanelBridge(ipcRenderer: IpcRenderer): PanelBridgeApi {
         panelReportError: (report) => ipcRenderer.invoke('PANEL_REPORT_ERROR', report),
         getSecureDns: () => ipcRenderer.invoke('SECURE_DNS_GET'),
         setSecureDns: (mode) => ipcRenderer.invoke('SECURE_DNS_SET', mode),
+        panelClearCacheAndRestart: () => ipcRenderer.invoke('PANEL_CLEAR_CACHE_RESTART'),
     };
 }

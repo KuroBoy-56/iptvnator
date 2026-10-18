@@ -1,8 +1,6 @@
 import { Injectable } from '@angular/core';
-import { AppLanguage, currentAppLanguage, panelEndpoint, tenantStorageSuffix, tmdbLanguageFor, withPanelLang, withTenantQuery } from '@iptvnator/shared/interfaces';
+import { AppLanguage, currentAppLanguage, panelEndpoint, tmdbLanguageFor, withPanelLang, withTenantQuery } from '@iptvnator/shared/interfaces';
 
-const CACHE_KEY = 'login_posters_v2';
-const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const POSTER_BASE = 'https://image.tmdb.org/t/p/w342';
 const MAX_POSTERS = 48;
 
@@ -27,32 +25,13 @@ export function postersFromPages(pages: unknown[]): string[] {
 /**
  * Poster wall for the login screen, like the web player: only with the TMDB key of the
  * distributor or, with Omitir, of the owner (asked to the panel's api/tmdb.php, never the
- * app's own key). Without a key in the panel the login keeps its plain dark background.
+ * app's own key). Nothing is kept between starts: without a key in the panel, or when the
+ * panel does not answer, the login keeps its plain dark background.
  */
 @Injectable({ providedIn: 'root' })
 export class LoginPostersService {
-    private key(): string {
-        return CACHE_KEY + tenantStorageSuffix();
-    }
-
-    cached(): string[] {
-        try {
-            const raw = JSON.parse(localStorage.getItem(this.key()) ?? 'null');
-            return Array.isArray(raw?.posters) ? raw.posters : [];
-        } catch {
-            return [];
-        }
-    }
-
     async load(fetcher: typeof fetch = fetch): Promise<string[]> {
-        try {
-            const raw = JSON.parse(localStorage.getItem(this.key()) ?? 'null');
-            if (raw && Date.now() - raw.at < CACHE_TTL_MS && raw.posters?.length) {
-                return raw.posters;
-            }
-        } catch {
-            // Refresh below.
-        }
+        forgetOldPosterCache();
         try {
             const pages = await Promise.all(
                 [1, 2, 3].map(async (page) => {
@@ -60,13 +39,20 @@ export class LoginPostersService {
                     return res.ok ? res.json() : { error: `http_${res.status}` };
                 })
             );
-            const posters = postersFromPages(pages);
-            if (posters.length) localStorage.setItem(this.key(), JSON.stringify({ at: Date.now(), posters }));
-            else localStorage.removeItem(this.key());
-            return posters;
+            return postersFromPages(pages);
         } catch {
-            // the panel did not answer (offline): what was shown last time
-            return this.cached();
+            return [];
         }
+    }
+}
+
+/** Versiones anteriores guardaban los pósters 12 h (login_posters_v2…): ya no se usan. */
+function forgetOldPosterCache(): void {
+    try {
+        Object.keys(localStorage)
+            .filter((key) => key.startsWith('login_posters_'))
+            .forEach((key) => localStorage.removeItem(key));
+    } catch {
+        // sin almacenamiento: nada que olvidar
     }
 }

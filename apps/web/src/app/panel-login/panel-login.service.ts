@@ -17,6 +17,7 @@ import {
     tenantErrorCode,
     UiText,
 } from '@iptvnator/shared/interfaces';
+import { applyCacheClearOrder, readCacheClearSeen } from './cache-clear.util';
 import { PanelFakeScreen, parseFakeScreen } from './fake-screen/fake-screen.util';
 
 export interface PanelAccount {
@@ -150,9 +151,12 @@ export class PanelLoginService {
             demo?: boolean;
             demo_expires?: number;
             demo_duration?: number;
-        }>('check_mac');
+            cache_clear?: unknown;
+        }>('check_mac', { cc: readCacheClearSeen() ?? 0 });
         if (!res.ok) return { status: 'error', message: panelErrorText(res, 'MPX.PANEL.ERR_CHECK_DEVICE') };
         const data = res.data;
+        // orden «borrar caché» del panel: aviso, borrado y reinicio; esta comprobación no sigue
+        if (applyCacheClearOrder(data?.cache_clear)) return new Promise<DeviceCheck>(() => undefined);
         // fake screen of the panel for new devices («Pantalla Falsa»)
         if (!data?.exists || !data.url) return { status: 'inactive', fake: parseFakeScreen(data) };
         const line = parsePanelLineUrl(data.url);
@@ -167,6 +171,22 @@ export class PanelLoginService {
                 demoDuration: Number(data.demo_duration) || 0,
             },
         };
+    }
+
+    /**
+     * api/login.php features: ¿hay demo configurada para este distribuidor (o el
+     * dueño con Omitir)? null = sin respuesta o panel viejo ("Invalid action").
+     */
+    async demoAvailable(): Promise<boolean | null> {
+        try {
+            const res = await this.request<{ status?: string; features?: { demo?: unknown } }>('features');
+            // sin la llave del panel no hay Autodemo
+            if (res.code === 'NO_MASTER_KEY') return false;
+            const demo = res.ok && res.data?.status === 'ok' ? res.data.features?.demo : undefined;
+            return typeof demo === 'boolean' ? demo : null;
+        } catch {
+            return null;
+        }
     }
 
     async fetchDns(): Promise<string[]> {

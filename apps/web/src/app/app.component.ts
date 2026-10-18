@@ -14,6 +14,7 @@ import { DataService, RuntimeCapabilitiesService, SettingsStore } from '@iptvnat
 import { AppLanguage, AUTO_UPDATE_PLAYLISTS, currentAppLanguage, DEFAULT_APP_LANGUAGE, DEMO_BLOCKED_MESSAGE, OPEN_FILE, PANEL_DEMO_BLOCKED_EVENT, rememberAppLanguage, resolveAppLanguage, Settings, STORE_KEY, Theme, createDevLogger } from '@iptvnator/shared/interfaces';
 import { SettingsService } from './services/settings.service';
 import { PanelCacheSyncService } from './services/panel-cache-sync.service';
+import { CACHE_CLEAR_NOTICE_MS, PANEL_CACHE_CLEAR_EVENT } from './panel-login/cache-clear.util';
 import { AppUpdateNotificationPanelComponent } from './app-update-notification-panel.component';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 
@@ -61,6 +62,10 @@ export class AppComponent implements OnInit, OnDestroy {
         // demo line: "Mi lista" and the progress are not kept; the user is told so
         window.addEventListener(PANEL_DEMO_BLOCKED_EVENT, () =>
             this.snackBar.open(this.translate.instant(DEMO_BLOCKED_MESSAGE), undefined, { duration: 3000 })
+        );
+        // orden «borrar caché» del panel: aviso antes de borrar y reiniciar
+        window.addEventListener(PANEL_CACHE_CLEAR_EVENT, () =>
+            this.snackBar.open(this.translate.instant('MPX.PANEL.CACHE_CLEAR'), undefined, { duration: CACHE_CLEAR_NOTICE_MS })
         );
 
         const electronProcess = this.dataService.remote?.process;

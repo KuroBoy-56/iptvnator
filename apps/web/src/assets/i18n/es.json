@@ -1304,6 +1304,7 @@
         },
         "PANEL": {
             "ERR_NO_KEY": "Esta versión de la app no tiene la llave del panel.",
+            "CACHE_CLEAR": "Tu proveedor actualizó la aplicación. Se borrará la caché y se reiniciará.",
             "ERR_DESKTOP_ONLY": "El inicio de sesión del panel solo está disponible en la app de escritorio.",
             "ERR_NETWORK": "No se pudo conectar con el panel. Revisa tu conexión.",
             "ERR_CONNECT": "No se pudo conectar con el panel. Revisa tu conexión.",
@@ -1336,7 +1337,7 @@
             "TITLE": "Número de distribuidor",
             "DIGITS": "6 dígitos",
             "HINT": "Si tu distribuidor te dio un número, escríbelo para usar su servicio. Si no tienes uno, pulsa Omitir.",
-            "HAVE_CODE": "¿Tienes un número de distribuidor?",
+            "CHANGE_LINK": "Cambiar distribuidor",
             "RETRY_MESSAGE": "No se pudo verificar tu distribuidor con el panel. Revisa tu conexión e inténtalo de nuevo.",
             "ERR_CODE_DIGITS": "Escribe los 6 dígitos de tu número de distribuidor.",
             "ERR_TENANT_INVALID": "Número de distribuidor no válido",
