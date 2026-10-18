@@ -28,8 +28,10 @@ export class PanelBrandingService {
     readonly brandName = computed(() => this.name() ?? DEFAULT_BRAND_NAME);
     readonly logoUrl = computed(() => this.tenant()?.logoUrl ?? null);
     readonly features = computed(
-        () => this.tenant()?.features ?? { demo: true, alerts: true, sports: true }
+        () => this.tenant()?.features ?? { demo: true, alerts: true, sports: true, platforms: true }
     );
+    /** Filas/filtros por plataforma (Netflix, Disney+…); false solo si el distribuidor lo apaga. */
+    readonly platforms = computed(() => this.features().platforms !== false);
     /** DD/MM/AAAA (Panama time), '' when it never expires or with "Omitir". */
     readonly expiry = computed(() => {
         const t = this.tenant();

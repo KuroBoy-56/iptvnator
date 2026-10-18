@@ -40,6 +40,8 @@ export interface PanelTenantFeatures {
     demo: boolean;
     alerts: boolean;
     sports: boolean;
+    /** false = el distribuidor no separa su contenido por plataformas (caches viejos no lo traen: true). */
+    platforms?: boolean;
 }
 
 /** Cached tenant_config answer (all the app needs between launches). */
@@ -195,7 +197,7 @@ export function readTenantCache(): PanelTenantCache | null {
 
 /** Features of the chosen distributor; everything on with Omitir. */
 export function readTenantFeatures(): PanelTenantFeatures {
-    return readTenantCache()?.features ?? { demo: true, alerts: true, sports: true };
+    return readTenantCache()?.features ?? { demo: true, alerts: true, sports: true, platforms: true };
 }
 
 export function saveTenantCode(cache: PanelTenantCache): void {
@@ -265,7 +267,12 @@ export function parseTenantConfig(raw: unknown, now = Date.now()): PanelTenantCa
         palette: palette(t['palette']),
         expiresAt: num(t['expires_at']),
         expiresDate: date,
-        features: { demo: bool(f['demo'], true), alerts: bool(f['alerts'], true), sports: bool(f['sports'], true) },
+        features: {
+            demo: bool(f['demo'], true),
+            alerts: bool(f['alerts'], true),
+            sports: bool(f['sports'], true),
+            platforms: bool(f['platforms'], true),
+        },
         rev: num(t['rev']),
         recheckAfter: num(body['recheck_after']) || DEFAULT_TENANT_RECHECK_SECONDS,
         lastOkCheck: now,

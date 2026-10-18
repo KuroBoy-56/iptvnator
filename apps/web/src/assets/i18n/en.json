@@ -1371,6 +1371,7 @@
             "SERIES": "Series",
             "MOVIES": "Movies",
             "LIVE_TV": "Live TV",
+            "LIVE_CHANNELS": "Live channels",
             "SPORTS": "Sports",
             "EXPLORE": "Explore",
             "SEARCH_PLACEHOLDER": "Titles, people, genres",

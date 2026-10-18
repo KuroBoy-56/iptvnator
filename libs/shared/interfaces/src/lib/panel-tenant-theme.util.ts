@@ -6,6 +6,8 @@ export interface PanelTenantTheme extends PanelTenantPalette {
     onAccent: string;
     textMuted: string;
     card: string;
+    /** Borde de foco: el acento, aclarado si es muy oscuro para verse sobre el fondo negro. */
+    focus: string;
 }
 
 const STYLE_ID = 'panel-tenant-theme';
@@ -48,6 +50,7 @@ export function deriveTenantTheme(palette: PanelTenantPalette): PanelTenantTheme
         onAccent: onAccentColor(palette.accent),
         textMuted: `rgba(${r}, ${g}, ${b}, 0.65)`,
         card: mixHex(palette.surface, palette.text, 0.08),
+        focus: relativeLuminance(palette.accent) < 0.08 ? mixHex(palette.accent, '#FFFFFF', 0.4) : palette.accent,
     };
 }
 
@@ -63,6 +66,7 @@ export function buildTenantThemeCss(palette: PanelTenantPalette | null): string 
         '--nf-red': t.accent,
         '--nf-red-h': mixHex(t.accent, '#FFFFFF', 0.12),
         '--nf-on-accent': t.onAccent,
+        '--nf-focus': t.focus,
         '--nf-bg': t.bg,
         '--nf-bg2': t.surface,
         '--nf-surface': t.surface,

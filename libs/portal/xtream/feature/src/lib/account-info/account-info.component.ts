@@ -167,20 +167,20 @@ export class AccountInfoComponent {
               ]),
         {
             icon: 'live_tv',
-            labelKey: 'XTREAM.ACCOUNT_INFO.LIVE_TV',
-            value: this.formatOptionalCount(this.data.liveStreamsCount),
+            labelKey: 'MPX.NAV.LIVE_CHANNELS',
+            value: this.contentCount('live', this.data.liveStreamsCount),
             meter: null,
         },
         {
             icon: 'movie',
-            labelKey: 'XTREAM.ACCOUNT_INFO.MOVIES',
-            value: this.formatOptionalCount(this.data.vodStreamsCount),
+            labelKey: 'MPX.NAV.MOVIES',
+            value: this.contentCount('vod', this.data.vodStreamsCount),
             meter: null,
         },
         {
             icon: 'tv',
-            labelKey: 'XTREAM.ACCOUNT_INFO.TV_SERIES',
-            value: this.formatOptionalCount(this.data.seriesCount),
+            labelKey: 'MPX.NAV.SERIES',
+            value: this.contentCount('series', this.data.seriesCount),
             meter: null,
         },
     ]);
@@ -331,6 +331,32 @@ export class AccountInfoComponent {
     private parseNumber(value?: string): number {
         const parsed = Number.parseInt(value ?? '', 10);
         return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    /**
+     * Cantidad de contenido del servidor: la del catálogo cargado (se actualiza
+     * sola) o la que trae el diálogo; "…" mientras ese tipo aún carga.
+     */
+    private contentCount(type: 'live' | 'vod' | 'series', given?: number): string {
+        const store = this.xtreamStore;
+        const own = this.data.playlist;
+        // otro playlist que el del store: solo la cifra del diálogo
+        if (own && own.id !== store.currentPlaylist()?.id) {
+            return this.formatOptionalCount(given);
+        }
+        const loaded =
+            type === 'live'
+                ? store.liveStreams().length
+                : type === 'vod'
+                  ? store.vodStreams().length
+                  : store.serialStreams().length;
+        const count = Math.max(loaded, given !== undefined && Number.isFinite(given) ? given : 0);
+        if (count > 0) return String(count);
+        const state = store.contentLoadStateByType()[type];
+        if (state === 'loading' || (state === 'idle' && !store.contentInitBlockReason())) {
+            return '…';
+        }
+        return state === 'ready' ? '0' : this.formatOptionalCount(given);
     }
 
     private formatOptionalCount(value?: number): string {

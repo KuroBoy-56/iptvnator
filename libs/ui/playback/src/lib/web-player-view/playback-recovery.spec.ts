@@ -175,6 +175,24 @@ describe('PlaybackRecovery', () => {
         expect(recovered.active()).toBe(false);
     });
 
+    it('stops asking for embedded MPV on this stream once it is unavailable', async () => {
+        const recovery = createFallback(false);
+        const url = 'http://line.test/movie/u/p/1.mkv';
+        recovery.onInlineFailure(createIssue(true), url);
+        expect(
+            recovery.onInlineFailure(createIssue(true), recovery.schemeUrl()!)
+        ).toBe('embedded-mpv');
+        await recovery.trySwitch(false, () => true);
+
+        expect(
+            recovery.onInlineFailure(createIssue(true), recovery.schemeUrl()!)
+        ).toBe('none');
+        recovery.reset();
+        expect(recovery.onInlineFailure(createIssue(true), url)).toBe(
+            'retry-other-scheme'
+        );
+    });
+
     it('ignores a late availability answer after the stream changed', async () => {
         let resolveAvailability: (available: boolean) => void = () =>
             undefined;

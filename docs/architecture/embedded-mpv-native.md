@@ -197,7 +197,9 @@ inline player (Video.js / HTML5 / ArtPlayer) reports a format failure
 embedded MPV works on this machine (`prepareEmbeddedMpv` exists and returns
 `supported: true`; the answer is cached for the run). The switch only lasts
 for the current stream, resumes VOD at the last inline position and never
-writes the player setting. Before that, a failing stream is retried once on
+writes the player setting. When embedded MPV is not available the diagnostic
+stays and the stream stops trying (one availability answer per stream, no
+reload loop). Before that, a failing stream is retried once on
 the other scheme (http ↔ https); embedded MPV does the same through its
 `playbackFailed` output. See `libs/ui/playback/src/lib/web-player-view/playback-recovery.ts`
 and "Provider DNS scheme" in `panel-integration.md`.
