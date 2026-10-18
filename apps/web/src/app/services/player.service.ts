@@ -69,7 +69,7 @@ export class PlayerService {
      * Settings › "Canales en vivo también con MPV/VLC" is on.
      */
     isEmbeddedLivePlayer(): boolean {
-        return this.isEmbeddedPlayer() || !this.settingsStore.liveExternalPlayer();
+        return this.isEmbeddedPlayer() || !this.settingsStore.liveExternalPlayer?.();
     }
 
     async openResolvedPlayback(
