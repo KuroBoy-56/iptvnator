@@ -200,6 +200,9 @@ lines, alerts, TMDB key, sports, name, logo and colours. The panel contract
   for `epg.php` / `sports.php`), `alerta.php` gets `&t=<code>&app=windows` (`macos` on a Mac)
   (`withTenantQuery`). Tokens and the panel TMDB key are stored per code
   (`tenantStorageSuffix()` = `@t<code>`) so two distributors never share one.
+  The panel only ever hands a distributor its own TMDB key and its own
+  TheSportsDB key/disciplines (never the owner's); an empty `tmdbKey` in a
+  `progress.php` reply removes the stored key (`rememberPanelTmdbKey`).
 - **Features:** `demo=false` hides Auto-Demo, `alerts=false` skips the panel
   alert, `sports=false` hides "Deportes" and guards `/workspace/sports`.
 - **Branding:** `PanelBrandingService` (`libs/services/src/lib/panel-sync/`)

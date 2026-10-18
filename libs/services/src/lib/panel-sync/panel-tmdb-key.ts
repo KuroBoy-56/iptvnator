@@ -17,7 +17,17 @@ export function readPanelTmdbKey(): string {
 
 export function rememberPanelTmdbKey(key: unknown): void {
     const value = typeof key === 'string' ? key.trim() : '';
-    if (!value || value === 'missing_tmdb_key') return;
+    if (!value || value === 'missing_tmdb_key') {
+        // the panel answered with no key: this distributor has none (never the owner's), forget the stored one
+        if (typeof key === 'string') {
+            try {
+                localStorage.removeItem(storageKey());
+            } catch {
+                // Storage unavailable.
+            }
+        }
+        return;
+    }
     try {
         if (localStorage.getItem(storageKey()) !== value) {
             localStorage.setItem(storageKey(), value);
