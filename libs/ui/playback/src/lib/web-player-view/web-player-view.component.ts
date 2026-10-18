@@ -174,13 +174,17 @@ export class WebPlayerViewComponent {
         streamUrl: this.autoMpv.schemeUrl() ?? this.preferredStreamUrl(),
     }));
 
-    readonly selectedPlayer = computed(() =>
-        this.autoEmbeddedMpv()
-            ? VideoPlayer.EmbeddedMpv
-            : (this.playerOverride() ??
-              this.settings()?.player ??
-              VideoPlayer.VideoJs)
-    );
+    readonly selectedPlayer = computed(() => {
+        if (this.autoEmbeddedMpv()) return VideoPlayer.EmbeddedMpv;
+        const player =
+            this.playerOverride() ?? this.settings()?.player ?? VideoPlayer.VideoJs;
+        // MPV/VLC (y MPV integrado en un canal en vivo) no se dibujan aquí: el canal va por Video.js
+        const live = !!this.basePlayback()?.isLive && !this.settings()?.liveExternalPlayer;
+        if (player === VideoPlayer.MPV || player === VideoPlayer.VLC || (live && player === VideoPlayer.EmbeddedMpv)) {
+            return VideoPlayer.VideoJs;
+        }
+        return player;
+    });
     readonly embeddedMpvPlayback = computed<ResolvedPortalPlayback>(() => {
         const playback = this.resolvedPlayback();
         const resumeAt = this.autoMpv.startTime();

@@ -367,6 +367,7 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         mpvPlayerPath: new FormControl(''),
         mpvPlayerArguments: new FormControl(''),
         mpvReuseInstance: new FormControl(false),
+        liveExternalPlayer: new FormControl(false),
         vlcPlayerPath: new FormControl(''),
         vlcPlayerArguments: new FormControl(''),
         vlcReuseInstance: new FormControl(false),

@@ -428,7 +428,9 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "LIVE_EXTERNAL_PLAYER_LABEL": "Live channels in MPV/VLC too",
+        "LIVE_EXTERNAL_PLAYER_DESCRIPTION": "Off: movies and series open in MPV/VLC and live channels play here with Video.js. On: live channels open in MPV/VLC too."
     },
     "THEMES": {
         "DARK_THEME": "Dark",
@@ -1502,6 +1504,17 @@
             "MPV_NO_PROGRESS": "Because this is playing in MPV (an external player), progress is not saved directly in the app. Progress is only saved for the players built into the app.",
             "PROGRESS_SAVED": "Progress is saved automatically.",
             "STOP_AND_BACK": "Stop and go back"
+        },
+        "DNS": {
+            "AUTOMATIC_LABEL": "Automatic",
+            "AUTOMATIC": "System DNS; secure DNS by itself if it fails",
+            "CLOUDFLARE": "Fast and private",
+            "GOOGLE": "Stable",
+            "QUAD9": "Blocks malicious domains",
+            "ADGUARD": "No tracking or ads",
+            "NEXTDNS": "Avoids geo-blocking",
+            "OPENDNS": "Cisco OpenDNS",
+            "SETTINGS_HINT": "Change the DNS if your internet provider blocks the panel or the channels. Does not apply to MPV/VLC."
         }
     }
 }

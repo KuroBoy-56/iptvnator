@@ -27,6 +27,7 @@ import {
 import { SettingsContextService } from '@iptvnator/workspace/shell/util';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { SecureDnsPickerComponent } from '../panel-login/secure-dns-picker.component';
 import { DialogService } from '@iptvnator/ui/components';
 import {
     selectAllPlaylistsMeta,
@@ -105,6 +106,7 @@ const APP_UPDATE_STATUS_LOAD_RETRY_DELAY_MS = 250;
         MatIconModule,
         ReactiveFormsModule,
         TranslateModule,
+        SecureDnsPickerComponent,
         MatDialogModule,
         SettingsAboutSectionComponent,
         SettingsBackupSectionComponent,

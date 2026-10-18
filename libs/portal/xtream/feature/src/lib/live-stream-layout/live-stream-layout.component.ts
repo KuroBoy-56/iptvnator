@@ -271,7 +271,8 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     private unsubscribeRemoteCommand?: () => void;
 
     readonly usesEmbeddedPlayer = computed(() =>
-        this.portalPlayer.isEmbeddedPlayer()
+        this.portalPlayer.isEmbeddedLivePlayer?.() ??
+            this.portalPlayer.isEmbeddedPlayer()
     );
     readonly activePlayback = signal<ResolvedPortalPlayback | null>(null);
     readonly activeStreamUrl = computed(

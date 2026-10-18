@@ -8,7 +8,7 @@ jest.mock('electron', () => ({
     session: { defaultSession: { clearHostResolverCache: jest.fn(async () => undefined) } },
 }));
 jest.mock('../services/store.service', () => {
-    const values = new Map<string, unknown>([['SECURE_DNS_MODE', 'adguard']]);
+    const values = new Map<string, unknown>([['SECURE_DNS_MODE', 'automatic']]);
     return {
         DNS_ROUTE: 'DNS_ROUTE',
         LEGACY_SECURE_DNS_MODE: 'SECURE_DNS_MODE',
@@ -29,10 +29,10 @@ import PanelEvents, { PANEL_LOGIN_REQUEST } from './panel.events';
 describe('PanelEvents', () => {
     beforeAll(() => PanelEvents.bootstrapPanelEvents());
 
-    it('registers no DNS picker channels and drops the old manual choice', () => {
-        expect([...handlers.keys()].sort()).toEqual(['PANEL_GET_DEVICE_ID', PANEL_LOGIN_REQUEST, 'PANEL_REPORT_ERROR']);
-        expect(store.delete).toHaveBeenCalledWith('SECURE_DNS_MODE');
+    it('registers the DNS button channels and starts on the automatic route', async () => {
+        expect([...handlers.keys()].sort()).toEqual(['PANEL_GET_DEVICE_ID', PANEL_LOGIN_REQUEST, 'PANEL_REPORT_ERROR', 'SECURE_DNS_GET', 'SECURE_DNS_SET']);
         expect(app.configureHostResolver).toHaveBeenCalledWith({ secureDnsMode: 'automatic', secureDnsServers: [] });
+        expect(await handlers.get('SECURE_DNS_GET')?.({})).toBe('automatic');
     });
 
     it('retries a panel login over DNS-over-HTTPS after a DNS failure', async () => {

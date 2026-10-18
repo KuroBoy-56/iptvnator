@@ -26,6 +26,11 @@
         <div class="settings-content">
             @if (isDesktop) {
                 <app-settings-distributor-section />
+                <section class="settings-dns">
+                    <h3>DNS</h3>
+                    <app-secure-dns-picker />
+                    <p>{{ 'MPX.DNS.SETTINGS_HINT' | translate }}</p>
+                </section>
             }
 
             <app-settings-general-section

@@ -428,7 +428,9 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Redémarrer l'application",
         "APP_UPDATE_OPEN_RELEASE": "Ouvrir la version sur GitHub",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "LIVE_EXTERNAL_PLAYER_LABEL": "Chaînes en direct aussi dans MPV/VLC",
+        "LIVE_EXTERNAL_PLAYER_DESCRIPTION": "Désactivé : les films et séries s’ouvrent dans MPV/VLC et les chaînes en direct se lisent ici avec Video.js. Activé : les chaînes s’ouvrent aussi dans MPV/VLC."
     },
     "THEMES": {
         "DARK_THEME": "Sombre",
@@ -1502,6 +1504,17 @@
             "MPV_NO_PROGRESS": "Comme la lecture se fait dans MPV (un lecteur externe), la progression n'est pas enregistrée directement dans l'application. Elle n'est enregistrée que pour les lecteurs intégrés à l'application.",
             "PROGRESS_SAVED": "La progression est enregistrée automatiquement.",
             "STOP_AND_BACK": "Arrêter et revenir"
+        },
+        "DNS": {
+            "AUTOMATIC_LABEL": "Automatique",
+            "AUTOMATIC": "DNS du système ; DNS sécurisé tout seul en cas d’échec",
+            "CLOUDFLARE": "Rapide et privé",
+            "GOOGLE": "Stable",
+            "QUAD9": "Bloque les domaines malveillants",
+            "ADGUARD": "Sans pistage ni pubs",
+            "NEXTDNS": "Contre le blocage géographique",
+            "OPENDNS": "Cisco OpenDNS",
+            "SETTINGS_HINT": "Changez le DNS si votre fournisseur d’accès bloque le panneau ou les chaînes. Ne s’applique pas à MPV/VLC."
         }
     }
 }

@@ -7,6 +7,8 @@ import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
 
 export interface PortalPlayer {
     isEmbeddedPlayer(): boolean;
+    /** Live channels play inline (true unless MPV/VLC is set to open them too). */
+    isEmbeddedLivePlayer?(): boolean;
     openPlayer(
         streamUrl: string,
         title: string,

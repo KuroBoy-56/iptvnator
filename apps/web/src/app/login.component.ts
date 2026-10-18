@@ -9,6 +9,7 @@ import { LoginPostersService } from './panel-login/login-posters.service';
 import { PanelLoginService } from './panel-login/panel-login.service';
 import { PanelSessionService } from './panel-login/panel-session.service';
 import { PanelSessionGuardService } from './panel-login/panel-session-guard.service';
+import { SecureDnsPickerComponent } from './panel-login/secure-dns-picker.component';
 import { PanelTenantService } from './panel-login/panel-tenant.service';
 import { FakeScreenComponent } from './panel-login/fake-screen/fake-screen.component';
 import { PanelFakeScreen } from './panel-login/fake-screen/fake-screen.util';
@@ -40,7 +41,7 @@ function fakeUnlocked(): boolean {
     templateUrl: './login.component.html',
     styleUrls: ['./login.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [FormsModule, FakeScreenComponent, TranslatePipe],
+    imports: [FormsModule, FakeScreenComponent, TranslatePipe, SecureDnsPickerComponent],
 })
 export class LoginComponent implements OnInit {
     private readonly panel = inject(PanelLoginService);

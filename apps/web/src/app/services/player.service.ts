@@ -64,6 +64,14 @@ export class PlayerService {
         );
     }
 
+    /**
+     * Live channels: inline (Video.js) even with MPV/VLC selected, unless
+     * Settings › "Canales en vivo también con MPV/VLC" is on.
+     */
+    isEmbeddedLivePlayer(): boolean {
+        return this.isEmbeddedPlayer() || !this.settingsStore.liveExternalPlayer();
+    }
+
     async openResolvedPlayback(
         playback: ResolvedPortalPlayback,
         hideExternalInfoDialog = true

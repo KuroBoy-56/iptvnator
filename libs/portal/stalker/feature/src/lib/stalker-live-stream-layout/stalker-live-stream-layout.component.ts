@@ -155,7 +155,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
     /** Player */
     readonly usesEmbeddedPlayer = computed(() =>
-        this.portalPlayer.isEmbeddedPlayer()
+        this.portalPlayer.isEmbeddedLivePlayer?.() ??
+            this.portalPlayer.isEmbeddedPlayer()
     );
     readonly activePlayback = signal<ResolvedPortalPlayback | null>(null);
     readonly streamUrl = computed(() => this.activePlayback()?.streamUrl ?? '');

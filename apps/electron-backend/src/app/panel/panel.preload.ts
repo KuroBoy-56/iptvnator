@@ -8,5 +8,7 @@ export function createPanelBridge(ipcRenderer: IpcRenderer): PanelBridgeApi {
         panelLoginRequest: (action, payload) =>
             ipcRenderer.invoke('PANEL_LOGIN_REQUEST', action, payload),
         panelReportError: (report) => ipcRenderer.invoke('PANEL_REPORT_ERROR', report),
+        getSecureDns: () => ipcRenderer.invoke('SECURE_DNS_GET'),
+        setSecureDns: (mode) => ipcRenderer.invoke('SECURE_DNS_SET', mode),
     };
 }

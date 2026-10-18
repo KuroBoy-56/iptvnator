@@ -108,7 +108,8 @@ export class UnifiedLiveTabComponent {
     readonly player = this.settingsStore.player;
     readonly supportsEpg = this.runtime.supportsEpg;
     readonly isEmbeddedPlayer = computed(() =>
-        this.portalPlayer.isEmbeddedPlayer()
+        this.portalPlayer.isEmbeddedLivePlayer?.() ??
+            this.portalPlayer.isEmbeddedPlayer()
     );
 
     readonly activeDetail = signal<ResolvedLiveCollectionDetail | null>(null);
