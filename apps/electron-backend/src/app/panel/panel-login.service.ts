@@ -20,7 +20,7 @@ export interface PanelLoginDeps {
     deviceId: string;
 }
 
-const ACTIONS: readonly PanelLoginAction[] = ['check_mac', 'fetch_dns', 'submit_url', 'auto_demo', 'tenant_config'];
+const ACTIONS: readonly PanelLoginAction[] = ['check_mac', 'fetch_dns', 'submit_url', 'auto_demo', 'tenant_config', 'features'];
 /** Actions whose 200 answer is encrypted with the master key. */
 const ENCRYPTED_REPLY: readonly PanelLoginAction[] = ['fetch_dns', 'tenant_config'];
 /**
@@ -85,6 +85,8 @@ export async function panelLoginRequest(
     }
     // app language for the panel's own texts; anything else stays out of the payload
     const lang = /^(es|en|pt|fr)$/.test(payload?.lang ?? '') ? payload?.lang : undefined;
+    // check_mac: última orden «borrar caché» ya aplicada (entero >= 0; 0 si no hay ninguna)
+    const cc = action === 'check_mac' ? Math.max(0, Math.floor(Number(payload?.cc) || 0)) : undefined;
     if (action === 'tenant_config' && !tenant) {
         return { ok: false, status: 0, code: 'BAD_RESPONSE', error: 'Número de distribuidor no válido' };
     }
@@ -109,6 +111,7 @@ export async function panelLoginRequest(
                   // device type of this MAC in the panel (Clientes MAC › Dispositivo) and the fake screen
                   platform: PANEL_APP_ID,
                   lang,
+                  cc,
                   ts,
               }
     );

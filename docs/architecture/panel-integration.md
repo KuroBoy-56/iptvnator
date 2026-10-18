@@ -62,6 +62,14 @@ the Android app:
      least one letter, `isResellerCode`) goes upper-cased as `reseller`, so the
      demo is registered under that reseller. Digits only are never sent (that
      is a distributor number).
+   - `features`: what the login offers, `{"status":"ok","features":{"demo","dns"}}`
+     (plain JSON, same payload as the other actions: `tenant` + `app` with a
+     distributor, neither with Omitir). It is asked every time the login form
+     opens (`PanelLoginService.demoAvailable()`); the **Auto-Demo** button shows
+     only when `features.demo === true` (`LoginComponent.showDemo`). When the
+     panel does not answer it (offline, older panel: 400 "Invalid action") the
+     old rule applies: `tenant_config.features.demo` with a distributor, shown
+     with Omitir. A build without the master key never shows the button.
    - `check_mac` and `auto_demo` send `"enc": 1`: the panel answers the line
      (username + password) AES-GCM encrypted like `fetch_dns`, and the main
      process decrypts it. An older panel answers JSON and keeps working;
@@ -140,8 +148,12 @@ app goes back to `/login`. A panel that does not answer changes nothing.
 - **Login poster wall:** `LoginPostersService` asks the panel
   `api/tmdb.php?path=movie/now_playing&language=<es-MX|en-US|pt-BR|fr-FR>&page=N&lang=<es|en|pt|fr>`
   (+ `t`/`app` with a distributor), in the app language (see "App language"). The panel uses the distributor's TMDB key or, with
-  Omitir, the owner's; `{"error":"tmdb_key_not_set"}` means no wall. Cached
-  12 h per distributor (`login_posters_v2` + `tenantStorageSuffix()`).
+  Omitir, the owner's; `{"error":"tmdb_key_not_set"}`, an HTTP error or no
+  answer means no wall (plain dark background). Nothing is cached between
+  starts and the app never uses another key; the old 12 h cache
+  (`login_posters_v2…`) is deleted. With posters the wall scrolls endlessly
+  (the list is drawn twice and moved by half its height). Changing the
+  distributor clears the wall and asks again with the new one.
 
 ## TLS certificates
 
@@ -165,9 +177,10 @@ lines, alerts, TMDB key, sports, name, logo and colours. The panel contract
 - **Choice kept on the PC:** the choice lives in the Electron user data
   (`%APPDATA%`), so it survives updates. The NSIS uninstaller deletes that
   data (`deleteAppDataOnUninstall`), so uninstall + install starts again at
-  the distributor step. After "Omitir" the login shows a link
-  "¿Tienes un número de distribuidor?" that goes back to the step
-  (`PanelTenantService.change()`).
+  the distributor step. Under the login box there is always a
+  **Cambiar distribuidor** link (with a stored number and after Omitir; a
+  focusable button) that goes back to the step (`PanelTenantService.change()`:
+  forgets the code, branding, palette and the distributor's TMDB key).
 - **First launch:** `/login` shows the "Número de distribuidor" step
   (6 digits, Continuar / Omitir) before the device check. `AuthGuard` also
   sends the user to `/login` while no choice is stored.
@@ -203,7 +216,8 @@ lines, alerts, TMDB key, sports, name, logo and colours. The panel contract
   The panel only ever hands a distributor its own TMDB key and its own
   TheSportsDB key/disciplines (never the owner's); an empty `tmdbKey` in a
   `progress.php` reply removes the stored key (`rememberPanelTmdbKey`).
-- **Features:** `demo=false` hides Auto-Demo, `alerts=false` skips the panel
+- **Features:** `demo=false` hides Auto-Demo (only when the login's `features`
+  action does not answer, see above), `alerts=false` skips the panel
   alert, `sports=false` hides "Deportes" and guards `/workspace/sports`,
   `platforms=false` (default true; caches without it count as true) hides the
   platform tiles and "Lo mejor de …" rows on Inicio and makes Explorar ignore
@@ -276,10 +290,13 @@ the OS resolver. There is no server selector. **Automático** is handled by
     `progress.php`/`epg.php`/`sports.php`, the built-in player) follows the
     active route.
 - **Memory.** The route that worked is stored in the Electron store
-  (`DNS_ROUTE`) and applied again on the next start. The old manual choice
-  (`SECURE_DNS_MODE`) is deleted on startup and never applied. There is no
-  DNS IPC channel or bridge method any more (`PanelBridgeApi` only has
-  `panelGetDeviceId` and `panelLoginRequest`).
+  (`DNS_ROUTE`) and applied again on the next start. The button's choice is
+  stored as `SECURE_DNS_MODE` (IPC `SECURE_DNS_GET` / `SECURE_DNS_SET`,
+  bridge `getSecureDns` / `setSecureDns`).
+- **Menu.** The option list is a Material `mat-menu` (overlay above the
+  window): it opens below the button, above it, or pushed inside the window,
+  scrolls when it does not fit (wheel / touch), and works with the arrow keys,
+  Enter and Esc. Same component on the login and in Settings.
 
 **Limitation:** external MPV/VLC processes use the operating system resolver,
 so the DoH fallback does not apply to them.
@@ -293,6 +310,36 @@ every `fetch_dns` server in parallel with the typed user and password
 `active` is used for `submit_url`; otherwise an `expired` one, otherwise the
 first server. A single server is used without probing, and probing stops
 after 12 s. Auto-Demo still uses the first server.
+
+## Remote cache clear (panel order)
+
+The panel can order an app to clear its cache. Every `check_mac` payload
+carries `"cc"`: the last order id this app already applied (0 when none). The
+`check_mac` reply (with or without a line) carries `"cache_clear"`: the newest
+order id for this app (0 or absent = none; an older panel never sends it, and
+then nothing happens). `applyCacheClearOrder`
+(`apps/web/src/app/panel-login/cache-clear.util.ts`, called from
+`PanelLoginService.checkDevice`, so on start, on the login and in the
+10-minute `PanelSessionGuardService` re-check) decides:
+
+- nothing stored in `localStorage.cache_clear_seen` (first run, freshly
+  updated app): store the id silently;
+- a greater id: store it first (no loop), show for 3 s "Tu proveedor actualizó
+  la aplicación. Se borrará la caché y se reiniciará." (`MPX.PANEL.CACHE_CLEAR`,
+  snack bar in `AppComponent`), then clear and restart;
+- equal or lower: nothing.
+
+The clear runs in the Electron main process (`panel/panel-cache-clear.ts`, IPC
+`PANEL_CLEAR_CACHE_RESTART`, bridge `panelClearCacheAndRestart`):
+`session.defaultSession.clearCache()` plus Cache Storage and the shader cache,
+and the re-downloadable SQLite tables `content`, `categories`, `epg_programs`,
+`epg_channels` and `tmdb_metadata` (the local favorite/recent rows of that
+content go with it by cascade; favorites come back from the panel). Then
+`app.relaunch()` + `app.exit(0)`, and the app logs in again by itself and
+re-imports the catalog. Never touched: `playlists`, playback positions,
+downloads and `localStorage` (the `session_*` session, the distributor or the
+Omitir choice, settings, `cache_clear_seen`). The PWA (no bridge) only does
+`location.reload()`.
 
 ## Anti-replay `ts`
 

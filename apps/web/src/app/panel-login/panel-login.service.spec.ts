@@ -47,12 +47,22 @@ describe('PanelLoginService', () => {
             account: { server: 'https://srv.test', username: 'demo_1', password: '2', isDemo: true, demoExpires: 0, demoDuration: 0 },
         });
         // the panel answers its texts in the app language
-        expect(request).toHaveBeenCalledWith('check_mac', { lang: 'pt' });
+        expect(request).toHaveBeenCalledWith('check_mac', { cc: 0, lang: 'pt' });
     });
 
     it('reports an inactive device', async () => {
         request.mockResolvedValue({ ok: true, status: 200, data: { exists: false } });
         await expect(service.checkDevice()).resolves.toEqual({ status: 'inactive', fake: null });
+    });
+
+    it('asks features for the Auto-Demo button (null when the panel does not know it)', async () => {
+        request.mockResolvedValueOnce({ ok: true, status: 200, data: { status: 'ok', features: { demo: false, dns: true } } });
+        await expect(service.demoAvailable()).resolves.toBe(false);
+        expect(request).toHaveBeenLastCalledWith('features', { lang: 'pt' });
+        request.mockResolvedValueOnce({ ok: false, status: 400, code: 'HTTP', data: { error: 'Invalid action' } });
+        await expect(service.demoAvailable()).resolves.toBeNull();
+        request.mockResolvedValueOnce({ ok: false, status: 0, code: 'NO_MASTER_KEY' });
+        await expect(service.demoAvailable()).resolves.toBe(false);
     });
 
     it('activates with submit_url', async () => {

@@ -21,7 +21,7 @@ describe('panelLoginRequest', () => {
         expect(calls[0].url).toMatch(/\/api\/login\.php$/);
         expect(calls[0].body.get('action')).toBe('check_mac');
         const plain = JSON.parse(decryptPayload(calls[0].body.get('data') ?? '', masterKey) ?? '{}');
-        expect(plain).toEqual({ mac_address: 'AA:BB:CC:DD:EE:FF:00:11', enc: 1, platform: 'windows', ts: expect.any(Number) });
+        expect(plain).toEqual({ mac_address: 'AA:BB:CC:DD:EE:FF:00:11', enc: 1, platform: 'windows', cc: 0, ts: expect.any(Number) });
     });
 
     it('retries once with the panel clock when the device clock is wrong (ts_expired)', async () => {
@@ -92,7 +92,7 @@ describe('panelLoginRequest with a distributor', () => {
         const { fetch, calls } = fakeFetch(200, '{"exists":false}');
         await panelLoginRequest('check_mac', { tenant: '123456' }, { fetch, masterKey, deviceId: 'ID' });
         const plain = JSON.parse(decryptPayload(calls[0].body.get('data') ?? '', masterKey) ?? '{}');
-        expect(plain).toEqual({ mac_address: 'ID', tenant: '123456', app: 'windows', enc: 1, platform: 'windows', ts: expect.any(Number) });
+        expect(plain).toEqual({ mac_address: 'ID', tenant: '123456', app: 'windows', enc: 1, platform: 'windows', cc: 0, ts: expect.any(Number) });
     });
 
     it('sends {code, app, device} for tenant_config and decrypts the answer', async () => {
@@ -149,6 +149,23 @@ describe('panelLoginRequest with a distributor', () => {
         const second = JSON.parse(decryptPayload(calls[1].body.get('data') ?? '', masterKey) ?? '{}');
         expect(first.reseller).toBeUndefined();
         expect(second.reseller).toBeUndefined();
+    });
+
+    it('sends the last applied cache-clear order (cc) only with check_mac', async () => {
+        const { fetch, calls } = fakeFetch(200, '{"exists":false,"cache_clear":7}');
+        const result = await panelLoginRequest('check_mac', { cc: 5 }, { fetch, masterKey, deviceId: 'ID' });
+        await panelLoginRequest('fetch_dns', { cc: 5 }, { fetch, masterKey, deviceId: 'ID' });
+        const plain = (i: number) => JSON.parse(decryptPayload(calls[i].body.get('data') ?? '', masterKey) ?? '{}');
+        expect(plain(0).cc).toBe(5);
+        expect(plain(1).cc).toBeUndefined();
+        expect(result.data).toEqual({ exists: false, cache_clear: 7 });
+    });
+
+    it('asks features and reads its plain JSON answer', async () => {
+        const { fetch, calls } = fakeFetch(200, '{"status":"ok","features":{"demo":false,"dns":true}}');
+        const result = await panelLoginRequest('features', undefined, { fetch, masterKey, deviceId: 'ID' });
+        expect(calls[0].body.get('action')).toBe('features');
+        expect(result).toEqual({ ok: true, status: 200, data: { status: 'ok', features: { demo: false, dns: true } } });
     });
 
     it('does not ask fetch_dns / submit_url for enc', async () => {

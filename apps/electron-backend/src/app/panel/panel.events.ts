@@ -3,6 +3,7 @@ import { PanelErrorReport, PanelLoginAction, PanelLoginPayload, SecureDnsMode } 
 import { setDefaultHostnameResolver, systemResolveHostname } from '../events/url-safety';
 import { getDnsChoice, initSmartDns, resolveHostnameSmart, setDnsChoice, withDnsFallback } from '../services/smart-dns.service';
 import { getDeviceId } from './device-id';
+import { clearCacheAndRestart } from './panel-cache-clear';
 import { panelLoginRequest } from './panel-login.service';
 import { loadPanelMasterKey } from './panel-master-key';
 import { panelReportError } from './panel-report.service';
@@ -12,6 +13,7 @@ export const PANEL_LOGIN_REQUEST = 'PANEL_LOGIN_REQUEST';
 export const PANEL_REPORT_ERROR = 'PANEL_REPORT_ERROR';
 export const SECURE_DNS_GET = 'SECURE_DNS_GET';
 export const SECURE_DNS_SET = 'SECURE_DNS_SET';
+export const PANEL_CLEAR_CACHE_RESTART = 'PANEL_CLEAR_CACHE_RESTART';
 
 /**
  * Panel login (crypto stays in the main process) and DNS: the DNS button
@@ -29,6 +31,8 @@ export default class PanelEvents {
         ipcMain.handle(PANEL_GET_DEVICE_ID, () => getDeviceId());
         ipcMain.handle(SECURE_DNS_GET, () => getDnsChoice());
         ipcMain.handle(SECURE_DNS_SET, (_event, mode: SecureDnsMode) => setDnsChoice(mode));
+        // orden «borrar caché» del panel (llega en check_mac): borrar y reiniciar
+        ipcMain.handle(PANEL_CLEAR_CACHE_RESTART, () => clearCacheAndRestart());
 
         ipcMain.handle(
             PANEL_LOGIN_REQUEST,

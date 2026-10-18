@@ -1304,6 +1304,7 @@
         },
         "PANEL": {
             "ERR_NO_KEY": "This version of the app does not have the panel key.",
+            "CACHE_CLEAR": "Your provider updated the app. The cache will be cleared and the app will restart.",
             "ERR_DESKTOP_ONLY": "Panel sign-in is only available in the desktop app.",
             "ERR_NETWORK": "Could not connect to the panel. Check your connection.",
             "ERR_CONNECT": "Could not connect to the panel. Check your connection.",
@@ -1336,7 +1337,7 @@
             "TITLE": "Provider number",
             "DIGITS": "6 digits",
             "HINT": "If your provider gave you a number, enter it to use their service. If you do not have one, press Skip.",
-            "HAVE_CODE": "Do you have a provider number?",
+            "CHANGE_LINK": "Change distributor",
             "RETRY_MESSAGE": "Your provider could not be verified with the panel. Check your connection and try again.",
             "ERR_CODE_DIGITS": "Enter the 6 digits of your provider number.",
             "ERR_TENANT_INVALID": "Invalid provider number",

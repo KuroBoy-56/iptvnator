@@ -4,7 +4,9 @@ export type PanelLoginAction =
     | 'fetch_dns'
     | 'submit_url'
     | 'auto_demo'
-    | 'tenant_config';
+    | 'tenant_config'
+    /** Lo que ofrece el login (botón Autodemo): respuesta JSON sin cifrar. */
+    | 'features';
 
 export type PanelLoginErrorCode =
     | 'NO_MASTER_KEY'
@@ -40,6 +42,8 @@ export interface PanelLoginPayload {
     reseller?: string;
     /** App language (es/en/pt/fr): the panel answers its texts in it. Sent with every action. */
     lang?: string;
+    /** check_mac: última orden «borrar caché» del panel que esta app ya aplicó (0 = ninguna). */
+    cc?: number;
 }
 
 /** One error for the panel («Errores de las apps»): see api/report.php. */
@@ -93,8 +97,8 @@ export function isSecureDnsMode(value: unknown): value is SecureDnsMode {
 }
 
 /**
- * Bridge methods for panel login and device id (Electron only). DNS is
- * automatic in the main process, so there is no DNS method.
+ * Bridge methods for panel login, device id, the DNS button and the remote
+ * cache clear (Electron only).
  */
 export interface PanelBridgeApi {
     panelGetDeviceId: () => Promise<string>;
@@ -103,6 +107,8 @@ export interface PanelBridgeApi {
     setSecureDns?: (mode: SecureDnsMode) => Promise<SecureDnsMode>;
     /** Sends an error to the panel (encrypted in the main process). */
     panelReportError?: (report: PanelErrorReport) => Promise<boolean>;
+    /** Orden «borrar caché» del panel: borra la caché re-descargable y reinicia la app. */
+    panelClearCacheAndRestart?: () => Promise<void>;
     panelLoginRequest: <T = unknown>(
         action: PanelLoginAction,
         payload?: PanelLoginPayload

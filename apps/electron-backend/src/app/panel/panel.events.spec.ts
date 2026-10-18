@@ -21,6 +21,7 @@ jest.mock('../services/store.service', () => {
 });
 jest.mock('./device-id', () => ({ getDeviceId: jest.fn(async () => 'AA:BB:CC:DD:EE:FF:00:11') }));
 jest.mock('./panel-master-key', () => ({ loadPanelMasterKey: () => Buffer.alloc(32, 1) }));
+jest.mock('./panel-cache-clear', () => ({ clearCacheAndRestart: jest.fn(async () => undefined) }));
 
 import { app } from 'electron';
 import { store } from '../services/store.service';
@@ -30,7 +31,7 @@ describe('PanelEvents', () => {
     beforeAll(() => PanelEvents.bootstrapPanelEvents());
 
     it('registers the DNS button channels and starts on the automatic route', async () => {
-        expect([...handlers.keys()].sort()).toEqual(['PANEL_GET_DEVICE_ID', PANEL_LOGIN_REQUEST, 'PANEL_REPORT_ERROR', 'SECURE_DNS_GET', 'SECURE_DNS_SET']);
+        expect([...handlers.keys()].sort()).toEqual(['PANEL_CLEAR_CACHE_RESTART', 'PANEL_GET_DEVICE_ID', PANEL_LOGIN_REQUEST, 'PANEL_REPORT_ERROR', 'SECURE_DNS_GET', 'SECURE_DNS_SET']);
         expect(app.configureHostResolver).toHaveBeenCalledWith({ secureDnsMode: 'automatic', secureDnsServers: [] });
         expect(await handlers.get('SECURE_DNS_GET')?.({})).toBe('automatic');
     });

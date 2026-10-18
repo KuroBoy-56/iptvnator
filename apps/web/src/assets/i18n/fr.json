@@ -1304,6 +1304,7 @@
         },
         "PANEL": {
             "ERR_NO_KEY": "Cette version de l'application n'a pas la clé du panneau.",
+            "CACHE_CLEAR": "Votre fournisseur a mis à jour l'application. Le cache sera vidé et l'application redémarrera.",
             "ERR_DESKTOP_ONLY": "La connexion au panneau n'est disponible que dans l'application de bureau.",
             "ERR_NETWORK": "Impossible de joindre le panneau. Vérifiez votre connexion.",
             "ERR_CONNECT": "Impossible de joindre le panneau. Vérifiez votre connexion.",
@@ -1336,7 +1337,7 @@
             "TITLE": "Numéro de distributeur",
             "DIGITS": "6 chiffres",
             "HINT": "Si votre distributeur vous a donné un numéro, saisissez-le pour utiliser son service. Sinon, appuyez sur Ignorer.",
-            "HAVE_CODE": "Vous avez un numéro de distributeur ?",
+            "CHANGE_LINK": "Changer de distributeur",
             "RETRY_MESSAGE": "Impossible de vérifier votre distributeur auprès du panneau. Vérifiez votre connexion et réessayez.",
             "ERR_CODE_DIGITS": "Saisissez les 6 chiffres de votre numéro de distributeur.",
             "ERR_TENANT_INVALID": "Numéro de distributeur non valide",
