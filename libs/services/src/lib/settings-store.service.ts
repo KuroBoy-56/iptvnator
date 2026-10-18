@@ -212,7 +212,7 @@ export const SettingsStore = signalStore(
                 mpvPlayerPath: store.mpvPlayerPath(),
                 mpvPlayerArguments: store.mpvPlayerArguments(),
                 mpvReuseInstance: store.mpvReuseInstance(),
-                liveExternalPlayer: store.liveExternalPlayer(),
+                liveExternalPlayer: store.liveExternalPlayer?.() ?? false,
                 vlcPlayerPath: store.vlcPlayerPath(),
                 vlcPlayerArguments: store.vlcPlayerArguments(),
                 vlcReuseInstance: store.vlcReuseInstance(),
