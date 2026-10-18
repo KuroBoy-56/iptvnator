@@ -99,6 +99,10 @@
                 }
             }
 
+            <div class="nf-login-dns">
+                <app-secure-dns-picker />
+            </div>
+
             @if (deviceId()) {
                 <p class="nf-device">{{ 'MPX.LOGIN.DEVICE_ID' | translate }} <code>{{ deviceId() }}</code></p>
             }

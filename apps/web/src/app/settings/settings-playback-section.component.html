@@ -288,4 +288,18 @@
             </div>
         </div>
     }
+
+    @if (isExternalPlayerSelected()) {
+        <div class="setting-item">
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.LIVE_EXTERNAL_PLAYER_LABEL' | translate }}</h4>
+                <p>
+                    {{ 'SETTINGS.LIVE_EXTERNAL_PLAYER_DESCRIPTION' | translate }}
+                </p>
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox formControlName="liveExternalPlayer"></mat-checkbox>
+            </div>
+        </div>
+    }
 </section>

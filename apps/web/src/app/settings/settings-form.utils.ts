@@ -58,6 +58,7 @@ export function createSettingsForm(
         mpvPlayerPath: '',
         mpvPlayerArguments: '',
         mpvReuseInstance: false,
+        liveExternalPlayer: false,
         vlcPlayerPath: '',
         vlcPlayerArguments: '',
         vlcReuseInstance: false,
@@ -127,6 +128,7 @@ export function createSettingsFromFormValue(
             value.mpvPlayerArguments
         ),
         mpvReuseInstance: value.mpvReuseInstance ?? false,
+        liveExternalPlayer: value.liveExternalPlayer ?? false,
         vlcPlayerPath: normalizeExternalPlayerPath(value.vlcPlayerPath),
         vlcPlayerArguments: normalizeExternalPlayerArguments(
             value.vlcPlayerArguments

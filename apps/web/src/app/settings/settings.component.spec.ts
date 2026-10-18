@@ -95,6 +95,7 @@ const DEFAULT_SETTINGS = {
     mpvPlayerPath: '',
     mpvPlayerArguments: '',
     mpvReuseInstance: false,
+    liveExternalPlayer: false,
     vlcPlayerPath: '',
     vlcPlayerArguments: '',
     vlcReuseInstance: false,

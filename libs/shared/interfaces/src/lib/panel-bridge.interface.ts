@@ -56,11 +56,51 @@ export interface PanelErrorReport {
 }
 
 /**
+ * DNS button (as in the Android, iOS and TV apps). 'automatic' = system
+ * resolver with the automatic DNS-over-HTTPS fallback; any other = always that
+ * DNS-over-HTTPS server. Applied in the Electron main process.
+ */
+export type SecureDnsMode =
+    | 'automatic'
+    | 'cloudflare'
+    | 'google'
+    | 'quad9'
+    | 'adguard'
+    | 'nextdns'
+    | 'opendns';
+
+export interface SecureDnsOption {
+    id: SecureDnsMode;
+    label: string;
+    /** i18n key of the short description. */
+    descriptionKey: string;
+    /** DNS-over-HTTPS template; empty for the automatic mode. */
+    url: string;
+}
+
+export const SECURE_DNS_OPTIONS: readonly SecureDnsOption[] = [
+    { id: 'automatic', label: 'Automático', descriptionKey: 'MPX.DNS.AUTOMATIC', url: '' },
+    { id: 'cloudflare', label: 'Cloudflare', descriptionKey: 'MPX.DNS.CLOUDFLARE', url: 'https://cloudflare-dns.com/dns-query' },
+    { id: 'google', label: 'Google', descriptionKey: 'MPX.DNS.GOOGLE', url: 'https://dns.google/dns-query' },
+    { id: 'quad9', label: 'Quad9', descriptionKey: 'MPX.DNS.QUAD9', url: 'https://dns.quad9.net/dns-query' },
+    { id: 'adguard', label: 'AdGuard', descriptionKey: 'MPX.DNS.ADGUARD', url: 'https://dns.adguard-dns.com/dns-query' },
+    { id: 'nextdns', label: 'NextDNS', descriptionKey: 'MPX.DNS.NEXTDNS', url: 'https://dns.nextdns.io/dns-query' },
+    { id: 'opendns', label: 'OpenDNS', descriptionKey: 'MPX.DNS.OPENDNS', url: 'https://doh.opendns.com/dns-query' },
+];
+
+export function isSecureDnsMode(value: unknown): value is SecureDnsMode {
+    return SECURE_DNS_OPTIONS.some((option) => option.id === value);
+}
+
+/**
  * Bridge methods for panel login and device id (Electron only). DNS is
  * automatic in the main process, so there is no DNS method.
  */
 export interface PanelBridgeApi {
     panelGetDeviceId: () => Promise<string>;
+    /** DNS button: current choice / change it (applied at once in the main process). */
+    getSecureDns?: () => Promise<SecureDnsMode>;
+    setSecureDns?: (mode: SecureDnsMode) => Promise<SecureDnsMode>;
     /** Sends an error to the panel (encrypted in the main process). */
     panelReportError?: (report: PanelErrorReport) => Promise<boolean>;
     panelLoginRequest: <T = unknown>(

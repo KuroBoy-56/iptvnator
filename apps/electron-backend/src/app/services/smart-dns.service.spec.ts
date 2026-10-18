@@ -24,8 +24,10 @@ import { app } from 'electron';
 import {
     getActiveDnsRoute,
     hostResolverOptions,
+    getDnsChoice,
     initSmartDns,
     resetSmartDnsForTests,
+    setDnsChoice,
     resolveHostnameSmart,
     withDnsFallback,
 } from './smart-dns.service';
@@ -51,17 +53,30 @@ describe('smart DNS', () => {
         expect(hostResolverOptions('google').secureDnsServers).toEqual(['https://dns.google/dns-query']);
     });
 
-    it('ignores the old manual picker choice and starts with the route that worked', () => {
+    it('starts with the DNS button provider, or the automatic route that worked', () => {
         values.set('SECURE_DNS_MODE', 'quad9');
-        expect(initSmartDns()).toBe('system');
-        expect(values.has('SECURE_DNS_MODE')).toBe(false);
+        expect(initSmartDns()).toBe('quad9');
+        expect(lastServers()).toEqual(['https://dns.quad9.net/dns-query']);
 
+        values.set('SECURE_DNS_MODE', 'automatic');
         values.set('DNS_ROUTE', 'google');
         expect(initSmartDns()).toBe('google');
         expect(lastServers()).toEqual(['https://dns.google/dns-query']);
 
         values.set('DNS_ROUTE', 'bogus');
         expect(initSmartDns()).toBe('system');
+    });
+
+    it('DNS button: a provider stays fixed (no automatic switching); Automático restores the fallback', async () => {
+        await expect(setDnsChoice('adguard')).resolves.toBe('adguard');
+        expect(getDnsChoice()).toBe('adguard');
+        expect(getActiveDnsRoute()).toBe('adguard');
+        expect(lastServers()).toEqual(['https://dns.adguard-dns.com/dns-query']);
+        await expect(withDnsFallback(async () => { throw dnsError(); })).rejects.toThrow('ERR_NAME_NOT_RESOLVED');
+        expect(getActiveDnsRoute()).toBe('adguard');
+
+        await expect(setDnsChoice('bogus' as never)).resolves.toBe('automatic');
+        expect(getActiveDnsRoute()).toBe('system');
     });
 
     it('does not touch the resolver when the request works', async () => {

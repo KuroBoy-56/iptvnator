@@ -218,10 +218,16 @@ lines, alerts, TMDB key, sports, name, logo and colours. The panel contract
   "Cambiar distribuidor" (forget it, log out, back to the step; with Omitir it
   lets the user enter a code).
 
-## Automatic DNS (no picker)
+## DNS button
 
-There is no DNS or server selector anywhere (the login-screen and Settings
-pickers were removed). DNS is handled automatically by
+The login screen and Settings show a DNS button
+(`apps/web/src/app/panel-login/secure-dns-picker.component.ts`, IPC
+`SECURE_DNS_GET` / `SECURE_DNS_SET`, saved as `SECURE_DNS_MODE`), as in the
+Android, iOS and TV apps: **Automático** (default) or a fixed DNS-over-HTTPS
+provider (Cloudflare, Google, Quad9, AdGuard, NextDNS, OpenDNS). A provider is
+used for every Chromium request (renderer, built-in players, panel login,
+main-process line requests) with no automatic switching; external MPV/VLC keep
+the OS resolver. There is no server selector. **Automático** is handled by
 `apps/electron-backend/src/app/services/smart-dns.service.ts`, wired up in
 `PanelEvents.bootstrapPanelEvents()`:
 

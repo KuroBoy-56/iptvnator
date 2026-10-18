@@ -8,7 +8,7 @@ export const VLC_PLAYER_PATH = 'VLC_PLAYER_PATH';
 export const VLC_PLAYER_ARGUMENTS = 'VLC_PLAYER_ARGUMENTS';
 export const MPV_REUSE_INSTANCE = 'MPV_REUSE_INSTANCE';
 export const VLC_REUSE_INSTANCE = 'VLC_REUSE_INSTANCE';
-/** Manual DNS choice of the removed picker; deleted on startup. */
+/** DNS button choice ('automatic' or a DNS-over-HTTPS provider, see smart-dns.service.ts). */
 export const LEGACY_SECURE_DNS_MODE = 'SECURE_DNS_MODE';
 /** DNS route that last worked (see services/smart-dns.service.ts). */
 export const DNS_ROUTE = 'DNS_ROUTE';

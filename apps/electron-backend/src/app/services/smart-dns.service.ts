@@ -1,27 +1,30 @@
 import { app, session } from 'electron';
+import { isSecureDnsMode, SECURE_DNS_OPTIONS, SecureDnsMode } from '@iptvnator/shared/interfaces';
 import { isDnsResolutionFailure, shouldTryAnotherDnsRoute } from './dns-failure';
 import { DNS_ROUTE, LEGACY_SECURE_DNS_MODE, store } from './store.service';
 
 /**
- * Automatic DNS (no user choice). Requests start with the system resolver;
+ * DNS button «Automático» (default): requests start with the system resolver;
  * when a panel or line request fails with a DNS-type error the main process
  * switches Chromium's resolver to DNS-over-HTTPS (Cloudflare, then Google),
  * retries, and keeps the route that worked, also for the next start.
+ * Any other choice of the button always uses that DNS-over-HTTPS server.
  */
-export type DnsRoute = 'system' | 'cloudflare' | 'google';
+export type DnsRoute = 'system' | Exclude<SecureDnsMode, 'automatic'>;
 
 /** Order in which routes are tried after a DNS-type failure. */
 export const DNS_ROUTES: readonly DnsRoute[] = ['system', 'cloudflare', 'google'];
 
-const DOH_SERVERS: Record<Exclude<DnsRoute, 'system'>, string> = {
-    cloudflare: 'https://cloudflare-dns.com/dns-query',
-    google: 'https://dns.google/dns-query',
-};
+function dohServer(route: Exclude<DnsRoute, 'system'>): string {
+    return SECURE_DNS_OPTIONS.find((o) => o.id === route)?.url ?? '';
+}
 
 type HostResolverOptions = Parameters<typeof app.configureHostResolver>[0];
 export type SystemHostnameResolver = (hostname: string) => Promise<readonly string[]>;
 
 let activeRoute: DnsRoute = 'system';
+/** A provider chosen with the DNS button: no automatic switching. */
+let fixedRoute = false;
 let queue: Promise<unknown> = Promise.resolve();
 
 export function isDnsRoute(value: unknown): value is DnsRoute {
@@ -32,7 +35,7 @@ export function isDnsRoute(value: unknown): value is DnsRoute {
 export function hostResolverOptions(route: DnsRoute): HostResolverOptions {
     return route === 'system'
         ? { secureDnsMode: 'automatic', secureDnsServers: [] }
-        : { secureDnsMode: 'secure', secureDnsServers: [DOH_SERVERS[route]] };
+        : { secureDnsMode: 'secure', secureDnsServers: [dohServer(route)] };
 }
 
 export function getActiveDnsRoute(): DnsRoute {
@@ -57,11 +60,31 @@ async function applyRoute(route: DnsRoute): Promise<void> {
     }
 }
 
-/** Startup: drops the old manual choice and applies the route that last worked. */
-export function initSmartDns(): DnsRoute {
-    store.delete(LEGACY_SECURE_DNS_MODE);
+/** Choice of the DNS button ('automatic' unless the user picked a provider). */
+export function getDnsChoice(): SecureDnsMode {
+    const stored = store.get(LEGACY_SECURE_DNS_MODE, 'automatic');
+    return isSecureDnsMode(stored) ? stored : 'automatic';
+}
+
+function storedAutoRoute(): DnsRoute {
     const stored = store.get(DNS_ROUTE, 'system');
-    const route = isDnsRoute(stored) ? stored : 'system';
+    return isDnsRoute(stored) ? stored : 'system';
+}
+
+/** DNS button: a provider is used from now on; «Automático» goes back to the fallback. */
+export async function setDnsChoice(mode: SecureDnsMode): Promise<SecureDnsMode> {
+    const choice = isSecureDnsMode(mode) ? mode : 'automatic';
+    store.set(LEGACY_SECURE_DNS_MODE, choice);
+    fixedRoute = choice !== 'automatic';
+    await applyRoute(choice === 'automatic' ? storedAutoRoute() : choice);
+    return choice;
+}
+
+/** Startup: the provider of the DNS button, or the automatic route that last worked. */
+export function initSmartDns(): DnsRoute {
+    const choice = getDnsChoice();
+    fixedRoute = choice !== 'automatic';
+    const route = choice === 'automatic' ? storedAutoRoute() : choice;
     void applyRoute(route);
     return route;
 }
@@ -105,6 +128,7 @@ async function retryOnOtherRoutes<T>(
  * keeps the first one that works. Other errors are passed through untouched.
  */
 export async function withDnsFallback<T>(task: () => Promise<T>): Promise<T> {
+    if (fixedRoute) return task();
     const routeAtStart = activeRoute;
     try {
         return await task();
@@ -145,5 +169,6 @@ export async function resolveHostnameSmart(
 /** Test helper. */
 export function resetSmartDnsForTests(): void {
     activeRoute = 'system';
+    fixedRoute = false;
     queue = Promise.resolve();
 }

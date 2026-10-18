@@ -1,7 +1,7 @@
 import { app, ipcMain, net } from 'electron';
-import { PanelErrorReport, PanelLoginAction, PanelLoginPayload } from '@iptvnator/shared/interfaces';
+import { PanelErrorReport, PanelLoginAction, PanelLoginPayload, SecureDnsMode } from '@iptvnator/shared/interfaces';
 import { setDefaultHostnameResolver, systemResolveHostname } from '../events/url-safety';
-import { initSmartDns, resolveHostnameSmart, withDnsFallback } from '../services/smart-dns.service';
+import { getDnsChoice, initSmartDns, resolveHostnameSmart, setDnsChoice, withDnsFallback } from '../services/smart-dns.service';
 import { getDeviceId } from './device-id';
 import { panelLoginRequest } from './panel-login.service';
 import { loadPanelMasterKey } from './panel-master-key';
@@ -10,10 +10,12 @@ import { panelReportError } from './panel-report.service';
 export const PANEL_GET_DEVICE_ID = 'PANEL_GET_DEVICE_ID';
 export const PANEL_LOGIN_REQUEST = 'PANEL_LOGIN_REQUEST';
 export const PANEL_REPORT_ERROR = 'PANEL_REPORT_ERROR';
+export const SECURE_DNS_GET = 'SECURE_DNS_GET';
+export const SECURE_DNS_SET = 'SECURE_DNS_SET';
 
 /**
- * Panel login (crypto stays in the main process) and the automatic DNS
- * fallback: no user choice, a DNS-type failure retries over DoH.
+ * Panel login (crypto stays in the main process) and DNS: the DNS button
+ * (automatic fallback over DoH, or one fixed DoH provider).
  */
 export default class PanelEvents {
     static bootstrapPanelEvents(): void {
@@ -25,6 +27,8 @@ export default class PanelEvents {
         const masterKey = loadPanelMasterKey();
 
         ipcMain.handle(PANEL_GET_DEVICE_ID, () => getDeviceId());
+        ipcMain.handle(SECURE_DNS_GET, () => getDnsChoice());
+        ipcMain.handle(SECURE_DNS_SET, (_event, mode: SecureDnsMode) => setDnsChoice(mode));
 
         ipcMain.handle(
             PANEL_LOGIN_REQUEST,

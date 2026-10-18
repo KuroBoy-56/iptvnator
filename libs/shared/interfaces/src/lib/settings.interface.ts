@@ -97,6 +97,11 @@ export interface Settings {
      */
     mpvPlayerArguments: string;
     mpvReuseInstance: boolean;
+    /**
+     * With MPV or VLC selected, live channels also open in that player. Off
+     * (default): movies and series go to MPV/VLC and channels play inline.
+     */
+    liveExternalPlayer?: boolean;
     vlcPlayerPath: string;
     /**
      * Extra VLC CLI arguments entered one argument per line. Applied only when
