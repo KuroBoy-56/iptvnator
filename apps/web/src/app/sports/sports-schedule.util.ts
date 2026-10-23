@@ -29,16 +29,32 @@ export interface SportsLeagueGroup {
     items: SportsCard[];
 }
 
-export function sportsDayKey(date: Date): string {
+/** The panel zone when the runtime knows it, else undefined (= the device zone, as with an old panel). */
+export function sportsZone(tz?: string): string | undefined {
+    if (!tz) return undefined;
+    try {
+        new Intl.DateTimeFormat('en', { timeZone: tz });
+        return tz;
+    } catch {
+        return undefined;
+    }
+}
+
+/** Calendar day of `date` in the panel time zone (api/sports.php "tz"); the device zone without it. */
+export function sportsDayKey(date: Date, tz?: string): string {
+    const zone = sportsZone(tz);
+    if (zone) {
+        return new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+    }
     return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 }
 
-export function toSportsCards(events: PanelSportsEvent[]): SportsCard[] {
+export function toSportsCards(events: PanelSportsEvent[], tz?: string): SportsCard[] {
     return events
         .map((e) => {
             let start = Date.parse(e.ts);
             if (Number.isNaN(start)) start = Date.parse(String(e.ts).replace(' ', 'T'));
-            return { ...e, start, dayKey: Number.isNaN(start) ? '' : sportsDayKey(new Date(start)) };
+            return { ...e, start, dayKey: Number.isNaN(start) ? '' : sportsDayKey(new Date(start), tz) };
         })
         .filter((e) => e.dayKey !== '');
 }
@@ -61,10 +77,16 @@ export function hasScore(e: SportsCard, status: SportsEventStatus): boolean {
     return status !== 'soon' && set(e.hs) && set(e.as);
 }
 
+/** Lowercase, no accents, anything but [a-z0-9] -> space ("América" = "america", "ESPN-2" = "espn 2"). */
+const foldText = (s: string) =>
+    s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+
+/** Teams, event, league, sport and the channels that broadcast it; every word must match ("america espn"). */
 export function matchesSportsQuery(e: SportsCard, query: string): boolean {
-    const q = query.trim().toLowerCase();
-    if (!q) return true;
-    return `${e.h} ${e.a} ${e.lg} ${e.ev}`.toLowerCase().includes(q);
+    const words = foldText(query).split(' ').filter(Boolean);
+    if (!words.length) return true;
+    const hay = foldText([e.h, e.a, e.ev, e.lg, e.sp, ...(e.tv ?? []).map((t) => t.n)].join(' '));
+    return words.every((w) => hay.includes(w));
 }
 
 export function groupByLeague(

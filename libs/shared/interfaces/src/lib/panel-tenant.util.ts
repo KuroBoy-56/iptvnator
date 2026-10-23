@@ -105,7 +105,6 @@ export const DEFAULT_TENANT_RECHECK_SECONDS = 21600;
 const CODE_RE = /^\d{6}$/;
 const HEX_RE = /^#[0-9A-F]{6}$/;
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
-const PANAMA_OFFSET_MS = -5 * 3600 * 1000;
 
 export function isTenantCode(value: unknown): value is string {
     return typeof value === 'string' && CODE_RE.test(value);
@@ -284,24 +283,9 @@ export function isTenantExpired(cache: Pick<PanelTenantCache, 'expiresAt'>, now 
     return cache.expiresAt > 0 && now > cache.expiresAt * 1000;
 }
 
-/**
- * Expiry date in Panama time (UTC−5, no DST); '' when it never expires.
- * DD/MM/AAAA, or the date format of the given locale.
- */
-export function formatTenantExpiry(cache: Pick<PanelTenantCache, 'expiresAt' | 'expiresDate'>, locale?: string): string {
-    const m = cache.expiresDate ? DATE_RE.exec(cache.expiresDate) : null;
-    let d: Date;
-    if (m) d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12));
-    else if (cache.expiresAt) d = new Date(cache.expiresAt * 1000 + PANAMA_OFFSET_MS);
-    else return '';
-    if (locale) return d.toLocaleDateString(locale, { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric' });
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
-}
-
-export function tenantExpiredMessage(cache: Pick<PanelTenantCache, 'expiresAt' | 'expiresDate'>, locale?: string): UiText {
-    const date = formatTenantExpiry(cache, locale);
-    return date ? { key: 'MPX.DIST.EXPIRED_ON', params: { date } } : { key: PANEL_TENANT_MESSAGES.tenant_expired };
+/** The distributor's expiry is private: the message never carries its date. */
+export function tenantExpiredMessage(_cache?: unknown, _locale?: string): UiText {
+    return { key: PANEL_TENANT_MESSAGES.tenant_expired };
 }
 
 /** Removes every per-distributor cache (panel token, TMDB key…) stored for a code. */

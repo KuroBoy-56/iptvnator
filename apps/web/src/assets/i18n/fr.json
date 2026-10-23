@@ -1394,7 +1394,7 @@
             "DAY": "Jour",
             "TODAY": "Aujourd'hui",
             "TOMORROW": "Demain",
-            "SEARCH": "Rechercher une équipe ou une ligue",
+            "SEARCH": "Rechercher une équipe, une ligue ou une chaîne",
             "ALL": "Tous",
             "LIVE_NOW": "En direct maintenant",
             "NO_MATCHES": "Aucun match avec ces filtres",

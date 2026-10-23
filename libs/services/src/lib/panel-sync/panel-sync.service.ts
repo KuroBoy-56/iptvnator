@@ -304,6 +304,7 @@ export class PanelSyncService {
             events: body.events.filter((e) => e && e.id && e.ts),
             sports: body.sports && typeof body.sports === 'object' ? body.sports : {},
             match: body.match as PanelSportsAgenda['match'],
+            tz: typeof body.tz === 'string' ? body.tz : undefined,
         };
     }
 

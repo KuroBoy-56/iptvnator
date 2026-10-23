@@ -39,6 +39,13 @@ describe('sports schedule utils', () => {
         expect(toSportsCards([{ ...base, ts: 'nope' }])).toEqual([]);
     });
 
+    it('uses the panel time zone for the day key', () => {
+        // 2026-10-04 18:00 UTC is already the 5th in Tokyo and still the 4th in Panama
+        expect(toSportsCards([base], 'Asia/Tokyo')[0].dayKey).toBe('2026-10-05');
+        expect(toSportsCards([{ ...base, ts: '2026-10-05T02:00:00Z' }], 'America/Panama')[0].dayKey).toBe('2026-10-04');
+        expect(sportsDayKey(new Date(start), 'Not/AZone')).toBe(sportsDayKey(new Date(start)));
+    });
+
     it('derives soon, live, final and postponed states', () => {
         expect(sportsEventStatus(card, DEFAULT_SPORTS_META, start - 1)).toBe('soon');
         expect(sportsEventStatus(card, DEFAULT_SPORTS_META, start + 60_000)).toBe('live');
@@ -57,6 +64,9 @@ describe('sports schedule utils', () => {
         const other = { ...card, id: '2', sp: 'Tennis', lg: '' };
         expect(matchesSportsQuery(card, 'getafe')).toBe(true);
         expect(matchesSportsQuery(card, 'boca')).toBe(false);
+        const onTv = { ...card, h: 'Club América', a: 'Chivas', tv: [{ n: 'ESPN 2', c: 'México' }] };
+        expect(matchesSportsQuery(onTv, 'america espn')).toBe(true);
+        expect(matchesSportsQuery(onTv, 'américa fox')).toBe(false);
         const groups = groupByLeague([card, other], DEFAULT_SPORTS_META);
         // built-in labels are translation keys (the page translates them)
         expect(groups.map((g) => g.name)).toEqual(['La Liga', 'MPX.SPORTS.SPORT_TENNIS']);

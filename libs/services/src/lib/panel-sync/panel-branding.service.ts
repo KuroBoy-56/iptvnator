@@ -1,7 +1,6 @@
 import { computed, Injectable, signal } from '@angular/core';
 import {
     applyTenantTheme,
-    formatTenantExpiry,
     PANEL_TENANT_CHANGED_EVENT,
     PanelTenantCache,
     PanelTenantChoice,
@@ -32,11 +31,6 @@ export class PanelBrandingService {
     );
     /** Filas/filtros por plataforma (Netflix, Disney+…); false solo si el distribuidor lo apaga. */
     readonly platforms = computed(() => this.features().platforms !== false);
-    /** DD/MM/AAAA (Panama time), '' when it never expires or with "Omitir". */
-    readonly expiry = computed(() => {
-        const t = this.tenant();
-        return t ? formatTenantExpiry(t) : '';
-    });
 
     private lastCss = '\u0000';
 

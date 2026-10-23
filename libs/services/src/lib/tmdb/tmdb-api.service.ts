@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { TMDB_MATCH_LANGUAGE } from '@iptvnator/shared/interfaces';
+import { panelEndpoint, TMDB_MATCH_LANGUAGE, withTenantQuery } from '@iptvnator/shared/interfaces';
+import { readPanelTmdbKey } from '../panel-sync/panel-tmdb-key';
 import { TMDB_API_BASE_URL } from './tmdb-config';
 import {
     TmdbMovieDetails,
@@ -176,6 +177,12 @@ export class TmdbApiService {
         params: Record<string, string>,
         apiKey: string
     ): Promise<T> {
+        // With the panel's key the lookup goes through the panel (api/tmdb.php: its key and 24 h cache);
+        // a key the user typed in Settings still goes straight to TMDB, and so does the panel being down.
+        if (apiKey && apiKey === readPanelTmdbKey() && path !== '/configuration') {
+            const viaPanel = await this.viaPanel<T>(path, params);
+            if (viaPanel !== null) return viaPanel;
+        }
         const url = new URL(`${TMDB_API_BASE_URL}${path}`);
         for (const [key, value] of Object.entries(params)) {
             url.searchParams.set(key, value);
@@ -204,5 +211,21 @@ export class TmdbApiService {
         }
 
         return (await response.json()) as T;
+    }
+
+    /** The same request through the panel; null when the panel could not answer it. */
+    private async viaPanel<T>(path: string, params: Record<string, string>): Promise<T | null> {
+        try {
+            const query = new URLSearchParams({ path: path.replace(/^\//, ''), ...params });
+            const response = await fetch(withTenantQuery(`${panelEndpoint('tmdb.php')}?${query}`), {
+                headers: { accept: 'application/json' },
+            });
+            if (!response.ok) return null;
+            const body = (await response.json()) as { error?: unknown; success?: boolean };
+            // {"error": "tmdb_key_not_set"} from the panel or {"success": false} from TMDB
+            return body && !body.error && body.success !== false ? (body as T) : null;
+        } catch {
+            return null;
+        }
     }
 }
