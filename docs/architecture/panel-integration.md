@@ -199,9 +199,11 @@ lines, alerts, TMDB key, sports, name, logo and colours. The panel contract
   started by `provideAppInitializer`): re-checks `tenant_config` at launch, on
   window focus / visibility and every `recheck_after` seconds (polled every
   10 min). `tenant_invalid` / `tenant_expired` / `tenant_suspended` /
-  `app_not_linked` (or a local `now > expires_at`) wipe the code, the branding,
-  the session and the per-distributor tokens, and show the step with the
-  Spanish message ("Tu distribuidor venció el DD/MM/AAAA (hora de Panamá)").
+  `app_not_linked` (or a local `now > expires_at` from an old cached config)
+  wipe the code, the branding, the session and the per-distributor tokens, and
+  show the step with the generic message ("El servicio de este distribuidor
+  venció…"). The distributor's expiry is private: the panel no longer sends it
+  in `tenant_config` and the app never shows it.
   Network / 5xx keeps the cache for 72 h after the last ok check, then the
   login shows a "Reintentar" screen. The same fatal codes answered by any
   login action, `progress.php`, `epg.php` or `sports.php` reach the guardian
@@ -242,7 +244,7 @@ lines, alerts, TMDB key, sports, name, logo and colours. The panel contract
   Angular starts. A null name / logo / palette keeps the built-in value; a logo
   that fails to load falls back to the text brand.
 - **Settings > Distribuidor** (`settings-distributor-section.component.ts`):
-  "Distribuidor: <name> (<code>)", "Vence: DD/MM/AAAA (hora de Panamá)" and
+  "Distribuidor: <name> (<code>)" (no expiry date: it is private) and
   "Cambiar distribuidor" (forget it, log out, back to the step; with Omitir it
   lets the user enter a code).
 
@@ -758,7 +760,7 @@ language files stay as they were and fall back to Spanish.
   taken from the original-language fallback (TMDB has none in the app
   language, e.g. a Korean one) is marked `overviewFromFallback` and only fills
   an empty provider plot, in every language.
-- **Dates:** the clock, sports times, demo end, distributor expiry and the
+- **Dates:** the clock, sports times, demo end and the
   account expiry use the app language's format.
 
 ## App name and data folder

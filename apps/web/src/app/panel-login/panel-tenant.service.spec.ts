@@ -96,7 +96,7 @@ describe('PanelTenantService (guardian)', () => {
         saveTenantCode(cache({ expiresAt: 1767243599 }));
         await expect(service.check()).resolves.toBe('wiped');
         expect(tenantConfig).not.toHaveBeenCalled();
-        expect(service.notice()).toEqual({ key: 'MPX.DIST.EXPIRED_ON', params: { date: '31/12/2025' } });
+        expect(service.notice()).toEqual({ key: 'MPX.DIST.ERR_TENANT_EXPIRED' });
     });
 
     it('keeps the cache offline for 72 h, then asks to retry', async () => {

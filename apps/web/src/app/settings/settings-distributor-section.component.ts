@@ -1,14 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { formatTenantExpiry } from '@iptvnator/shared/interfaces';
-import { map } from 'rxjs';
 import { PanelTenantService } from '../panel-login/panel-tenant.service';
 
 /**
- * "Distribuidor" box in Settings: the chosen distributor, its expiry (Panama
- * time) and "Cambiar distribuidor", which forgets it, logs out and shows the
+ * "Distribuidor" box in Settings: the chosen distributor (brand and code; its
+ * expiry is private and never shown) and "Cambiar distribuidor", which forgets it, logs out and shows the
  * distributor step again. With "Omitir" the same action lets the user enter
  * a code later.
  */
@@ -22,9 +19,6 @@ import { PanelTenantService } from '../panel-login/panel-tenant.service';
             <h3>{{ 'MPX.DIST.SECTION' | translate }}</h3>
             @if (branding.tenant(); as tenant) {
                 <div class="row">{{ 'MPX.DIST.NAME' | translate }} <b>{{ tenant.name ?? ('MPX.DIST.NO_NAME' | translate) }}</b> ({{ tenant.code }})</div>
-                @if (expiry(); as expiry) {
-                    <div class="row">{{ 'MPX.DIST.EXPIRES' | translate }} <b>{{ expiry }}</b> {{ 'MPX.DIST.PANAMA_TIME' | translate }}</div>
-                }
             } @else {
                 <div class="row">{{ 'MPX.DIST.NONE' | translate }}</div>
             }
@@ -54,14 +48,6 @@ export class SettingsDistributorSectionComponent {
     protected readonly branding = this.tenantService.branding;
     protected readonly busy = signal(false);
     private readonly translate = inject(TranslateService);
-    private readonly lang = toSignal(this.translate.onLangChange.pipe(map((e) => e.lang)), {
-        initialValue: this.translate.currentLang || this.translate.defaultLang,
-    });
-    /** Expiry date (Panama time) in the date format of the app language. */
-    protected readonly expiry = computed(() => {
-        const tenant = this.branding.tenant();
-        return tenant ? formatTenantExpiry(tenant, this.lang()) : '';
-    });
 
     async change(): Promise<void> {
         if (!confirm(this.translate.instant('MPX.DIST.CHANGE_CONFIRM'))) return;

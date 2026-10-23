@@ -4,7 +4,6 @@
 import {
     clearTenant,
     forgetTenantStorage,
-    formatTenantExpiry,
     isTenantExpired,
     panelTenantFields,
     parseTenantConfig,
@@ -69,7 +68,6 @@ describe('panel tenant util', () => {
         // sin features.platforms: se muestran las plataformas
         expect(parseTenantConfig({ ...CONFIG, features: {} })?.features.platforms).toBe(true);
         expect(isTenantExpired(cache!)).toBe(false);
-        expect(formatTenantExpiry(cache!)).toBe('');
     });
 
     it('rejects anything that is not an ok answer', () => {
@@ -106,16 +104,12 @@ describe('panel tenant util', () => {
         expect(localStorage.getItem('panel_sync_token2:u@h')).toBe('owner');
     });
 
-    it('expires by UTC epoch and formats the date in Panama time', () => {
+    it('expires by UTC epoch and never shows the date', () => {
         const cache = { expiresAt: 1767243599, expiresDate: null };
         expect(isTenantExpired(cache, 1767243599 * 1000)).toBe(false);
         expect(isTenantExpired(cache, 1767243600 * 1000)).toBe(true);
-        // 2026-01-01 04:59:59 UTC = 2025-12-31 23:59:59 in Panama
-        expect(formatTenantExpiry(cache)).toBe('31/12/2025');
-        expect(formatTenantExpiry({ expiresAt: 1, expiresDate: '2026-02-03' })).toBe('03/02/2026');
-        expect(tenantExpiredMessage(cache)).toEqual({ key: 'MPX.DIST.EXPIRED_ON', params: { date: '31/12/2025' } });
-        expect(formatTenantExpiry(cache, 'en-US')).toBe('12/31/2025');
-        expect(formatTenantExpiry({ expiresAt: 0, expiresDate: '2026-02-03' }, 'fr')).toBe('03/02/2026');
+        // the distributor's expiry is private: the message never carries the date
+        expect(tenantExpiredMessage(cache)).toEqual({ key: 'MPX.DIST.ERR_TENANT_EXPIRED' });
     });
 });
 
