@@ -24,6 +24,7 @@ import {
     SportsCard,
     sportCounts,
     sportsDayKey,
+    sportsZone,
     sportsEventStatus,
     SportsEventStatus,
     toSportsCards,
@@ -72,14 +73,21 @@ export class SportsComponent implements OnInit {
     readonly busyId = signal<string | null>(null);
     /** Event whose "where to watch" menu is open. */
     readonly menuId = signal<string | null>(null);
+    /** Panel time zone (api/sports.php "tz"): hours and Today/Tomorrow follow the panel, not the computer. */
+    private readonly tz = signal<string | undefined>(undefined);
     private readonly timeFormat = computed(
-        () => new Intl.DateTimeFormat(this.lang() || 'es', { hour: 'numeric', minute: '2-digit' })
+        () =>
+            new Intl.DateTimeFormat(this.lang() || 'es', {
+                hour: 'numeric',
+                minute: '2-digit',
+                timeZone: sportsZone(this.tz()),
+            })
     );
     private queryTimer: ReturnType<typeof setTimeout> | undefined;
 
     readonly dayKeys = computed(() => {
         const now = this.now();
-        return [sportsDayKey(new Date(now)), sportsDayKey(new Date(now + 86_400_000))];
+        return [sportsDayKey(new Date(now), this.tz()), sportsDayKey(new Date(now + 86_400_000), this.tz())];
     });
 
     readonly chips = computed<SportChip[]>(() => {
@@ -127,7 +135,8 @@ export class SportsComponent implements OnInit {
         const agenda = await this.data.loadAgenda();
         if (agenda) {
             this.panelMeta.set(agenda.sports ?? {});
-            this.events.set(toSportsCards(agenda.events));
+            this.tz.set(agenda.tz);
+            this.events.set(toSportsCards(agenda.events, agenda.tz));
         }
         // Nothing left today: open tomorrow, like the web player.
         const today = this.dayKeys()[0];

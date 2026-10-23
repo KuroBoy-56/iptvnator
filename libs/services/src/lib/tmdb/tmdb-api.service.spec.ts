@@ -37,4 +37,19 @@ describe('TmdbApiService match language', () => {
         await new TmdbApiService().getTvDetails(1, 'es-MX', 'k');
         expect(calls).toHaveLength(1);
     });
+
+    it('asks the panel when the key is the panel one, and TMDB with a key typed by the user', async () => {
+        localStorage.setItem('panel_tmdb_key', 'pk');
+        try {
+            await new TmdbApiService().getTvDetails(1, 'es-MX', 'pk');
+            expect(calls[0].pathname.endsWith('/tmdb.php')).toBe(true);
+            expect(calls[0].searchParams.get('path')).toBe('tv/1');
+            expect(calls[0].searchParams.get('api_key')).toBeNull();
+            calls.length = 0;
+            await new TmdbApiService().getTvDetails(1, 'es-MX', 'mine');
+            expect(calls[0].host).toBe('api.themoviedb.org');
+        } finally {
+            localStorage.removeItem('panel_tmdb_key');
+        }
+    });
 });

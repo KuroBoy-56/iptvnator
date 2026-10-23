@@ -63,6 +63,8 @@ export interface PanelSportsAgenda {
     events: PanelSportsEvent[];
     sports: Record<string, PanelSportMeta>;
     match: SportsMatchRules;
+    /** Panel time zone (the distributor's or the owner's, IANA name): match hours and Today/Tomorrow use it. */
+    tz?: string;
 }
 
 /** Minimal live stream / category shape the matcher needs. */
