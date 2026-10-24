@@ -1505,7 +1505,13 @@
             "NOTICE": "Aviso:",
             "MPV_NO_PROGRESS": "Como está sendo reproduzido no MPV (um player externo), o progresso não será salvo diretamente no app. O progresso só é salvo nos players integrados ao app.",
             "PROGRESS_SAVED": "O progresso é salvo automaticamente.",
-            "STOP_AND_BACK": "Parar e voltar"
+            "STOP_AND_BACK": "Parar e voltar",
+            "NEXT_EPISODE": "Próximo episódio",
+            "STARTS_IN": "Começa em {{s}} s",
+            "WATCH_NOW": "Assistir agora",
+            "LEAVE_VIDEO": "Sair do vídeo?",
+            "LEAVE": "Sair",
+            "KEEP_WATCHING": "Continuar assistindo"
         },
         "DNS": {
             "AUTOMATIC_LABEL": "Automático",

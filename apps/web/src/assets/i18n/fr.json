@@ -1505,7 +1505,13 @@
             "NOTICE": "Remarque :",
             "MPV_NO_PROGRESS": "Comme la lecture se fait dans MPV (un lecteur externe), la progression n'est pas enregistrée directement dans l'application. Elle n'est enregistrée que pour les lecteurs intégrés à l'application.",
             "PROGRESS_SAVED": "La progression est enregistrée automatiquement.",
-            "STOP_AND_BACK": "Arrêter et revenir"
+            "STOP_AND_BACK": "Arrêter et revenir",
+            "NEXT_EPISODE": "Épisode suivant",
+            "STARTS_IN": "Commence dans {{s}} s",
+            "WATCH_NOW": "Regarder",
+            "LEAVE_VIDEO": "Quitter la vidéo ?",
+            "LEAVE": "Quitter",
+            "KEEP_WATCHING": "Continuer à regarder"
         },
         "DNS": {
             "AUTOMATIC_LABEL": "Automatique",

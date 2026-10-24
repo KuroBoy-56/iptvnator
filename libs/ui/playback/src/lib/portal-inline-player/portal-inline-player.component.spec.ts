@@ -147,7 +147,31 @@ describe('PortalInlinePlayerComponent', () => {
         ) as HTMLButtonElement;
         expect(backButton).toBeTruthy();
         backButton.click();
+        fixture.detectChanges();
+        // asks first ("Leave the video?"), leaves only on confirm
+        expect(backCount).toBe(0);
+        (fixture.nativeElement.querySelector('[data-testid="inline-player-exit-confirm"]') as HTMLButtonElement).click();
         expect(backCount).toBe(1);
         expect(closedCount).toBe(0);
+    });
+
+    it('shows the next-episode card in the last 15 s and ignores an end far from the real end', () => {
+        const ended: string[] = [];
+        fixture.componentRef.setInput('playback', { streamUrl: 'https://example.test/series/1.mp4', title: 'Show' });
+        fixture.componentRef.setInput('seriesNavigation', { canPrevious: false, canNext: true, autoplayEnabled: true });
+        (component as unknown as { playbackEnded: { subscribe: (fn: () => void) => void } }).playbackEnded.subscribe(() => ended.push('ended'));
+        fixture.detectChanges();
+
+        component.onTimeUpdate({ currentTime: 100, duration: 1500 });
+        component.onPlaybackEnded();
+        expect(ended).toEqual([]);
+        expect(component.nextSeconds()).toBe(0);
+
+        component.onTimeUpdate({ currentTime: 1490, duration: 1500 });
+        expect(component.nextSeconds()).toBe(10);
+        component.dismissNext();
+        expect(component.nextSeconds()).toBe(0);
+        component.onPlaybackEnded();
+        expect(ended).toEqual(['ended']);
     });
 });
