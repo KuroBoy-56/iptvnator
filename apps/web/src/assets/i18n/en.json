@@ -1505,7 +1505,13 @@
             "NOTICE": "Note:",
             "MPV_NO_PROGRESS": "Because this is playing in MPV (an external player), progress is not saved directly in the app. Progress is only saved for the players built into the app.",
             "PROGRESS_SAVED": "Progress is saved automatically.",
-            "STOP_AND_BACK": "Stop and go back"
+            "STOP_AND_BACK": "Stop and go back",
+            "NEXT_EPISODE": "Next episode",
+            "STARTS_IN": "Starts in {{s}} s",
+            "WATCH_NOW": "Watch now",
+            "LEAVE_VIDEO": "Leave the video?",
+            "LEAVE": "Exit",
+            "KEEP_WATCHING": "Keep watching"
         },
         "DNS": {
             "AUTOMATIC_LABEL": "Automatic",

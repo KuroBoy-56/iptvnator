@@ -6,7 +6,8 @@ import {
     input,
     output,
     inject,
-    effect
+    effect,
+    signal
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -69,6 +70,23 @@ export class PortalInlinePlayerComponent {
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
 
+    /** Last time update of the inline player (seconds); the stream whose next-episode card was dismissed. */
+    private readonly progress = signal({ currentTime: 0, duration: 0 });
+    private readonly nextDismissedFor = signal('');
+    /** "Leave the video?" asked from the back arrow or the close button. */
+    readonly askExit = signal<'back' | 'close' | null>(null);
+    /**
+     * Netflix-style next episode (same as the TV and phone apps): seconds left during the last 15 s, 0 = no card.
+     * "Watch now" plays it; "Cancel" lets the end play and the series autoplay (playbackEnded) moves on.
+     */
+    readonly nextSeconds = computed(() => {
+        const { currentTime, duration } = this.progress();
+        const left = duration - currentTime;
+        if (!this.seriesNavigation()?.canNext || this.nextDismissedFor() === this.streamUrl()) return 0;
+        if (duration <= 120 || currentTime <= 60 || left <= 0 || left > 15) return 0;
+        return Math.ceil(left);
+    });
+
     private readonly settingsStore = inject(SettingsStore);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
@@ -83,6 +101,12 @@ export class PortalInlinePlayerComponent {
     private isLaunched = false;
 
     constructor() {
+        // a new video starts its own count
+        effect(() => {
+            this.streamUrl();
+            this.progress.set({ currentTime: 0, duration: 0 });
+        });
+
         // Lanza MPV
         effect(() => {
             const pb = this.playback();
@@ -117,10 +141,25 @@ export class PortalInlinePlayerComponent {
 
     onClose(): void { this.closed.emit(); }
     onBack(): void { this.backClicked.emit(); }
-    onTimeUpdate(event: { currentTime: number; duration: number }): void { this.timeUpdate.emit(event); }
+    onTimeUpdate(event: { currentTime: number; duration: number }): void {
+        this.progress.set(event);
+        this.timeUpdate.emit(event);
+    }
     onCopied(): void { this.streamUrlCopied.emit(); }
     onExternalFallbackRequested(request: PlaybackFallbackRequest): void { this.externalFallbackRequested.emit(request); }
-    onPlaybackEnded(): void { this.playbackEnded.emit(); }
+    onPlaybackEnded(): void {
+        const { currentTime, duration } = this.progress();
+        // a stream cut long before its end is not the end of the episode: no jump to the next one
+        if (duration > 0 && currentTime < duration - 90 && currentTime < duration * 0.9) return;
+        this.playbackEnded.emit();
+    }
+    dismissNext(): void { this.nextDismissedFor.set(this.streamUrl()); }
+    confirmExit(): void {
+        const how = this.askExit();
+        this.askExit.set(null);
+        if (how === 'back') this.onBack();
+        else if (how === 'close') this.onClose();
+    }
     onPreviousEpisodeRequested(): void { this.previousEpisodeRequested.emit(); }
     onNextEpisodeRequested(): void { this.nextEpisodeRequested.emit(); }
 }

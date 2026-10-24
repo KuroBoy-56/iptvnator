@@ -9,7 +9,7 @@
                     data-testid="inline-player-back"
                     [attr.aria-label]="'BACK' | translate"
                     [matTooltip]="'BACK' | translate"
-                    (click)="isMpvActive() ? closeMpv() : onBack()"
+                    (click)="isMpvActive() ? closeMpv() : askExit.set('back')"
                 >
                     <mat-icon>arrow_back</mat-icon>
                 </button>
@@ -30,7 +30,8 @@
                     <button
                         mat-stroked-button
                         type="button"
-                        (click)="isMpvActive() ? closeMpv() : onClose()"
+                        data-testid="inline-player-close"
+                        (click)="isMpvActive() ? closeMpv() : askExit.set('close')"
                     >
                         <mat-icon>close</mat-icon>
                         {{ 'PORTALS.CLOSE_PLAYER' | translate }}
@@ -78,6 +79,35 @@
                         onExternalFallbackRequested($event)
                     "
                 />
+                @if (nextSeconds() > 0 && !askExit()) {
+                    <div class="next-card" data-testid="inline-player-next">
+                        <div class="next-card__title">{{ 'MPX.PLAYER.NEXT_EPISODE' | translate }}</div>
+                        <div class="next-card__count">{{ 'MPX.PLAYER.STARTS_IN' | translate: { s: nextSeconds() } }}</div>
+                        <div class="next-card__actions">
+                            <button mat-flat-button type="button" class="next-card__watch" (click)="onNextEpisodeRequested()">
+                                {{ 'MPX.PLAYER.WATCH_NOW' | translate }}
+                            </button>
+                            <button mat-stroked-button type="button" (click)="dismissNext()">
+                                {{ 'MPX.COMMON.CANCEL' | translate }}
+                            </button>
+                        </div>
+                    </div>
+                }
+            }
+            @if (askExit()) {
+                <div class="exit-ask" data-testid="inline-player-exit-ask">
+                    <div class="exit-ask__box">
+                        <div class="next-card__title">{{ 'MPX.PLAYER.LEAVE_VIDEO' | translate }}</div>
+                        <div class="next-card__actions">
+                            <button mat-stroked-button type="button" data-testid="inline-player-exit-confirm" (click)="confirmExit()">
+                                {{ 'MPX.PLAYER.LEAVE' | translate }}
+                            </button>
+                            <button mat-flat-button type="button" class="next-card__watch" (click)="askExit.set(null)">
+                                {{ 'MPX.PLAYER.KEEP_WATCHING' | translate }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             }
         </div>
     </section>

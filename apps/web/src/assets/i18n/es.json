@@ -1505,7 +1505,13 @@
             "NOTICE": "Aviso:",
             "MPV_NO_PROGRESS": "Como se está reproduciendo en MPV (un reproductor externo), el progreso no se registrará directamente en la aplicación. Solamente se registra progreso para los reproductores integrados en la aplicación.",
             "PROGRESS_SAVED": "El progreso se guarda automáticamente.",
-            "STOP_AND_BACK": "Detener y volver"
+            "STOP_AND_BACK": "Detener y volver",
+            "NEXT_EPISODE": "Siguiente episodio",
+            "STARTS_IN": "Empieza en {{s}} s",
+            "WATCH_NOW": "Ver ahora",
+            "LEAVE_VIDEO": "¿Salir del video?",
+            "LEAVE": "Salir",
+            "KEEP_WATCHING": "Seguir viendo"
         },
         "DNS": {
             "AUTOMATIC_LABEL": "Automático",

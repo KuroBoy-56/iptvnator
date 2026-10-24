@@ -78,6 +78,7 @@
 }
 
 .player-shell__viewport {
+    position: relative;
     overflow: hidden;
     min-height: 320px;
     max-height: min(70vh, 720px);
@@ -130,4 +131,51 @@
     .player-shell__viewport {
         min-height: 220px;
     }
+}
+
+// Netflix-style next episode card (last 15 s) and the "leave the video?" question
+.next-card,
+.exit-ask__box {
+    display: grid;
+    gap: 6px;
+    padding: 16px 18px;
+    border-radius: 8px;
+    color: #fff;
+    background: rgba(20, 20, 20, 0.92);
+}
+
+.next-card {
+    position: absolute;
+    right: 24px;
+    bottom: 72px;
+    z-index: 5;
+}
+
+.next-card__title {
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+.next-card__count {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.next-card__actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.next-card__watch {
+    background: var(--nf-red, #e50914);
+    color: var(--nf-on-accent, #fff);
+}
+
+.exit-ask {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    display: grid;
+    place-items: center;
+    background: rgba(0, 0, 0, 0.5);
 }
