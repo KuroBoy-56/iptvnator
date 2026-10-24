@@ -1,4 +1,8 @@
-import { EmbeddedMpvAudioTrack, EmbeddedMpvBounds } from '@iptvnator/shared/interfaces';
+import {
+    EmbeddedMpvAudioTrack,
+    EmbeddedMpvBounds,
+} from '@iptvnator/shared/interfaces';
+import { numberedTrackName, trackLanguageName } from '../track-language.util';
 
 export const HIDDEN_BOUNDS: EmbeddedMpvBounds = Object.freeze({
     x: -100000,
@@ -50,10 +54,26 @@ export function formatTime(value: number | null | undefined): string {
 }
 
 export interface TrackLabelTexts {
-    /** Used when the track carries neither title nor language. */
+    /** Used when the track carries no usable language. */
     fallback?: string;
-    /** Suffix marker for the stream's default track. */
-    defaultLabel?: string;
+    /** App language for the language names (es, en, pt, fr). */
+    lang?: string;
+    /** All tracks of the menu, to number repeated names ("Inglés 2"). */
+    all?: readonly EmbeddedMpvAudioTrack[];
+}
+
+function trackName(
+    track: EmbeddedMpvAudioTrack,
+    index: number,
+    texts: TrackLabelTexts,
+    fallback: string
+): string {
+    const nameOf = (t: EmbeddedMpvAudioTrack, i: number) =>
+        trackLanguageName(t.language, t.title, texts.lang) ||
+        (i === index ? fallback : `#${i}`);
+    return texts.all?.[index] === track
+        ? numberedTrackName(texts.all, index, nameOf)
+        : nameOf(track, index);
 }
 
 export function audioTrackLabel(
@@ -61,13 +81,12 @@ export function audioTrackLabel(
     index: number,
     texts: TrackLabelTexts = {}
 ): string {
-    const label =
-        track.title ||
-        track.language ||
-        (texts.fallback ?? `Audio ${index + 1}`);
-    return track.defaultTrack
-        ? `${label} · ${texts.defaultLabel ?? 'Default'}`
-        : label;
+    return trackName(
+        track,
+        index,
+        texts,
+        texts.fallback ?? `Audio ${index + 1}`
+    );
 }
 
 export function subtitleTrackLabel(
@@ -75,13 +94,12 @@ export function subtitleTrackLabel(
     index: number,
     texts: TrackLabelTexts = {}
 ): string {
-    const label =
-        track.title ||
-        track.language ||
-        (texts.fallback ?? `Subtitle ${index + 1}`);
-    return track.defaultTrack
-        ? `${label} · ${texts.defaultLabel ?? 'Default'}`
-        : label;
+    return trackName(
+        track,
+        index,
+        texts,
+        texts.fallback ?? `Subtitle ${index + 1}`
+    );
 }
 
 export function speedLabel(speed: number): string {
