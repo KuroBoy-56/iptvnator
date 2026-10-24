@@ -61,10 +61,20 @@ export function trackLanguageName(
     }
     const ui = LATIN_SPANISH[appLang] ? appLang : 'es';
     if (code === 'es' && latino) return LATIN_SPANISH[ui];
+    // Intl.DisplayNames is in every Electron/Chromium build but not in this tsconfig's lib
+    const DisplayNames = (
+        Intl as unknown as {
+            DisplayNames?: new (
+                locales: string[],
+                options: { type: 'language' }
+            ) => { of(code: string): string | undefined };
+        }
+    ).DisplayNames;
     let display = '';
     try {
-        display =
-            new Intl.DisplayNames([ui], { type: 'language' }).of(code) ?? '';
+        display = DisplayNames
+            ? (new DisplayNames([ui], { type: 'language' }).of(code) ?? '')
+            : '';
     } catch {
         display = '';
     }
