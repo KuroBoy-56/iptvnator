@@ -783,9 +783,8 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 'EMBEDDED_MPV.PLAYER.AUDIO_TRACK_FALLBACK',
                 { index: index + 1 }
             ),
-            defaultLabel: this.translate.instant(
-                'EMBEDDED_MPV.PLAYER.TRACK_DEFAULT'
-            ),
+            lang: this.translate.currentLang,
+            all: this.audioTracks(),
         });
     };
     subtitleLabel = (track: EmbeddedMpvAudioTrack, index: number) => {
@@ -795,9 +794,8 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 'EMBEDDED_MPV.PLAYER.SUBTITLE_TRACK_FALLBACK',
                 { index: index + 1 }
             ),
-            defaultLabel: this.translate.instant(
-                'EMBEDDED_MPV.PLAYER.TRACK_DEFAULT'
-            ),
+            lang: this.translate.currentLang,
+            all: this.subtitleTracks(),
         });
     };
     speedLabel = speedLabel;

@@ -47,10 +47,30 @@ describe('embedded MPV format utilities', () => {
                 },
                 0
             )
-        ).toContain('Default');
+        ).toBe('Inglés');
+        expect(subtitleTrackLabel({ id: 2, selected: false }, 1)).toContain(
+            'Subtitle 2'
+        );
+        const tracks = [
+            {
+                id: 1,
+                language: 'spa',
+                title: 'Unique Latino 2.0 AAC',
+                selected: true,
+            },
+            {
+                id: 2,
+                language: 'eng',
+                title: 'English ISO 144.96-3',
+                selected: false,
+            },
+            { id: 3, language: 'eng', title: 'Commentary', selected: false },
+        ];
         expect(
-            subtitleTrackLabel({ id: 2, selected: false }, 1)
-        ).toContain('Subtitle 2');
+            tracks.map((t, i) =>
+                audioTrackLabel(t, i, { all: tracks, lang: 'es' })
+            )
+        ).toEqual(['Español latino', 'Inglés', 'Inglés 2']);
         expect(aspectLabel('16:9')).toBe('16:9');
         expect(aspectLabel('custom')).toBe('custom');
         expect(volumeIcon(0)).toBe('volume_off');
