@@ -44,6 +44,8 @@ export interface PanelLoginPayload {
     lang?: string;
     /** check_mac: última orden «borrar caché» del panel que esta app ya aplicó (0 = ninguna). */
     cc?: number;
+    /** check_mac: re-check of the open app (every 10 min), not another start for the panel's statistics. */
+    poll?: number;
 }
 
 /** One error for the panel («Errores de las apps»): see api/report.php. */

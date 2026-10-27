@@ -324,12 +324,23 @@ then nothing happens). `applyCacheClearOrder`
 `PanelLoginService.checkDevice`, so on start, on the login and in the
 10-minute `PanelSessionGuardService` re-check) decides:
 
-- nothing stored in `localStorage.cache_clear_seen` (first run, freshly
-  updated app): store the id silently;
+- nothing stored in `localStorage.cache_clear_seen` (first run, reinstalled
+  app): an order sent in the last 3 days (`cache_clear_at` of the reply, unix
+  seconds) clears like a new one (as Roku, Vega and Android); an older one is
+  only stored;
 - a greater id: store it first (no loop), show for 3 s "Tu proveedor actualizó
   la aplicación. Se borrará la caché y se reiniciará." (`MPX.PANEL.CACHE_CLEAR`,
   snack bar in `AppComponent`), then clear and restart;
 - equal or lower: nothing.
+
+With a video open (the inline web player, embedded MPV or an external MPV/VLC
+session; `markPlaybackOpen` / `whenPlaybackClosed` in
+`libs/shared/interfaces/src/lib/playback-open.util.ts`, registered by
+`WebPlayerViewComponent`, `EmbeddedMpvPlayerComponent` and
+`ExternalPlaybackService`) the notice and the restart wait until it closes: the
+restart cut the film. The 10-minute re-check of the open app sends `"poll": 1`
+in the `check_mac` payload (`checkDevice(true)`), so the panel does not count it
+as another start.
 
 The clear runs in the Electron main process (`panel/panel-cache-clear.ts`, IPC
 `PANEL_CLEAR_CACHE_RESTART`, bridge `panelClearCacheAndRestart`):
@@ -456,6 +467,23 @@ These are shared with the web player:
   `PortalDetailShellComponent`) uses it the same way. On a first start, covers
   drawn before the key arrives wait for the `panel-tmdb-key` window event
   (`TmdbPosterService.whenKeyAvailable`).
+- **Panel image cache (posters):** `GET ?v=2` also returns `img` (the owner's
+  image cache switch, `localStorage.panel_img_cache`, `rememberPanelImg`). The
+  Netflix cards (`NfCardComponent`) give the poster to `TmdbPosterDirective` as
+  `posterSrc` (plus the provider's TMDB id and the year, `NfItem.tmdb` /
+  `NfItem.year`), and the directive tries, in order (same names as Roku, Vega
+  and Android; `panelPosterSources` in
+  `libs/services/src/lib/panel-sync/panel-img.ts`): the panel's public copy
+  `api/imgc/<sha1(key)>.jpg?v=2`, `api/img.php?w=500&v=2&token=…&u=&k=&n=&y=&t=`
+  (resizes it and, with the title, finds the TMDB poster when the IPTV server
+  has none), the original address and last the TMDB search above. The key is
+  `500|tmdbid:<vod|series>:<id>` with a TMDB id, `500|tmdb:<file>` for TMDB
+  images, `500|<host in lower case><path>` otherwise, or
+  `500|n|<kind>|<title>|<year>` without a poster. Channel logos, TMDB posters,
+  a line without panel token and `"img": false` go straight to the original.
+  `panelBackdropSources` builds the Full HD TMDB backdrop through
+  `img.php?w=1920` (not used by the desktop pages yet). Images without
+  `posterSrc` (dashboard rails, old grids) keep the plain `[src]` behaviour.
 
 ### Player integration
 
@@ -530,7 +558,33 @@ of the top bar. It mirrors the web player's sports page:
 ### Data
 
 `PanelSyncService.fetchSportsAgenda()` reads `api/sports.php`, which returns
-`{events, sports, match}`.
+`{events, sports, match, tz, tables, fixtures}` (the requests live in
+`libs/services/src/lib/panel-sync/panel-sports.api.ts`).
+
+### Tablas, Selecciones, Equipos
+
+Tabs above the agenda (as Roku, Vega and Android), shown when the panel offers
+them: **Tablas** with `tables.on`, **Equipos** with `fixtures.on`, **Selecciones**
+with `fixtures.on` and `fixtures.nat`. Everything comes from the JSON the panel
+builds (the app never calls TheSportsDB):
+
+- **Tablas** (`SportsTablesComponent`): `api/sports_tables.php` →
+  `leagues: [{id, n, c, b, sp, sl, d, rg, w, s, g: [{n, r: [...]}]}]`. Region
+  chips (Copas, Selecciones, Europa, América — `latam`/`na`/`sa`/`us` join it —,
+  Resto del mundo), division chips and «Liga femenina» (`w`), league chips and
+  the table with zone bar, PJ G E P GF GC DG PTS and the last results (a narrow
+  window keeps PJ, DG and PTS). A row opens the team card (`api/sports_team.php`
+  in the app language: founded, place, stadium, league, titles and description)
+  with **Entendido** and **Más detalles**. While the panel is still building
+  (`"p": 1`) what there is shows and it asks again every 20 s.
+- **Equipos / Selecciones** (`SportsFixturesState`, `sports-extra.util.ts`):
+  `api/sports_fixtures.php` (next 21 days of the chosen leagues). Equipos
+  searches a team (every word, also in Spanish through the panel aliases, which
+  go from the provider name to the Spanish one) or a country (its national team
+  and its leagues), keeps the last 5 searched (`localStorage.sports_team_recent`)
+  and lists matches that did not end with the agenda cards (date and hour).
+  Selecciones lists the `nat` leagues, live first, with a chip per competition
+  and «Selección femenina» (`w`).
 
 ### "TV en vivo"
 

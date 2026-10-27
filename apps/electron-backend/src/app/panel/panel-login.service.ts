@@ -87,6 +87,8 @@ export async function panelLoginRequest(
     const lang = /^(es|en|pt|fr)$/.test(payload?.lang ?? '') ? payload?.lang : undefined;
     // check_mac: última orden «borrar caché» ya aplicada (entero >= 0; 0 si no hay ninguna)
     const cc = action === 'check_mac' ? Math.max(0, Math.floor(Number(payload?.cc) || 0)) : undefined;
+    // check_mac of the open app every 10 min: the panel does not count it as another start
+    const poll = action === 'check_mac' && Number(payload?.poll) === 1 ? 1 : undefined;
     if (action === 'tenant_config' && !tenant) {
         return { ok: false, status: 0, code: 'BAD_RESPONSE', error: 'Número de distribuidor no válido' };
     }
@@ -112,6 +114,7 @@ export async function panelLoginRequest(
                   platform: PANEL_APP_ID,
                   lang,
                   cc,
+                  poll,
                   ts,
               }
     );

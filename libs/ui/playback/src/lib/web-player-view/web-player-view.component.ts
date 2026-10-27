@@ -1,5 +1,6 @@
 import {
     Component,
+    DestroyRef,
     Signal,
     ViewEncapsulation,
     computed,
@@ -24,6 +25,7 @@ import {
     STORE_KEY,
     VideoPlayer,
     applyPreferredStreamScheme,
+    markPlaybackOpen,
 } from '@iptvnator/shared/interfaces';
 import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
@@ -197,6 +199,8 @@ export class WebPlayerViewComponent {
     );
 
     constructor() {
+        // open player: the panel's «borrar caché» order waits until it closes
+        inject(DestroyRef).onDestroy(markPlaybackOpen());
         effect(() => {
             this.selectedPlayer();
 

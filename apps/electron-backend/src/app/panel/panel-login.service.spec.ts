@@ -161,6 +161,17 @@ describe('panelLoginRequest with a distributor', () => {
         expect(result.data).toEqual({ exists: false, cache_clear: 7 });
     });
 
+    it('marks the open app\'s 10-minute re-check as poll (not another start), only with check_mac', async () => {
+        const { fetch, calls } = fakeFetch(200, '{"exists":false}');
+        await panelLoginRequest('check_mac', { cc: 1, poll: 1 }, { fetch, masterKey, deviceId: 'ID' });
+        await panelLoginRequest('check_mac', { cc: 1 }, { fetch, masterKey, deviceId: 'ID' });
+        await panelLoginRequest('fetch_dns', { poll: 1 }, { fetch, masterKey, deviceId: 'ID' });
+        const plain = (i: number) => JSON.parse(decryptPayload(calls[i].body.get('data') ?? '', masterKey) ?? '{}');
+        expect(plain(0).poll).toBe(1);
+        expect(plain(1).poll).toBeUndefined();
+        expect(plain(2).poll).toBeUndefined();
+    });
+
     it('asks features and reads its plain JSON answer', async () => {
         const { fetch, calls } = fakeFetch(200, '{"status":"ok","features":{"demo":false,"dns":true}}');
         const result = await panelLoginRequest('features', undefined, { fetch, masterKey, deviceId: 'ID' });

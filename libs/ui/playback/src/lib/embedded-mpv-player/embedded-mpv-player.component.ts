@@ -1,6 +1,7 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    DestroyRef,
     ElementRef,
     OnDestroy,
     computed,
@@ -21,6 +22,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { merge } from 'rxjs';
 import {
     EmbeddedMpvAudioTrack,
+    markPlaybackOpen,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
@@ -330,6 +332,8 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     };
 
     constructor() {
+        // open player: the panel's «borrar caché» order waits until it closes
+        inject(DestroyRef).onDestroy(markPlaybackOpen());
         if (typeof document !== 'undefined') {
             document.addEventListener(
                 'fullscreenchange',
