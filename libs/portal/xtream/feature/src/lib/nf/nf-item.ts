@@ -11,6 +11,20 @@ export interface NfItem {
     added: number;
     /** Watched share 0–100 for "Continuar viendo". */
     progress?: number;
+    /** TMDB id sent by the provider ('' when unknown): one panel poster per title. */
+    tmdb?: string;
+    /** Release year ('' when unknown): helps the panel find the poster by title. */
+    year?: string;
+}
+
+function tmdbId(value: unknown): string {
+    const s = text(value);
+    return /^\d+$/.test(s) && s !== '0' ? s : '';
+}
+
+function yearOf(raw: RawContent): string {
+    const y = text(raw['year']) || text(raw['releaseDate']).slice(0, 4) || text(raw['release_date']).slice(0, 4);
+    return /^(19|20)\d\d$/.test(y) ? y : '';
 }
 
 type RawContent = Record<string, unknown>;
@@ -59,6 +73,8 @@ export function toNfItem(
         rating: rating(raw['rating'] ?? raw['rating_imdb']),
         categoryId: text(raw['category_id']),
         added: addedSeconds(raw['added'] ?? raw['last_modified']),
+        tmdb: tmdbId(raw['tmdb'] ?? raw['tmdb_id']),
+        year: yearOf(raw),
     };
 }
 

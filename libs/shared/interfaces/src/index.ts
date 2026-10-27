@@ -7,6 +7,7 @@ export * from './lib/panel-bridge.interface';
 export * from './lib/panel-endpoint.util';
 export * from './lib/panel-tenant.util';
 export * from './lib/panel-demo.util';
+export * from './lib/playback-open.util';
 export * from './lib/panel-tenant-theme.util';
 export * from './lib/stream-scheme.util';
 export * from './lib/epg-channel-metadata.model';

@@ -38,7 +38,7 @@ export class PanelSessionGuardService {
         if (!demoOver) {
             if (now - this.lastCheck < RECHECK_MS) return;
             this.lastCheck = now;
-            if ((await this.panel.checkDevice()).status !== 'inactive') return;
+            if ((await this.panel.checkDevice(true)).status !== 'inactive') return;
         }
         this.stop();
         await this.session.clear();

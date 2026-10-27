@@ -65,6 +65,82 @@ export interface PanelSportsAgenda {
     match: SportsMatchRules;
     /** Panel time zone (the distributor's or the owner's, IANA name): match hours and Today/Tomorrow use it. */
     tz?: string;
+    /** Standings tab (api/sports_tables.php): on, and the version of the panel's JSON. */
+    tables?: { on: boolean; t?: number };
+    /** Teams / National teams tabs (api/sports_fixtures.php): on, version and whether national teams are chosen. */
+    fixtures?: { on: boolean; t?: number; nat?: boolean };
+}
+
+/** One row of a standings table (api/sports_tables.php). z: zone p/s/o/r; f: last results (W/D/L). */
+export interface PanelStandingRow {
+    id: string;
+    r: number;
+    t: string;
+    b: string;
+    p: number;
+    w: number;
+    d: number;
+    l: number;
+    gf: number;
+    ga: number;
+    gd: number;
+    pts: number;
+    f: string;
+    z: string;
+}
+
+/** A league or cup: rg region, d division, w women's league, g groups of rows. */
+export interface PanelStandingLeague {
+    id: string;
+    n: string;
+    c: string;
+    b: string;
+    sp: string;
+    sl: string;
+    d: number;
+    rg: string;
+    w: number;
+    s: string;
+    g: { n: string; r: PanelStandingRow[] }[];
+}
+
+export interface PanelSportsTables {
+    on: boolean;
+    /** The panel is still building it ("p": 1): show what there is and ask again. */
+    partial: boolean;
+    leagues: PanelStandingLeague[];
+}
+
+/** A league of the 21-day fixtures (rg 'nat' = national teams, w = women). */
+export interface PanelFixtureLeague {
+    n: string;
+    b: string;
+    sp: string;
+    c: string;
+    rg: string;
+    w: number;
+}
+
+/** Next 21 days of the chosen leagues (api/sports_fixtures.php); events carry l = league id. */
+export interface PanelSportsFixtures {
+    on: boolean;
+    partial: boolean;
+    leagues: Record<string, PanelFixtureLeague>;
+    events: (PanelSportsEvent & { l?: string })[];
+}
+
+/** Team card (api/sports_team.php, in the app language). */
+export interface PanelSportsTeam {
+    n: string;
+    b: string;
+    y: string;
+    loc: string;
+    c: string;
+    st: string;
+    cap: number;
+    lg: string;
+    hon: { t: string; n: number }[];
+    d: string;
 }
 
 /** Minimal live stream / category shape the matcher needs. */

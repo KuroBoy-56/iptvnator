@@ -78,7 +78,12 @@ describe('Netflix catalog helpers', () => {
             rating: '7.8',
             categoryId: '7',
             added: 1700000000,
+            tmdb: '',
+            year: '',
         });
+        // TMDB id and year (one panel poster per title, as Roku, Vega and Android)
+        expect(toNfItem({ stream_id: 9, name: 'Dune', tmdb_id: '438631', releaseDate: '2021-10-22' }, 'movie')).toMatchObject({ tmdb: '438631', year: '2021' });
+        expect(toNfItem({ stream_id: 9, name: 'Dune', tmdb: '0', year: 'abc' }, 'movie')).toMatchObject({ tmdb: '', year: '' });
         if (!row) throw new Error('no row');
         expect(nfLink('pl', row)).toEqual([
             '/workspace',

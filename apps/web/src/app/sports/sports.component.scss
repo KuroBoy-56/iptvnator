@@ -348,6 +348,28 @@
     b { display: block; color: #fff; font-size: 20px; margin-bottom: 6px; }
 }
 
+.sp-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+
+    button {
+        border: 0;
+        border-bottom: 3px solid transparent;
+        background: transparent;
+        color: #b3b3b3;
+        font: inherit;
+        font-weight: 700;
+        font-size: 16px;
+        padding: 8px 12px;
+        cursor: pointer;
+
+        &:hover { color: #fff; }
+        &.on { color: #fff; border-bottom-color: var(--nf-red, #e50914); }
+    }
+}
+
 @media (max-width: 700px) {
     .sp-bar { position: static; gap: 10px; }
     .sp-days { order: 1; }

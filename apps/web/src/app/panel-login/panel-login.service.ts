@@ -142,7 +142,8 @@ export class PanelLoginService {
         return { status: 'network', message: { key: 'MPX.PANEL.ERR_CONNECT' } };
     }
 
-    async checkDevice(): Promise<DeviceCheck> {
+    /** poll: re-check of the open app (every 10 min): the panel does not count it as another start. */
+    async checkDevice(poll = false): Promise<DeviceCheck> {
         const res = await this.request<{
             exists?: boolean;
             username?: string;
@@ -152,11 +153,12 @@ export class PanelLoginService {
             demo_expires?: number;
             demo_duration?: number;
             cache_clear?: unknown;
-        }>('check_mac', { cc: readCacheClearSeen() ?? 0 });
+            cache_clear_at?: unknown;
+        }>('check_mac', { cc: readCacheClearSeen() ?? 0, ...(poll ? { poll: 1 } : {}) });
         if (!res.ok) return { status: 'error', message: panelErrorText(res, 'MPX.PANEL.ERR_CHECK_DEVICE') };
         const data = res.data;
         // orden «borrar caché» del panel: aviso, borrado y reinicio; esta comprobación no sigue
-        if (applyCacheClearOrder(data?.cache_clear)) return new Promise<DeviceCheck>(() => undefined);
+        if (applyCacheClearOrder(data?.cache_clear, data?.cache_clear_at)) return new Promise<DeviceCheck>(() => undefined);
         // fake screen of the panel for new devices («Pantalla Falsa»)
         if (!data?.exists || !data.url) return { status: 'inactive', fake: parseFakeScreen(data) };
         const line = parsePanelLineUrl(data.url);

@@ -13,9 +13,12 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { map } from 'rxjs';
 import { NgTemplateOutlet } from '@angular/common';
 import { Router } from '@angular/router';
-import { PanelSportMeta } from '@iptvnator/services';
+import { DEFAULT_SPORTS_MATCH_RULES, PanelSportMeta, PanelSyncService } from '@iptvnator/services';
 import { buildXtreamNavigationTarget } from '@iptvnator/portal/shared/util';
 import { SportsDataService, SportsWatchMode } from './sports-data.service';
+import { SportsTab } from './sports-extra.util';
+import { SportsFixturesState } from './sports-fixtures.state';
+import { SportsTablesComponent } from './sports-tables.component';
 import {
     DEFAULT_SPORTS_META,
     groupByLeague,
@@ -41,7 +44,7 @@ interface SportChip {
     selector: 'app-sports',
     templateUrl: './sports.component.html',
     styleUrl: './sports.component.scss',
-    imports: [NgTemplateOutlet, TranslatePipe],
+    imports: [NgTemplateOutlet, TranslatePipe, SportsTablesComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SportsComponent implements OnInit {
@@ -84,6 +87,29 @@ export class SportsComponent implements OnInit {
             })
     );
     private queryTimer: ReturnType<typeof setTimeout> | undefined;
+    private alive = true;
+
+    /** Agenda / Tablas / Selecciones / Equipos (the last three when the panel offers them, as Roku, Vega and Android). */
+    readonly tab = signal<SportsTab>('agenda');
+    private readonly extra = signal<{ tables: boolean; nations: boolean; teams: boolean }>({ tables: false, nations: false, teams: false });
+    private readonly alias = signal<Record<string, string>>({});
+    readonly tabs = computed<{ key: SportsTab; label: string }[]>(() => {
+        const x = this.extra();
+        const list: { key: SportsTab; label: string }[] = [{ key: 'agenda', label: 'MPX.SPORTS.TAB_SCHEDULE' }];
+        if (x.tables) list.push({ key: 'tables', label: 'MPX.SPORTS.TAB_TABLES' });
+        if (x.nations) list.push({ key: 'nations', label: 'MPX.SPORTS.TAB_NATIONS' });
+        if (x.teams) list.push({ key: 'teams', label: 'MPX.SPORTS.TAB_TEAMS' });
+        return list.length > 1 ? list : [];
+    });
+    readonly fixtures = new SportsFixturesState(inject(PanelSyncService), {
+        tz: () => this.tz(),
+        alias: () => this.alias(),
+        minutes: (sp) => this.meta()[sp]?.minutes || 120,
+        now: () => this.now(),
+    });
+    private readonly dateFormat = computed(
+        () => new Intl.DateTimeFormat(this.lang() || 'es', { weekday: 'short', day: 'numeric', month: 'short', timeZone: sportsZone(this.tz()) })
+    );
 
     readonly dayKeys = computed(() => {
         const now = this.now();
@@ -126,6 +152,7 @@ export class SportsComponent implements OnInit {
     constructor() {
         const tick = setInterval(() => this.now.set(Date.now()), 60_000);
         inject(DestroyRef).onDestroy(() => {
+            this.alive = false;
             clearInterval(tick);
             clearTimeout(this.queryTimer);
         });
@@ -137,6 +164,12 @@ export class SportsComponent implements OnInit {
             this.panelMeta.set(agenda.sports ?? {});
             this.tz.set(agenda.tz);
             this.events.set(toSportsCards(agenda.events, agenda.tz));
+            this.alias.set(agenda.match?.alias ?? DEFAULT_SPORTS_MATCH_RULES.alias);
+            this.extra.set({
+                tables: agenda.tables?.on === true,
+                nations: agenda.fixtures?.on === true && agenda.fixtures?.nat === true,
+                teams: agenda.fixtures?.on === true,
+            });
         }
         // Nothing left today: open tomorrow, like the web player.
         const today = this.dayKeys()[0];
@@ -144,6 +177,23 @@ export class SportsComponent implements OnInit {
             this.day.set(1);
         }
         this.loading.set(false);
+    }
+
+    selectTab(tab: SportsTab): void {
+        this.tab.set(tab);
+        this.menuId.set(null);
+        if (tab === 'nations' || tab === 'teams') void this.fixtures.load(() => this.alive);
+    }
+
+    /** Teams / National teams: the match day too (the next 21 days); today only the hour. */
+    when(e: SportsCard): string {
+        return e.dayKey === this.dayKeys()[0] ? this.time(e) : `${this.dateFormat().format(new Date(e.start))} · ${this.time(e)}`;
+    }
+
+    /** Equipos: filters while typing; Enter keeps it in the last searched. */
+    onTeamQuery(value: string): void {
+        clearTimeout(this.queryTimer);
+        this.queryTimer = setTimeout(() => this.fixtures.query.set(value.trim()), 250);
     }
 
     selectDay(day: 0 | 1): void {

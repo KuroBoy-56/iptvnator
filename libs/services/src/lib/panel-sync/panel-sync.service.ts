@@ -21,7 +21,8 @@ import {
     SyncProgressTree,
     SyncUserCredentials,
 } from './panel-sync.types';
-import { PanelSportsAgenda } from './panel-sports.types';
+import { PanelSportsAgenda, PanelSportsFixtures, PanelSportsTables, PanelSportsTeam } from './panel-sports.types';
+import { sportsAgenda, sportsFixtures, sportsTables, sportsTeam } from './panel-sports.api';
 import { lookupSeriesInfo } from './series-info.lookup';
 import { getSessionPassword, isSessionDemo } from '@iptvnator/shared/interfaces';
 import { applyFavoriteOverrides, FavoriteChange, PanelFavoritesOutbox } from './panel-favorites-outbox';
@@ -298,14 +299,22 @@ export class PanelSyncService {
 
     /** Sports agenda for today and tomorrow plus the channel-matching rules. */
     async fetchSportsAgenda(userIdObj?: SyncUserCredentials | null): Promise<PanelSportsAgenda | null> {
-        const body = await this.client.postJson<Partial<PanelSportsAgenda>>('sports.php', this.creds(userIdObj), {});
-        if (!body || !Array.isArray(body.events)) return null;
-        return {
-            events: body.events.filter((e) => e && e.id && e.ts),
-            sports: body.sports && typeof body.sports === 'object' ? body.sports : {},
-            match: body.match as PanelSportsAgenda['match'],
-            tz: typeof body.tz === 'string' ? body.tz : undefined,
-        };
+        return sportsAgenda(this.client, this.creds(userIdObj));
+    }
+
+    /** Standings (api/sports_tables.php); null when the panel did not answer. */
+    async fetchSportsTables(userIdObj?: SyncUserCredentials | null): Promise<PanelSportsTables | null> {
+        return sportsTables(this.client, this.creds(userIdObj));
+    }
+
+    /** Next 21 days of the panel's leagues (api/sports_fixtures.php) for Teams and National teams. */
+    async fetchSportsFixtures(userIdObj?: SyncUserCredentials | null): Promise<PanelSportsFixtures | null> {
+        return sportsFixtures(this.client, this.creds(userIdObj));
+    }
+
+    /** Team card in the app language (api/sports_team.php); null when there is none. */
+    async fetchSportsTeam(id: string, userIdObj?: SyncUserCredentials | null): Promise<PanelSportsTeam | null> {
+        return sportsTeam(this.client, this.creds(userIdObj), id);
     }
 
     /** Reloads the snapshot from the panel; false when the panel could not be read. */

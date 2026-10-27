@@ -9,3 +9,5 @@ export * from './sports-matcher';
 export * from './panel-tmdb-key';
 export * from './panel-favorites-outbox';
 export * from './panel-branding.service';
+export * from './panel-img';
+export * from './panel-img-flag';

@@ -1,5 +1,5 @@
-import { computed, Injectable, signal, inject, NgZone } from '@angular/core';
-import { ExternalPlayerSession, PlayerContentInfo } from '@iptvnator/shared/interfaces';
+import { computed, effect, Injectable, signal, inject, NgZone } from '@angular/core';
+import { ExternalPlayerSession, markPlaybackOpen, PlayerContentInfo } from '@iptvnator/shared/interfaces';
 import { PanelSyncService, PlaybackSyncInfo } from '@iptvnator/services';
 
 interface ExternalProgressUpdate {
@@ -37,6 +37,18 @@ export class ExternalPlaybackService {
     });
 
     constructor() {
+        // MPV / VLC open: the panel's «borrar caché» order waits until they close
+        let release: (() => void) | null = null;
+        effect(() => {
+            const s = this.activeSession();
+            const open = !!s && s.status !== 'closed' && s.status !== 'error';
+            if (open && !release) release = markPlaybackOpen();
+            if (!open && release) {
+                release();
+                release = null;
+            }
+        });
+
         const win = window as any;
         
         if (win.electron?.onExternalPlayerSessionUpdate) {

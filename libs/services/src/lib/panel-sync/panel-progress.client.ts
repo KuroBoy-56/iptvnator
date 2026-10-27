@@ -10,6 +10,7 @@ import {
     withPanelLang,
 } from '@iptvnator/shared/interfaces';
 import { PanelSnapshot, SyncUserCredentials } from './panel-sync.types';
+import { rememberPanelImg } from './panel-img-flag';
 import { rememberPanelTmdbKey } from './panel-tmdb-key';
 
 // v2: tokens carry the line's server, so progress and favorites are kept per user + DNS.
@@ -153,6 +154,7 @@ export class PanelProgressClient {
                 const body = await res.json().catch(() => null);
                 rememberPanelTmdbKey(body?.tmdbKey);
                 rememberPanelDemo(body);
+                rememberPanelImg(body);
                 const data: PanelSnapshot = {
                     progress: body?.progress && typeof body.progress === 'object' ? body.progress : {},
                     favorites: Array.isArray(body?.favorites) ? body.favorites : [],

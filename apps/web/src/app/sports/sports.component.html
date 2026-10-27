@@ -13,7 +13,21 @@
         }
     </div>
 
-    @if (loading()) {
+    @if (tabs().length) {
+        <div class="sp-tabs" role="tablist">
+            @for (t of tabs(); track t.key) {
+                <button type="button" role="tab" [class.on]="tab() === t.key" [attr.aria-selected]="tab() === t.key" (click)="selectTab(t.key)">
+                    {{ t.label | translate }}
+                </button>
+            }
+        </div>
+    }
+
+    @if (tab() === 'tables') {
+        <app-sports-tables />
+    } @else if (tab() === 'teams' || tab() === 'nations') {
+        <ng-container *ngTemplateOutlet="fixturesView" />
+    } @else if (loading()) {
         <div class="sp-empty"><b>{{ 'MPX.SPORTS.LOADING' | translate }}</b></div>
     } @else if (!events().length) {
         <div class="sp-empty">
@@ -104,7 +118,7 @@
                     <span class="sp-pill fin">{{ 'MPX.SPORTS.POSTPONED' | translate }}</span>
                 }
                 @default {
-                    <span class="sp-pill time">{{ time(e) }}</span>
+                    <span class="sp-pill time">{{ tab() === 'agenda' ? time(e) : when(e) }}</span>
                 }
             }
         </div>
@@ -160,5 +174,52 @@
         <span class="ph" hidden>{{ initial(name) }}</span>
     } @else {
         <span class="ph">{{ initial(name) }}</span>
+    }
+</ng-template>
+
+<!-- Equipos / Selecciones: the panel's next 21 days (as Roku, Vega and Android), with the agenda cards -->
+<ng-template #fixturesView>
+    <div class="sp-bar">
+        @if (tab() === 'teams') {
+            <div class="sp-search">
+                <input
+                    type="search"
+                    [placeholder]="'MPX.SPORTS.SEARCH_TEAM' | translate"
+                    [attr.aria-label]="'MPX.SPORTS.SEARCH_TEAM' | translate"
+                    [value]="fixtures.query()"
+                    (input)="onTeamQuery($any($event.target).value)"
+                    (keyup.enter)="fixtures.search($any($event.target).value)"
+                />
+            </div>
+            <div class="sp-chips">
+                @for (r of fixtures.recents(); track r) {
+                    <button type="button" class="sp-chip" [class.active]="fixtures.query() === r" (click)="fixtures.search(r)">🔎 {{ r }}</button>
+                }
+            </div>
+        } @else {
+            <div class="sp-chips">
+                @for (c of fixtures.nationChips(); track c[0]) {
+                    <button type="button" class="sp-chip" [class.active]="fixtures.comp() === c[0]" (click)="fixtures.comp.set(c[0])">{{ c[1] | translate }}</button>
+                }
+            </div>
+        }
+    </div>
+    @let list = tab() === 'teams' ? fixtures.teamCards() : fixtures.nationCards();
+    @if (fixtures.loading() && !fixtures.data()) {
+        <div class="sp-empty"><b>{{ 'MPX.SPORTS.LOADING_MATCHES' | translate }}</b></div>
+    } @else if (list.length) {
+        <div class="sp-grid">
+            @for (e of list; track e.id + e.ts) {
+                <ng-container *ngTemplateOutlet="card; context: { $implicit: e }" />
+            }
+        </div>
+    } @else if (!fixtures.data()) {
+        <div class="sp-empty"><b>{{ 'MPX.SPORTS.FX_FAILED' | translate }}</b></div>
+    } @else if (tab() === 'nations') {
+        <div class="sp-empty"><b>{{ 'MPX.SPORTS.NO_NAT_MATCHES' | translate }}</b></div>
+    } @else if (!fixtures.query()) {
+        <div class="sp-empty"><b>{{ 'MPX.SPORTS.TYPE_TEAM' | translate }}</b></div>
+    } @else {
+        <div class="sp-empty"><b>{{ 'MPX.SPORTS.NO_TEAM_MATCHES' | translate: { name: fixtures.query() } }}</b></div>
     }
 </ng-template>

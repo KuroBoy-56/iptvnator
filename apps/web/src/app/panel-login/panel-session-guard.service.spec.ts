@@ -40,6 +40,8 @@ describe('PanelSessionGuardService', () => {
         guard.watch(line);
         checkDevice.mockResolvedValue({ status: 'inactive' });
         await guard.tick(line, Date.now() + 11 * 60_000);
+        // the open app's re-check goes as poll (the panel does not count it as another start)
+        expect(checkDevice).toHaveBeenCalledWith(true);
         expect(logout).toHaveBeenCalled();
     });
 
