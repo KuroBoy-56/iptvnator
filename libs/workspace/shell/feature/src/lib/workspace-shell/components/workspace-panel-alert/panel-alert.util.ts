@@ -15,6 +15,9 @@ export interface PanelAlert {
     message: string;
     image: string;
     button: string;
+    /** every image of the panel "Alertas" list, in order (the first is `image`); they change every `interval` s */
+    images?: string[];
+    interval?: number;
 }
 
 const IMAGE_PATH = /^img\/alertas\/[A-Za-z0-9._-]+$/;
@@ -32,13 +35,21 @@ export function parsePanelAlert(raw: unknown, panelRoot: string): PanelAlert | n
         if (IMAGE_PATH.test(path)) image = panelRoot + path;
         else if (/^https?:\/\//i.test(abs)) image = abs;
     }
+    // every image of the panel list, in order; without the list (older panel), the single image as before
+    let images = !expiry && Array.isArray(j['images'])
+        ? (j['images'] as unknown[]).map(u => String(u ?? '').trim()).filter(u => /^https?:\/\//i.test(u))
+        : [];
+    if (!images.length && image) images = [image];
+    const interval = Number(j['interval']) >= 1 ? Math.floor(Number(j['interval'])) : 3;
     return {
         expiry,
         title: String(j['title'] ?? ''),
         message: String(j['message'] ?? ''),
-        image,
+        image: images[0] ?? '',
         // '' = the app's own "ENTENDIDO" in the app language
         button: String(j['button'] || ''),
+        images,
+        interval,
     };
 }
 

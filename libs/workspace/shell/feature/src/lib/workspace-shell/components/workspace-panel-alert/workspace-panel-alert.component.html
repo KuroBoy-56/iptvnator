@@ -11,8 +11,18 @@
             @if (a.message.trim()) {
                 <p class="panel-alert__message">{{ a.message }}</p>
             }
-            @if (a.image) {
-                <img class="panel-alert__image" [src]="a.image" alt="" />
+            @if (images().length) {
+                <!-- every image loads at once (stacked): the change never leaves the box empty -->
+                <div class="panel-alert__images">
+                    @for (src of images(); track $index) {
+                        <img
+                            class="panel-alert__image"
+                            [class.is-shown]="$index === imageIndex()"
+                            [src]="src"
+                            alt=""
+                        />
+                    }
+                </div>
             }
             <button
                 #okButton

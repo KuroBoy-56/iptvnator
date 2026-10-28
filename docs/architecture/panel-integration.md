@@ -524,8 +524,8 @@ Stalker and M3U do not use the panel fallback yet.
 ## Panel alert (welcome / expiry)
 
 The panel's **Alertas** page (`admin_alertas.php`) configures one general text
-with an optional image (`img/alertas/`) and one text each for 3, 2, 1 and 0
-days left. `WorkspacePanelAlertComponent`
+with a list of image links (each distributor its own) and one text each for 3,
+2, 1 and 0 days left. `WorkspacePanelAlertComponent`
 (`libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-panel-alert/`)
 is mounted by the workspace shell and, once per app start (shell creation,
 so also after a new login), calls
@@ -535,7 +535,10 @@ account (`getSessionAlertAccounts()`, title = playlist name):
 - `type: "expiry"` (3/2/1 days, or 0 / expired): red title, no image. The
   first expiry among the lines wins.
 - `type: "welcome"` (more than 3 days, no expiry date, or provider down):
-  general text plus the image, resolved as panel root + `image_path`.
+  general text plus the images: `images` (every link of the panel list, in
+  order) change every `interval` seconds (3) in the same place, all loaded at
+  once and stacked; without `images` (older panel) the single `image`, or
+  panel root + `image_path`. The header (title) does not change.
 
 The notice is rendered natively from the JSON (text only, `white-space:
 pre-line`), not by loading the panel's HTML card: an `srcdoc` iframe with

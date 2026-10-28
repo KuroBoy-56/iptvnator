@@ -45,6 +45,27 @@ describe('WorkspacePanelAlertComponent', () => {
         expect(el.querySelector('.panel-alert')).toBeNull();
     });
 
+    it('changes the image every interval seconds when the panel sends several', async () => {
+        jest.useFakeTimers();
+        try {
+            const { fixture, el } = await setup({
+                expiry: false, title: 'W', message: '', image: 'https://a/1.jpg', button: 'OK',
+                images: ['https://a/1.jpg', 'https://a/2.jpg'], interval: 3,
+            });
+            const shown = () => el.querySelector('img.is-shown')?.getAttribute('src');
+            expect(el.querySelectorAll('img').length).toBe(2);
+            expect(shown()).toBe('https://a/1.jpg');
+            jest.advanceTimersByTime(3000);
+            fixture.detectChanges();
+            expect(shown()).toBe('https://a/2.jpg');
+            jest.advanceTimersByTime(3000);
+            fixture.detectChanges();
+            expect(shown()).toBe('https://a/1.jpg');
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
     it('renders nothing when the panel has no alert', async () => {
         const { el } = await setup(null);
         expect(el.querySelector('.panel-alert')).toBeNull();

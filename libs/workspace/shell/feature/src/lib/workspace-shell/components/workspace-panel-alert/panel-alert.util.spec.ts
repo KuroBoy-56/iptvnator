@@ -32,7 +32,26 @@ describe('parsePanelAlert', () => {
             message: 'Hola\nmundo',
             image: `${ROOT}img/alertas/promo_1.jpg`,
             button: 'ENTENDIDO',
+            images: [`${ROOT}img/alertas/promo_1.jpg`],
+            interval: 3,
         });
+    });
+
+    it('takes every image of the panel list in order, the first one as image', () => {
+        const a = parsePanelAlert(
+            {
+                type: 'welcome',
+                image: 'https://i.postimg.cc/a/1.jpg',
+                image_path: '',
+                images: ['https://i.postimg.cc/a/1.jpg', 'https://cdn.test/2.png', 'javascript:x', ''],
+                interval: 5,
+            },
+            ROOT
+        );
+        expect(a?.image).toBe('https://i.postimg.cc/a/1.jpg');
+        expect(a?.images).toEqual(['https://i.postimg.cc/a/1.jpg', 'https://cdn.test/2.png']);
+        expect(a?.interval).toBe(5);
+        expect(parsePanelAlert({ type: 'expiry', images: ['https://cdn.test/2.png'] }, ROOT)?.images).toEqual([]);
     });
 
     it('never shows an image on expiry alerts and rejects odd image paths', () => {
