@@ -45,6 +45,15 @@ describe('PanelSessionGuardService', () => {
         expect(logout).toHaveBeenCalled();
     });
 
+    it('closes the session when the device is put on the panel blacklist', async () => {
+        guard.watch(line);
+        checkDevice.mockResolvedValue({ status: 'blocked', message: { key: 'MPX.PANEL.ERR_BLOCKED' } });
+        await guard.tick(line, Date.now() + 11 * 60_000);
+        expect(clear).toHaveBeenCalled();
+        expect(logout).toHaveBeenCalled();
+        expect(navigate).toHaveBeenCalledWith(['/login']);
+    });
+
     it('keeps the session while the panel does not answer or before the next check', async () => {
         guard.watch(line);
         await guard.tick(line, Date.now() + 60_000);

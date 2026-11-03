@@ -55,6 +55,19 @@ describe('PanelLoginService', () => {
         await expect(service.checkDevice()).resolves.toEqual({ status: 'inactive', fake: null });
     });
 
+    it('reports a device on the panel blacklist with the panel text (check_mac, submit_url, auto_demo)', async () => {
+        const blocked = { ok: false, status: 403, code: 'HTTP', data: { error: 'Equipo bloqueado', code: 'device_blocked', blocked: true } };
+        request.mockResolvedValue(blocked);
+        await expect(service.checkDevice()).resolves.toEqual({ status: 'blocked', message: { key: 'Equipo bloqueado' } });
+        await expect(service.activate('u', 'p', 'http://s')).resolves.toEqual({ ok: false, message: { key: 'Equipo bloqueado' }, blocked: true });
+        await expect(service.autoDemo()).resolves.toMatchObject({ ok: false, blocked: true, device: true });
+        // a 403 that is not the blacklist (demo already used) stays a normal error
+        request.mockResolvedValue({ ok: false, status: 403, code: 'HTTP', data: { error: 'Demo usada' } });
+        await expect(service.checkDevice()).resolves.toEqual({ status: 'error', message: { key: 'Demo usada' } });
+        request.mockResolvedValue({ ok: false, status: 403, code: 'HTTP', data: { code: 'device_blocked' } });
+        await expect(service.checkDevice()).resolves.toEqual({ status: 'blocked', message: { key: 'MPX.PANEL.ERR_BLOCKED' } });
+    });
+
     it('asks features for the Auto-Demo button (null when the panel does not know it)', async () => {
         request.mockResolvedValueOnce({ ok: true, status: 200, data: { status: 'ok', features: { demo: false, dns: true } } });
         await expect(service.demoAvailable()).resolves.toBe(false);

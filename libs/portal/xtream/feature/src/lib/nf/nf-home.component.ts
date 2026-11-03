@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { PanelBrandingService } from '@iptvnator/services';
+import { PanelBrandingService, PanelWeekTopService, weekTop10Home } from '@iptvnator/services';
 import { injectNfCatalog } from './nf-catalog';
 import {
     NF_GENRES,
@@ -12,7 +12,7 @@ import {
     NfTag,
 } from './nf-filters';
 import { NfHeroComponent } from './nf-hero.component';
-import { dailyShuffle, newestFirst, NfItem, topRated } from './nf-item';
+import { dailyShuffle, newestFirst, NfItem } from './nf-item';
 import { NfRowComponent } from './nf-row.component';
 
 interface HomeRow {
@@ -103,7 +103,7 @@ const PLATFORM_ROWS = 5;
                     }
                 } @else if (catalog.loading()) {
                     <app-nf-row
-                        [title]="'MPX.NF.TOP10_TODAY' | translate"
+                        [title]="'MPX.NF.TOP10_WEEK' | translate"
                         [items]="null"
                         [playlistId]="catalog.playlistId()"
                     />
@@ -150,6 +150,12 @@ export class NfHomeComponent {
     ]);
 
     private readonly branding = inject(PanelBrandingService);
+    /** Top 10 de la semana del panel (api/top10.php), cruzado con el catálogo */
+    private readonly weekTop = inject(PanelWeekTopService);
+
+    constructor() {
+        void this.weekTop.load();
+    }
     /** Sin plataformas (features.platforms false): ni tiles ni filas de plataforma. */
     protected readonly platforms = computed(() =>
         this.branding.platforms()
@@ -165,8 +171,10 @@ export class NfHomeComponent {
         const rows: HomeRow[] = [
             {
                 key: 'top',
-                title: 'MPX.NF.TOP10_TODAY',
-                items: topRated(recentMovies.slice(0, 300)),
+                title: 'MPX.NF.TOP10_WEEK',
+                // lo más popular de la semana (TMDB, por el panel) que está en el catálogo; lo que falte, lo mejor
+                // calificado, distinto cada semana (como Roku, Vega, Android e iOS)
+                items: weekTop10Home(this.weekTop.lists(), movies, series),
                 more: explore,
                 query: { type: 'all', sort: 'rating' },
                 variant: 'top',

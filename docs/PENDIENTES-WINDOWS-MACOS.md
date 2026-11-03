@@ -1,8 +1,20 @@
 # Pendientes de Windows y macOS (MPX Player de escritorio) — 3 de noviembre de 2026
 
 Revisión de lo que tienen Windows (`master`) y macOS (`macos`) comparado con Roku, Vega OS 1.0.55, webOS 1.3.0,
-Tizen 1.1.0, Android / Android TV y lo que el panel (`panelweb` `main`) ya ofrece. **Solo documentación: nada de
-esto está hecho todavía; se ejecuta cuando el dueño lo ordene.**
+Tizen 1.1.0, Android / Android TV y lo que el panel (`panelweb` `main`) ya ofrece. **Actualizado el 3 de noviembre:
+los puntos 1, 2, 3, 4 y 6 ya están hechos (ver «Estado»); el 5 no se hace (decisión del dueño).**
+
+## Estado
+
+| Punto | Estado |
+| --- | --- |
+| 1. Lista negra completa | ✅ hecho (`isDeviceBlocked`, estado `blocked`, la revisión de 10 min cierra la sesión) |
+| 2. Top 10 de la semana | ✅ hecho (`panel-week-top.ts`, Inicio, Películas y Series) |
+| 3. Control parental con PIN | ✅ hecho (`ParentalControlService`, Ajustes › Control parental, `set_pin`) |
+| 4. Canal del partido por la guía | ✅ hecho (`sports-epg.ts`, `SportsDataService`) |
+| 5. Idiomas al panel | ❌ no se hace: Windows y Mac usan MPV / VLC, que leen las pistas solos |
+| 6. Tema de prueba | ✅ hecho (`/review`; panel: `windows` y `macos` en `REVIEW_THEME_APPS`) |
+| 7. Firma de Apple | solo faltan los secretos (instrucciones abajo) |
 
 `macos` está al día con `master` (0 commits de diferencia; la última compilación de macOS, run 19, salió bien). Todo
 lo de abajo vale igual para los dos: se hace en `master` (sin compilar, `[skip ci]`) y se lleva a `macos` con un merge

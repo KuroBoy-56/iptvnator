@@ -4,6 +4,7 @@ import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { readTenantFeatures } from '@iptvnator/shared/interfaces';
 import { WorkspaceStartupPreferencesService } from '@iptvnator/workspace/shell/util';
 import { LoginComponent } from './login.component';
+import { reviewThemeGuard, ReviewThemeService } from './panel-login/review/review-theme.service';
 import { AuthGuard } from './auth.guard';
 
 const workspaceEntryRedirect = async () =>
@@ -41,6 +42,13 @@ export const routes: Routes = [
     {
         path: 'login',
         component: LoginComponent
+    },
+    {
+        // tema de prueba del dueño (Pantalla Falsa, con Omitir): solo después de review_login
+        path: 'review',
+        canActivate: [() => reviewThemeGuard(inject(ReviewThemeService)) || inject(Router).parseUrl('/login')],
+        loadComponent: () =>
+            import('./panel-login/review/review-theme.component').then((c) => c.ReviewThemeComponent),
     },
     {
         path: '',

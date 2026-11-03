@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
+import { ParentalControlService } from '@iptvnator/services';
 import { BehaviorSubject } from 'rxjs';
 
 /** A session started from the panel stays usable offline for this long. */
@@ -14,6 +15,7 @@ const OFFLINE_SESSION_DAYS = 7;
 })
 export class AuthService {
     public offlineWarning$ = new BehaviorSubject(false);
+    private readonly parental = inject(ParentalControlService);
 
     async verifySessionActive(): Promise<boolean> {
         try {
@@ -27,6 +29,8 @@ export class AuthService {
     }
 
     logout(): void {
+        // el contenido para adultos desbloqueado con el PIN vuelve a quedar oculto
+        this.parental.reset();
         try {
             localStorage.removeItem('session_token');
             localStorage.removeItem('session_date');

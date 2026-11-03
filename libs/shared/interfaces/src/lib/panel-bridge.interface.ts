@@ -6,7 +6,11 @@ export type PanelLoginAction =
     | 'auto_demo'
     | 'tenant_config'
     /** Lo que ofrece el login (botón Autodemo): respuesta JSON sin cifrar. */
-    | 'features';
+    | 'features'
+    /** Cambia el PIN parental del equipo en el panel (pide el actual); respuesta cifrada. */
+    | 'set_pin'
+    /** Tema de prueba del dueño (con Omitir): Auto-Demo ({demo: 1}) o una cuenta del tema; JSON sin cifrar. */
+    | 'review_login';
 
 export type PanelLoginErrorCode =
     | 'NO_MASTER_KEY'
@@ -46,6 +50,11 @@ export interface PanelLoginPayload {
     cc?: number;
     /** check_mac: re-check of the open app (every 10 min), not another start for the panel's statistics. */
     poll?: number;
+    /** set_pin: PIN parental actual y nuevo (4 números). */
+    old_pin?: string;
+    pin?: string;
+    /** review_login: 1 = Auto-Demo del tema de prueba. */
+    demo?: number;
 }
 
 /** One error for the panel («Errores de las apps»): see api/report.php. */

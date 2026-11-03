@@ -10,7 +10,8 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { injectNfCatalog } from './nf-catalog';
 import { NF_GENRES, nfAvailable } from './nf-filters';
 import { NfHeroComponent } from './nf-hero.component';
-import { newestFirst, NfItem, topRated } from './nf-item';
+import { newestFirst, NfItem } from './nf-item';
+import { PanelWeekTopService, weekTop10 } from '@iptvnator/services';
 import { NfNearEndDirective } from './nf-near-end.directive';
 import { NfRowComponent } from './nf-row.component';
 
@@ -79,7 +80,7 @@ const ROWS_STEP = 10;
                     />
                     <app-nf-row
                         [title]="
-                            (isSeries ? 'MPX.NF.TOP10_SERIES' : 'MPX.NF.TOP10_MOVIES')
+                            (isSeries ? 'MPX.NF.TOP10_SERIES_WEEK' : 'MPX.NF.TOP10_MOVIES_WEEK')
                                 | translate
                         "
                         [items]="top()"
@@ -114,7 +115,7 @@ const ROWS_STEP = 10;
                         [playlistId]="catalog.playlistId()"
                     />
                     <app-nf-row
-                        title="Top 10"
+                        [title]="'MPX.NF.TOP10_WEEK' | translate"
                         [items]="null"
                         [playlistId]="catalog.playlistId()"
                     />
@@ -151,9 +152,15 @@ export class NfBrowseComponent {
         nfAvailable(NF_GENRES, this.categories())
     );
     protected readonly recent = computed(() => newestFirst(this.items()));
+    /** Top 10 de la semana del panel (api/top10.php) cruzado con el catálogo; relleno semanal */
+    private readonly weekTop = inject(PanelWeekTopService);
     protected readonly top = computed(() =>
-        topRated(this.recent().slice(0, 300))
+        weekTop10(this.weekTop.lists(), this.items(), this.isSeries)
     );
+
+    constructor() {
+        void this.weekTop.load();
+    }
 
     protected readonly categoryRows = computed<CategoryRow[]>(() => {
         const byCategory = this.catalog.byCategory(this.items());

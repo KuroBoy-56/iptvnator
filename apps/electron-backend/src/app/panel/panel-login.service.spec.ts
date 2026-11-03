@@ -40,6 +40,29 @@ describe('panelLoginRequest', () => {
         expect(Math.abs(ts(calls[1]) - serverTime)).toBeLessThanOrEqual(2);
     });
 
+    it('set_pin sends only 4-digit PINs and reads the encrypted answer', async () => {
+        const { fetch, calls } = fakeFetch(200, encryptPayload('{"ok":true,"pin":"1234"}', masterKey));
+        const result = await panelLoginRequest('set_pin', { old_pin: '0000', pin: '1234' }, { fetch, masterKey, deviceId: 'ID' });
+        expect(result).toEqual({ ok: true, status: 200, data: { ok: true, pin: '1234' } });
+        const plain = JSON.parse(decryptPayload(calls[0].body.get('data') ?? '', masterKey) ?? '{}');
+        expect(plain).toMatchObject({ mac_address: 'ID', old_pin: '0000', pin: '1234' });
+        await panelLoginRequest('set_pin', { old_pin: 'abc', pin: '12345' }, { fetch, masterKey, deviceId: 'ID' });
+        const bad = JSON.parse(decryptPayload(calls[1].body.get('data') ?? '', masterKey) ?? '{}');
+        expect(bad.old_pin).toBeUndefined();
+        expect(bad.pin).toBeUndefined();
+    });
+
+    it('review_login sends the Auto-Demo flag or the theme account', async () => {
+        const { fetch, calls } = fakeFetch(200, '{"status":"ok","movies":[],"series":[]}');
+        const result = await panelLoginRequest('review_login', { demo: 1 }, { fetch, masterKey, deviceId: 'ID' });
+        expect(result.ok).toBe(true);
+        await panelLoginRequest('review_login', { username: 'revisor', password: 'x' }, { fetch, masterKey, deviceId: 'ID' });
+        const plain = (i: number) => JSON.parse(decryptPayload(calls[i].body.get('data') ?? '', masterKey) ?? '{}');
+        expect(plain(0)).toMatchObject({ demo: 1, platform: 'windows' });
+        expect(plain(1)).toMatchObject({ username: 'revisor', password: 'x' });
+        expect(plain(1).demo).toBeUndefined();
+    });
+
     it('sends credentials and DNS for submit_url', async () => {
         const { fetch, calls } = fakeFetch(200, '{"status":"ok"}');
         await panelLoginRequest('submit_url', { username: ' u ', password: 'p', url: 'http://dns.test' }, { fetch, masterKey, deviceId: 'ID' });

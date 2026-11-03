@@ -1312,7 +1312,8 @@
             "ERR_HTTP": "Erro do painel ({{status}}).",
             "ERR_CHECK_DEVICE": "Não foi possível verificar o dispositivo.",
             "ERR_ACTIVATE": "Não foi possível ativar o dispositivo.",
-            "ERR_DEMO": "Não foi possível gerar a demo."
+            "ERR_DEMO": "Não foi possível gerar a demo.",
+            "ERR_BLOCKED": "Este aparelho está bloqueado. Fale com o seu provedor."
         },
         "LOGIN": {
             "TITLE": "Entrar",
@@ -1534,7 +1535,10 @@
             "TAG_NOVELA": "Novelas",
             "TAG_WESTERN": "Faroeste",
             "TAG_MUSICAL": "Música",
-            "TAG_DEPORTES": "Esportes"
+            "TAG_DEPORTES": "Esportes",
+            "TOP10_WEEK": "Top 10 da semana",
+            "TOP10_MOVIES_WEEK": "Top 10 filmes da semana",
+            "TOP10_SERIES_WEEK": "Top 10 séries da semana"
         },
         "ADD": {
             "TITLE": "Adicionar conexão",
@@ -1567,6 +1571,34 @@
             "NEXTDNS": "Contra bloqueio geográfico",
             "OPENDNS": "Cisco OpenDNS",
             "SETTINGS_HINT": "Troque o DNS se o seu provedor de internet bloqueia o painel ou os canais. Não se aplica ao MPV/VLC."
+        },
+        "PARENTAL": {
+            "SECTION": "Controle dos pais",
+            "HIDE_ADULT": "Ocultar conteúdo adulto",
+            "PIN": "PIN",
+            "UNLOCK": "Desbloquear",
+            "LOCK": "Bloquear de novo",
+            "CHANGE": "Alterar PIN",
+            "CURRENT": "PIN atual",
+            "NEW": "PIN novo",
+            "SAVE": "Salvar",
+            "NOTE": "O PIN é o do aparelho no painel (0000 de fábrica). Desbloqueado, o conteúdo adulto aparece até fechar o app.",
+            "HIDDEN": "Conteúdo adulto oculto.",
+            "SHOWN": "Conteúdo adulto visível.",
+            "UNLOCKED": "Desbloqueado até fechar o app.",
+            "WRONG_PIN": "PIN incorreto.",
+            "FOUR_DIGITS": "O PIN deve ter 4 números.",
+            "SAVED": "PIN salvo no painel.",
+            "ERR_SAVE": "O painel não salvou o PIN."
+        },
+        "REVIEW": {
+            "MOVIES": "Filmes",
+            "SERIES": "Séries",
+            "SETTINGS": "Ajustes",
+            "LOGOUT": "Sair",
+            "BACK": "Voltar",
+            "ERROR": "Não foi possível reproduzir este vídeo.",
+            "EMPTY": "Não há vídeos."
         }
     }
 }

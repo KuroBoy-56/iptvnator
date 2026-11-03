@@ -13,6 +13,7 @@ import { SecureDnsPickerComponent } from './panel-login/secure-dns-picker.compon
 import { PanelTenantService } from './panel-login/panel-tenant.service';
 import { FakeScreenComponent } from './panel-login/fake-screen/fake-screen.component';
 import { PanelFakeScreen } from './panel-login/fake-screen/fake-screen.util';
+import { ReviewThemeService } from './panel-login/review/review-theme.service';
 
 type MessageKind = 'error' | 'info' | 'success';
 
@@ -50,6 +51,7 @@ export class LoginComponent implements OnInit {
     private readonly portalStatus = inject(PortalStatusService);
     private readonly posterService = inject(LoginPostersService);
     private readonly router = inject(Router);
+    private readonly reviewTheme = inject(ReviewThemeService);
     protected readonly tenant = inject(PanelTenantService);
     protected readonly branding = this.tenant.branding;
 
@@ -70,8 +72,12 @@ export class LoginComponent implements OnInit {
     readonly needsDistributor = computed(() => this.branding.choice() === 'none');
     /** features del panel (demo configurada); null = sin respuesta o panel viejo */
     private readonly panelDemo = signal<boolean | null>(null);
+    /** tema de prueba del dueño (features.review, con Omitir): login sencillo, sin DNS ni código del equipo */
+    readonly review = signal(false);
+    /** equipo en la lista negra del panel: solo el aviso, sin Autodemo */
+    readonly blocked = signal(false);
     /** Botón Autodemo: lo que diga features; si no respondió, lo de antes (tenant_config / visible con Omitir) */
-    readonly showDemo = computed(() => this.panelDemo() ?? this.branding.features().demo);
+    readonly showDemo = computed(() => !this.blocked() && (this.review() || (this.panelDemo() ?? this.branding.features().demo)));
     readonly distBusy = signal(false);
     readonly distError = signal<UiText | null>(null);
     private deviceCheckStarted = false;
@@ -150,6 +156,7 @@ export class LoginComponent implements OnInit {
         if (this.deviceCheckStarted && !restart) return;
         this.deviceCheckStarted = true;
         this.message.set(null);
+        this.blocked.set(false);
         this.checking.set(true);
         this.dnsList.set([]);
 
@@ -161,7 +168,11 @@ export class LoginComponent implements OnInit {
 
         // features: el botón Autodemo solo si el panel tiene una demo configurada
         this.panelDemo.set(null);
-        void this.panel.demoAvailable().then((demo) => this.panelDemo.set(demo));
+        this.review.set(false);
+        void this.panel.demoAvailable().then((demo) => {
+            this.panelDemo.set(demo);
+            this.review.set(this.panel.reviewOffered);
+        });
         this.deviceId.set(await this.panel.deviceId());
         const check = await this.panel.checkDevice();
         if (check.status === 'active') {
@@ -178,7 +189,12 @@ export class LoginComponent implements OnInit {
             await this.enter(check.account);
             return;
         }
-        if (check.status === 'error') {
+        if (check.status === 'blocked') {
+            // lista negra del panel: el aviso, sin pantalla falsa ni línea guardada
+            await this.session.clear();
+            this.blocked.set(true);
+            this.say(check.message, 'error');
+        } else if (check.status === 'error') {
             this.say(check.message, 'error');
         } else {
             await this.session.clear();
@@ -199,6 +215,10 @@ export class LoginComponent implements OnInit {
                 await this.enter(c.account);
             } else if (c.status === 'inactive' && !c.fake) {
                 this.hideFake();
+            } else if (c.status === 'blocked') {
+                this.hideFake();
+                this.blocked.set(true);
+                this.say(c.message, 'error');
             }
         }, 30_000);
     }
@@ -237,6 +257,8 @@ export class LoginComponent implements OnInit {
         }
         this.busy.set(true);
         this.message.set(null);
+        // tema de prueba: una cuenta del tema entra al tema; cualquier otra sigue como siempre (línea IPTV)
+        if (this.review() && (await this.openReview(user, pass, false))) return;
         const server = await this.lineServer(user, pass);
         if (!server) {
             this.busy.set(false);
@@ -246,6 +268,7 @@ export class LoginComponent implements OnInit {
         const result = await this.panel.activate(user, pass, server);
         if (!result.ok) {
             this.busy.set(false);
+            if (result.blocked) this.blocked.set(true);
             this.say(result.message ?? { key: 'MPX.LOGIN.ERR_LOGIN' }, 'error');
             return;
         }
@@ -257,14 +280,34 @@ export class LoginComponent implements OnInit {
         await this.enter(account);
     }
 
+    /** true = entró al tema de prueba (review_login); no registra nada en el panel ni vence */
+    private async openReview(user: string, pass: string, demo: boolean): Promise<boolean> {
+        const r = await this.panel.reviewLogin(user, pass, demo);
+        if (r.ok) {
+            this.reviewTheme.open(r.content);
+            this.busy.set(false);
+            this.demoBusy.set(false);
+            await this.router.navigate(['/review']);
+            return true;
+        }
+        if (demo) this.say(r.message, 'error');
+        return false;
+    }
+
     async autoDemo(): Promise<void> {
         this.demoBusy.set(true);
         this.message.set(null);
+        if (this.review()) {
+            // Auto-Demo del tema de prueba: sin crear ni registrar ninguna demo
+            if (!(await this.openReview('', '', true))) this.demoBusy.set(false);
+            return;
+        }
         // a reseller demo code typed in "Contraseña" registers the demo under that reseller
         const demo = await this.panel.autoDemo(this.password);
         if (!demo.ok) {
             this.demoBusy.set(false);
             // no local block: the panel decides on every try (a deleted demo can ask again)
+            if (demo.device) this.blocked.set(true);
             this.say(demo.message, 'error');
             return;
         }

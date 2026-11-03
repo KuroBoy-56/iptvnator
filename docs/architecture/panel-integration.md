@@ -354,6 +354,25 @@ downloads and `localStorage` (the `session_*` session, the distributor or the
 Omitir choice, settings, `cache_clear_seen`). The PWA (no bridge) only does
 `location.reload()`.
 
+## Blacklist, parental control and review theme
+
+- **Blacklist** (`includes/blacklist.php`): a device on the distributor's (or the owner's) blacklist gets 403
+  `{"code": "device_blocked"}` from check_mac / submit_url / auto_demo / set_pin. `isDeviceBlocked` turns it into the
+  `blocked` status of `PanelLoginService.checkDevice` and `activate` / `autoDemo` (`device: true`); the login shows the
+  panel's text (no fake screen, no Auto-Demo) and `PanelSessionGuardService` closes an open session.
+- **Parental control**: check_mac's `pin` (4 digits, 0000 by default) is saved with `saveParentalPin`. Adult categories
+  (`ADULT_CATEGORY_RE`, same words as the TV and phone apps) are hidden until Settings › «Control parental» unlocks
+  them with that PIN (until the app closes or logout). Turning «Ocultar contenido para adultos» off asks for the PIN.
+  «Cambiar PIN» sends `set_pin` (`old_pin` + `pin`, encrypted answer, allowed in the main process).
+- **Review theme** («Tema de prueba», panel Pantalla Falsa, only with Omitir, `windows` / `macos` in
+  `REVIEW_THEME_APPS`): `features.review` makes the login simple; Auto-Demo (`review_login` `{demo: 1}`) or a theme
+  account opens `/review` (Movies, Series, Settings with «Cerrar sesión») playing the panel's `api/player` videos in an
+  HTML5 `<video>`. Nothing is registered, saved or cached.
+- **Top 10 de la semana**: `api/top10.php` (public GET, `?t=&app=` with a distributor) → `PanelWeekTopService`.
+- **Sports guide**: `api/sports_epg.php` (POST with the token) → `SportsDataService.findChannel` when no broadcast
+  channel is in the client's list.
+- Windows and macOS do **not** use `api/tracks.php`: MPV / VLC read the file's audio and subtitle tracks themselves.
+
 ## Anti-replay `ts`
 
 Every encrypted `login.php` payload built in the main process

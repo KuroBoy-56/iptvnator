@@ -22,7 +22,8 @@ import {
     SyncUserCredentials,
 } from './panel-sync.types';
 import { PanelSportsAgenda, PanelSportsFixtures, PanelSportsTables, PanelSportsTeam } from './panel-sports.types';
-import { sportsAgenda, sportsFixtures, sportsTables, sportsTeam } from './panel-sports.api';
+import { sportsAgenda, sportsEpg, sportsFixtures, sportsTables, sportsTeam } from './panel-sports.api';
+import { SportsEpgChannel } from './sports-epg';
 import { lookupSeriesInfo } from './series-info.lookup';
 import { getSessionPassword, isSessionDemo } from '@iptvnator/shared/interfaces';
 import { applyFavoriteOverrides, FavoriteChange, PanelFavoritesOutbox } from './panel-favorites-outbox';
@@ -310,6 +311,11 @@ export class PanelSyncService {
     /** Next 21 days of the panel's leagues (api/sports_fixtures.php) for Teams and National teams. */
     async fetchSportsFixtures(userIdObj?: SyncUserCredentials | null): Promise<PanelSportsFixtures | null> {
         return sportsFixtures(this.client, this.creds(userIdObj));
+    }
+
+    /** Match -> channels that have it in their guide right now (api/sports_epg.php). */
+    async fetchSportsEpg(channels: SportsEpgChannel[], userIdObj?: SyncUserCredentials | null): Promise<Record<string, string[]>> {
+        return sportsEpg(this.client, this.creds(userIdObj), channels);
     }
 
     /** Team card in the app language (api/sports_team.php); null when there is none. */

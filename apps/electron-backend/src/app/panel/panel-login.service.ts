@@ -20,7 +20,16 @@ export interface PanelLoginDeps {
     deviceId: string;
 }
 
-const ACTIONS: readonly PanelLoginAction[] = ['check_mac', 'fetch_dns', 'submit_url', 'auto_demo', 'tenant_config', 'features'];
+const ACTIONS: readonly PanelLoginAction[] = [
+    'check_mac',
+    'fetch_dns',
+    'submit_url',
+    'auto_demo',
+    'tenant_config',
+    'features',
+    'set_pin',
+    'review_login',
+];
 /** Actions whose 200 answer is encrypted with the master key. */
 const ENCRYPTED_REPLY: readonly PanelLoginAction[] = ['fetch_dns', 'tenant_config'];
 /**
@@ -28,6 +37,9 @@ const ENCRYPTED_REPLY: readonly PanelLoginAction[] = ['fetch_dns', 'tenant_confi
  * an encrypted 200 answer with "enc": 1. An older panel still answers JSON.
  */
 const LINE_REPLY: readonly PanelLoginAction[] = ['check_mac', 'auto_demo'];
+/** Actions whose 200 answer may come encrypted (JSON from an older panel): the line actions and set_pin. */
+const MAYBE_ENCRYPTED: readonly PanelLoginAction[] = [...LINE_REPLY, 'set_pin'];
+const PIN = /^\d{4}$/;
 
 function parseJson(text: string): unknown {
     try {
@@ -106,6 +118,11 @@ export async function panelLoginRequest(
                       action === 'auto_demo' && isResellerCode(payload?.reseller)
                           ? payload?.reseller?.trim().toUpperCase()
                           : undefined,
+                  // set_pin: solo PIN de 4 números
+                  old_pin: action === 'set_pin' && PIN.test(payload?.old_pin ?? '') ? payload?.old_pin : undefined,
+                  pin: action === 'set_pin' && PIN.test(payload?.pin ?? '') ? payload?.pin : undefined,
+                  // review_login: Auto-Demo del tema de prueba
+                  demo: action === 'review_login' && Number(payload?.demo) === 1 ? 1 : undefined,
                   // without a distributor ("Omitir") both stay out of the payload
                   tenant: tenant || undefined,
                   app: tenant ? PANEL_APP_ID : undefined,
@@ -152,7 +169,7 @@ export async function panelLoginRequest(
         return { ok: false, status, code: 'BAD_RESPONSE', error: 'Respuesta del panel no válida.' };
     }
 
-    if (LINE_REPLY.includes(action) && status === 200 && text.trim() && !text.trim().startsWith('{')) {
+    if (MAYBE_ENCRYPTED.includes(action) && status === 200 && text.trim() && !text.trim().startsWith('{')) {
         const decrypted = decryptPayload(text.trim(), deps.masterKey);
         const value = decrypted ? parseJson(decrypted) : undefined;
         if (value && typeof value === 'object' && !Array.isArray(value)) {

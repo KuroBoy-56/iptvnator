@@ -8,6 +8,7 @@ import {
     PanelStandingLeague,
 } from './panel-sports.types';
 import { SyncUserCredentials } from './panel-sync.types';
+import { parseSportsEpgMap, SportsEpgChannel } from './sports-epg';
 
 /** Sports from the panel (agenda, standings, 21-day fixtures, team card): the JSON the panel builds, never TheSportsDB. */
 
@@ -52,4 +53,10 @@ export async function sportsFixtures(client: PanelProgressClient, creds: SyncUse
 export async function sportsTeam(client: PanelProgressClient, creds: SyncUserCredentials, id: string): Promise<PanelSportsTeam | null> {
     const body = await client.postJson<PanelSportsTeam & { ok?: boolean }>('sports_team.php', creds, { id });
     return body?.ok ? body : null;
+}
+
+/** Partido -> canales que lo tienen en su programación (api/sports_epg.php); {} si el panel no contesta. */
+export async function sportsEpg(client: PanelProgressClient, creds: SyncUserCredentials, channels: SportsEpgChannel[]): Promise<Record<string, string[]>> {
+    if (!channels.length) return {};
+    return parseSportsEpgMap(await client.postJson<{ map?: unknown }>('sports_epg.php', creds, { channels }));
 }
