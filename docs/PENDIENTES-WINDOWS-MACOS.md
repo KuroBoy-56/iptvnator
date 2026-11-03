@@ -66,22 +66,69 @@ Vega y Roku le mandan al panel sus canales deportivos (`api/sports_epg.php`) y e
 partido en su programación. Windows solo busca por el nombre de los canales que transmiten y por equipos. Falta pedir
 `sports_epg.php` (hasta 600 canales) y usarlo primero en `findSportsChannelForEvent`.
 
-### 5. Idiomas compartidos con el panel (prioridad baja, opcional)
-MPV ya ve todas las pistas sin servidor, así que Windows no lo necesita para sí, pero puede **dejarle al panel** los
-idiomas de cada video (`api/tracks.php`, mismo formato que Roku / Vega / LG / web) para que los demás equipos los vean
-al instante. Falta: al abrir un video en MPV, mandar su lista de pistas si el panel no la tenía.
+### 5. Idiomas compartidos con el panel (obligatorio, Windows y macOS)
+MPV ya ve todas las pistas sin servidor, pero Windows y Mac también tienen que **dejarle al panel** los idiomas de cada
+video (`api/tracks.php`, mismo formato que Roku / Vega / LG / Samsung / web) para que los demás equipos los vean al
+instante, y **leer primero lo que el panel ya sabe** (≤ 2 s) para armar el menú de audio y subtítulos antes de que MPV
+termine de abrir. Falta:
+- al abrir una película o un episodio, preguntar `tracks.php` (GET con la dirección en base64) y, si el panel no lo
+  tiene, mandarle (POST) las pistas que MPV / el reproductor encontraron: contenedor, audios y subtítulos con idioma,
+  códec, nombre, predeterminado y forzado (solo MKV y MP4, como las demás apps);
+- servicio en `libs/services/src/lib/panel-sync/` (token de `progress.php`, como la sincronización), llamado desde el
+  reproductor integrado y desde MPV / VLC (`external-playback.service.ts`), y nada en la DEMO si el panel no lo permite;
+- pruebas del formato (el mismo que validan `tools/probe.test.js` de las TV y el panel).
+Panel: nada nuevo (`api/tracks.php` ya existe).
 
-### 6. Tema de prueba del dueño (solo si se publica en Microsoft Store / Mac App Store)
-El panel no lo ofrece para `windows` ni `macos` (`REVIEW_THEME_APPS` en `includes/review_theme.php`). Solo hace falta si
-la app va a pasar por la revisión de una tienda; entonces: agregar las dos apps en el panel y la pantalla sencilla
-(Películas / Series con los videos del panel) como en Vega.
+### 6. Tema de prueba del dueño (obligatorio, Windows y macOS)
+Igual que Vega, Android, LG, Samsung e iOS: con **Omitir** y el «Tema de prueba» encendido en Pantalla Falsa, el
+inicio de sesión queda sencillo (usuario, contraseña, Ingresar y Autodemo; sin DNS ni código del equipo); Autodemo o
+una cuenta del tema (`login.php` acción `review_login`) abren una pantalla con Películas, Series y Ajustes (solo
+«Cerrar sesión») con los videos de la carpeta player del panel, en un reproductor sencillo, sin sesión, progreso ni
+caché; no registra nada en el panel ni vence. Falta:
+- **panel**: agregar `windows` y `macos` a `REVIEW_THEME_APPS` (`includes/review_theme.php`) y revisar que la página de
+  Pantalla Falsa los muestre; prueba en `tools/tenant_test/`;
+- **app**: leer `features.review` (acción `features`), login sencillo y la pantalla nueva (ruta propia fuera del
+  workspace, sin `AuthGuard` de línea) en `apps/web/src/app/panel-login/`; i18n en los 4 idiomas; pruebas.
+Archivos del panel para subir cuando se haga: `includes/review_theme.php` (y lo que toque de Pantalla Falsa).
 
-### 7. macOS: firma de Apple (cuando haya cuenta de desarrollador)
-Hoy el `.dmg` está firmado «ad hoc» (`pnpm run make:mac`): el Mac pide permiso la primera vez. Con una cuenta Apple
-Developer se puede firmar y notarizar en GitHub con secretos (como los `TIZEN_*` de Samsung).
+### 7. macOS: firma y notarización de Apple (la compilación ya está lista)
+`.github/workflows/build-macos.yml` **ya usa los secretos de Apple si existen**: con el certificado firma con Apple
+y, con las credenciales de notarización, también notariza (el Mac abre la app sin avisos). Sin ellos firma «ad hoc»
+(la primera vez: clic derecho › Abrir). No hay que cambiar código; solo agregar los secretos.
+
+**Instrucciones (una sola vez):**
+1. Inscribirse en el **Apple Developer Program** (developer.apple.com/programs, 99 USD al año). El **Team ID** (10
+   letras y números) sale en developer.apple.com › Account › Membership details.
+2. Crear el certificado **Developer ID Application** (para repartir la app fuera de la Mac App Store): en un Mac,
+   Xcode › Settings › Accounts › tu cuenta › Manage Certificates › **+** › *Developer ID Application*. (Sin Xcode:
+   Acceso a Llaveros › Asistente de certificados › Solicitar un certificado a una autoridad, y subir esa solicitud en
+   developer.apple.com › Certificates › **+** › Developer ID Application; descargarlo y abrirlo.)
+3. Exportarlo: **Acceso a Llaveros** › Mis certificados › clic derecho en «Developer ID Application: …» ›
+   Exportar › formato **.p12**, con una contraseña.
+4. Pasarlo a texto: en Terminal `base64 -i certificado.p12 | pbcopy` (queda copiado).
+5. Contraseña para la notarización: appleid.apple.com › Inicio de sesión y seguridad › **Contraseñas de apps** ›
+   generar una (formato `abcd-efgh-ijkl-mnop`).
+6. En GitHub, repositorio **iptvnator** › Settings › Secrets and variables › Actions › **New repository secret**,
+   uno por uno:
+
+| Secreto | Valor |
+| --- | --- |
+| `CSC_LINK` | el texto del paso 4 (el .p12 en base64) |
+| `CSC_KEY_PASSWORD` | la contraseña del .p12 (paso 3) |
+| `APPLE_ID` | el correo de tu cuenta de Apple Developer |
+| `APPLE_APP_SPECIFIC_PASSWORD` | la contraseña de app del paso 5 |
+| `APPLE_TEAM_ID` | el Team ID del paso 1 |
+
+7. Compilar otra vez: Actions › **Build macOS app** › Run workflow (rama `macos`), o el siguiente cambio en `macos`. En el
+   registro, el paso «Signing mode» dice **«Signed with the Apple certificate and notarized.»** (con solo los dos
+   primeros secretos: firmada sin notarizar). El paso «Verify the app» comprueba la firma.
+
+Notas: el .p12 y las contraseñas nunca van al repositorio, solo a los secretos. Para la **Mac App Store** (no para
+repartir el .dmg) hace falta otro certificado (*Apple Distribution* / *Mac Installer Distribution*) y la app con
+sandbox: es otro trabajo, se hace solo si se decide publicar ahí.
 
 ## Orden propuesto
-1 → 2 → 4 → 3 → 5 (6 y 7 solo si hacen falta). Cada punto: código en `master` con pruebas
+1 → 2 → 4 → 3 → 5 → 6 (todos obligatorios en Windows y macOS); el 7 solo necesita los secretos. Cada punto: código en `master` con pruebas
 (`pnpm nx test web`, lint), `[skip ci]` (Windows lo compilas tú), y merge en `macos` para que GitHub compile el Mac.
 Panel: ningún archivo nuevo para los puntos 1, 2, 4 y 5 (ya existen); el 3 usa `set_pin` que ya existe; el 6 sí toca
-el panel.
+el panel (`includes/review_theme.php`).
