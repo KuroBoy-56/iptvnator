@@ -1312,7 +1312,8 @@
             "ERR_HTTP": "Erreur du panneau ({{status}}).",
             "ERR_CHECK_DEVICE": "Impossible de vérifier l'appareil.",
             "ERR_ACTIVATE": "Impossible d'activer l'appareil.",
-            "ERR_DEMO": "Impossible de créer la démo."
+            "ERR_DEMO": "Impossible de créer la démo.",
+            "ERR_BLOCKED": "Cet appareil est bloqué. Contactez votre fournisseur."
         },
         "LOGIN": {
             "TITLE": "Se connecter",
@@ -1534,7 +1535,10 @@
             "TAG_NOVELA": "Télénovelas",
             "TAG_WESTERN": "Western",
             "TAG_MUSICAL": "Musique",
-            "TAG_DEPORTES": "Sports"
+            "TAG_DEPORTES": "Sports",
+            "TOP10_WEEK": "Top 10 de la semaine",
+            "TOP10_MOVIES_WEEK": "Top 10 des films de la semaine",
+            "TOP10_SERIES_WEEK": "Top 10 des séries de la semaine"
         },
         "ADD": {
             "TITLE": "Ajouter une connexion",
@@ -1567,6 +1571,34 @@
             "NEXTDNS": "Contre le blocage géographique",
             "OPENDNS": "Cisco OpenDNS",
             "SETTINGS_HINT": "Changez le DNS si votre fournisseur d’accès bloque le panneau ou les chaînes. Ne s’applique pas à MPV/VLC."
+        },
+        "PARENTAL": {
+            "SECTION": "Contrôle parental",
+            "HIDE_ADULT": "Masquer le contenu pour adultes",
+            "PIN": "PIN",
+            "UNLOCK": "Déverrouiller",
+            "LOCK": "Verrouiller à nouveau",
+            "CHANGE": "Changer le PIN",
+            "CURRENT": "PIN actuel",
+            "NEW": "Nouveau PIN",
+            "SAVE": "Enregistrer",
+            "NOTE": "Le PIN est celui de l'appareil dans le panneau (0000 par défaut). Déverrouillé, le contenu pour adultes reste visible jusqu'à la fermeture de l'app.",
+            "HIDDEN": "Contenu pour adultes masqué.",
+            "SHOWN": "Contenu pour adultes visible.",
+            "UNLOCKED": "Déverrouillé jusqu'à la fermeture de l'app.",
+            "WRONG_PIN": "PIN incorrect.",
+            "FOUR_DIGITS": "Le PIN doit avoir 4 chiffres.",
+            "SAVED": "PIN enregistré dans le panneau.",
+            "ERR_SAVE": "Le panneau n'a pas enregistré le PIN."
+        },
+        "REVIEW": {
+            "MOVIES": "Films",
+            "SERIES": "Séries",
+            "SETTINGS": "Réglages",
+            "LOGOUT": "Se déconnecter",
+            "BACK": "Retour",
+            "ERROR": "Impossible de lire cette vidéo.",
+            "EMPTY": "Aucune vidéo."
         }
     }
 }

@@ -14,9 +14,13 @@ import {
     SportsChannelMatch,
     SportsLiveCategory,
     SportsLiveStream,
+    sportsEpgChannels,
 } from '@iptvnator/services';
 
 const LIVE_CACHE_MS = 30 * 60_000;
+/** la guía del panel se pregunta como mucho cada 10 min */
+const EPG_CACHE_MS = 10 * 60_000;
+const DEFAULT_EVENT_CATEGORY = 'event|ppv|pay per view|deportes? en vivo|live sport|partidos? (de )?hoy';
 
 export interface SportsChannelTarget extends SportsChannelMatch {
     playlistId: string;
@@ -37,6 +41,7 @@ export class SportsDataService {
     private readonly store = inject(Store);
     private live: { at: number; streams: SportsLiveStream[]; categories: SportsLiveCategory[] } | null = null;
     private agenda: PanelSportsAgenda | null = null;
+    private epg: { at: number; streams: SportsLiveStream[]; map: Record<string, string[]> } | null = null;
 
     async loadAgenda(): Promise<PanelSportsAgenda | null> {
         const agenda = await this.panelSync.fetchSportsAgenda();
@@ -56,8 +61,31 @@ export class SportsDataService {
             const alt = findSportsChannel(event, streams, categories, rules);
             return alt ? { ...alt, playlistId, missing: mode.name } : null;
         }
+        if (mode.kind === 'auto') {
+            // ninguno de los canales que lo transmiten está en la lista: el canal que lo tiene en su guía (panel)
+            const hasTv = (event.tv ?? []).some((t) => !!findChannelByName(t.n, streams));
+            if (!hasTv) {
+                const ids = (await this.epgMap(streams, categories))[String(event.id)] ?? [];
+                const st = ids.map((id) => streams.find((s) => String(s.stream_id) === id)).find((s) => !!s);
+                if (st) return { streamId: String(st.stream_id), categoryId: String(st.category_id ?? ''), name: String(st.name ?? ''), partial: false, playlistId };
+            }
+        }
         const match = mode.kind === 'teams' ? findSportsChannel(event, streams, categories, rules) : findSportsChannelForEvent(event, streams, categories, rules);
         return match ? { ...match, playlistId } : null;
+    }
+
+    /** api/sports_epg.php: partido -> canales del cliente que lo tienen en su programación a esa hora. */
+    private async epgMap(streams: SportsLiveStream[], categories: SportsLiveCategory[]): Promise<Record<string, string[]>> {
+        if (this.epg && this.epg.streams === streams && Date.now() - this.epg.at < EPG_CACHE_MS) return this.epg.map;
+        let eventRe: RegExp | null = null;
+        try {
+            eventRe = new RegExp(this.agenda?.match?.eventCategory || DEFAULT_EVENT_CATEGORY, 'i');
+        } catch {
+            eventRe = null;
+        }
+        const map = await this.panelSync.fetchSportsEpg(sportsEpgChannels(streams, categories, eventRe)).catch(() => ({}));
+        this.epg = { at: Date.now(), streams, map };
+        return map;
     }
 
     private async liveChannels(): Promise<{ streams: SportsLiveStream[]; categories: SportsLiveCategory[] }> {

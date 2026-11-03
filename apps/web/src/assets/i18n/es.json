@@ -1312,7 +1312,8 @@
             "ERR_HTTP": "Error del panel ({{status}}).",
             "ERR_CHECK_DEVICE": "No se pudo verificar el dispositivo.",
             "ERR_ACTIVATE": "No se pudo activar el dispositivo.",
-            "ERR_DEMO": "No se pudo generar la demo."
+            "ERR_DEMO": "No se pudo generar la demo.",
+            "ERR_BLOCKED": "Este equipo está bloqueado. Contacta a tu proveedor."
         },
         "LOGIN": {
             "TITLE": "Iniciar sesión",
@@ -1534,7 +1535,10 @@
             "TAG_NOVELA": "Novelas",
             "TAG_WESTERN": "Western",
             "TAG_MUSICAL": "Música",
-            "TAG_DEPORTES": "Deportes"
+            "TAG_DEPORTES": "Deportes",
+            "TOP10_WEEK": "Top 10 de la semana",
+            "TOP10_MOVIES_WEEK": "Top 10 películas de la semana",
+            "TOP10_SERIES_WEEK": "Top 10 series de la semana"
         },
         "ADD": {
             "TITLE": "Añadir conexión",
@@ -1567,6 +1571,34 @@
             "NEXTDNS": "Anti-bloqueo geográfico",
             "OPENDNS": "Cisco OpenDNS",
             "SETTINGS_HINT": "Cambia el DNS si tu proveedor de internet bloquea el panel o los canales. No aplica a MPV/VLC."
+        },
+        "PARENTAL": {
+            "SECTION": "Control parental",
+            "HIDE_ADULT": "Ocultar contenido para adultos",
+            "PIN": "PIN",
+            "UNLOCK": "Desbloquear",
+            "LOCK": "Bloquear otra vez",
+            "CHANGE": "Cambiar PIN",
+            "CURRENT": "PIN actual",
+            "NEW": "PIN nuevo",
+            "SAVE": "Guardar",
+            "NOTE": "El PIN es el del equipo en el panel (0000 de fábrica). Desbloqueado, el contenido para adultos se ve hasta cerrar la app.",
+            "HIDDEN": "Contenido para adultos oculto.",
+            "SHOWN": "Contenido para adultos visible.",
+            "UNLOCKED": "Desbloqueado hasta cerrar la app.",
+            "WRONG_PIN": "PIN incorrecto.",
+            "FOUR_DIGITS": "El PIN debe tener 4 números.",
+            "SAVED": "PIN guardado en el panel.",
+            "ERR_SAVE": "El panel no guardó el PIN."
+        },
+        "REVIEW": {
+            "MOVIES": "Películas",
+            "SERIES": "Series",
+            "SETTINGS": "Ajustes",
+            "LOGOUT": "Cerrar sesión",
+            "BACK": "Volver",
+            "ERROR": "No se pudo reproducir este video.",
+            "EMPTY": "No hay videos."
         }
     }
 }

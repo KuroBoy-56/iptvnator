@@ -14,6 +14,7 @@ import {
     notifyTenantError,
     parseTenantConfig,
     readTenantCode,
+    saveParentalPin,
     tenantErrorCode,
     UiText,
 } from '@iptvnator/shared/interfaces';
@@ -33,12 +34,34 @@ export interface PanelAccount {
 export type DeviceCheck =
     | { status: 'active'; account: PanelAccount }
     | { status: 'inactive'; fake?: PanelFakeScreen | null }
+    /** the device is on the panel's blacklist (this distributor's, or the owner's with «Omitir») */
+    | { status: 'blocked'; message: UiText }
     | { status: 'error'; message: UiText };
 
 export type DemoResult =
     /** url: the demo's server as the panel gives it ('' on older panels) */
     | { ok: true; username: string; password: string; url: string; expires: number; duration: number }
-    | { ok: false; message: UiText; blocked: boolean };
+    /** device: the whole device is on the panel's blacklist (not just "demo already used") */
+    | { ok: false; message: UiText; blocked: boolean; device?: boolean };
+
+/** Un video del tema de prueba (carpeta player del panel). */
+export interface ReviewVideo {
+    name: string;
+    url: string;
+}
+
+export interface ReviewContent {
+    movies: ReviewVideo[];
+    series: ReviewVideo[];
+}
+
+export type ReviewLogin = { ok: true; content: ReviewContent } | { ok: false; status: number; message: UiText };
+
+function reviewVideos(list: unknown): ReviewVideo[] {
+    return (Array.isArray(list) ? list : [])
+        .map((v: { name?: unknown; url?: unknown }) => ({ name: String(v?.name ?? '').trim(), url: String(v?.url ?? '').trim() }))
+        .filter((v) => /^https?:\/\//i.test(v.url));
+}
 
 export type TenantCheck =
     | { status: 'ok'; cache: PanelTenantCache }
@@ -63,6 +86,23 @@ export function panelErrorText(res: PanelLoginResult, fallbackKey: string): UiTe
     if (typeof own === 'string' && own) return { key: own };
     if (res.code === 'HTTP') return { key: 'MPX.PANEL.ERR_HTTP', params: { status: res.status } };
     return { key: fallbackKey };
+}
+
+/**
+ * Lista negra del panel (includes/blacklist.php): login.php answers 403 {"code": "device_blocked"} to check_mac,
+ * submit_url, auto_demo and set_pin when this device was blocked. The app shows the panel's text, uses no saved
+ * line and closes an open session (same as Roku, Vega, Android and the TV apps).
+ */
+export function isDeviceBlocked(res: PanelLoginResult): boolean {
+    const data = res.data as { code?: unknown } | undefined;
+    return !res.ok && res.status === 403 && data?.code === 'device_blocked';
+}
+
+const BLOCKED_TEXT: UiText = { key: 'MPX.PANEL.ERR_BLOCKED' };
+
+function blockedText(res: PanelLoginResult): UiText {
+    const own = (res.data as { error?: unknown } | undefined)?.error;
+    return typeof own === 'string' && own ? { key: own } : BLOCKED_TEXT;
 }
 
 /** ".../get.php?username=u&password=p&type=…" -> server + credentials. */
@@ -154,9 +194,14 @@ export class PanelLoginService {
             demo_duration?: number;
             cache_clear?: unknown;
             cache_clear_at?: unknown;
+            /** PIN parental del equipo en el panel (0000 de fábrica) */
+            pin?: unknown;
         }>('check_mac', { cc: readCacheClearSeen() ?? 0, ...(poll ? { poll: 1 } : {}) });
+        if (isDeviceBlocked(res)) return { status: 'blocked', message: blockedText(res) };
         if (!res.ok) return { status: 'error', message: panelErrorText(res, 'MPX.PANEL.ERR_CHECK_DEVICE') };
         const data = res.data;
+        // PIN parental del panel: es el que usa la app (control parental)
+        saveParentalPin(data?.pin);
         // orden «borrar caché» del panel: aviso, borrado y reinicio; esta comprobación no sigue
         if (applyCacheClearOrder(data?.cache_clear, data?.cache_clear_at)) return new Promise<DeviceCheck>(() => undefined);
         // fake screen of the panel for new devices («Pantalla Falsa»)
@@ -181,25 +226,62 @@ export class PanelLoginService {
      */
     async demoAvailable(): Promise<boolean | null> {
         try {
-            const res = await this.request<{ status?: string; features?: { demo?: unknown } }>('features');
+            const res = await this.request<{ status?: string; features?: { demo?: unknown; review?: unknown } }>('features');
             // sin la llave del panel no hay Autodemo
             if (res.code === 'NO_MASTER_KEY') return false;
-            const demo = res.ok && res.data?.status === 'ok' ? res.data.features?.demo : undefined;
+            const f = res.ok && res.data?.status === 'ok' ? res.data.features : undefined;
+            // tema de prueba (Pantalla Falsa del panel): solo con Omitir
+            this.reviewOffered = f?.review === true && !readTenantCode();
+            const demo = f?.demo;
             return typeof demo === 'boolean' ? demo : null;
         } catch {
             return null;
         }
     }
 
+    /** el panel ofrece el tema de prueba (lo dice la acción features; con Omitir) */
+    reviewOffered = false;
+
     async fetchDns(): Promise<string[]> {
         const res = await this.request<string[]>('fetch_dns');
         return res.ok && Array.isArray(res.data) ? res.data : [];
     }
 
-    async activate(username: string, password: string, dns: string): Promise<{ ok: boolean; message?: UiText }> {
+    async activate(
+        username: string,
+        password: string,
+        dns: string
+    ): Promise<{ ok: boolean; message?: UiText; blocked?: boolean }> {
         const res = await this.request<{ status?: string }>('submit_url', { username, password, url: dns });
         if (res.ok && res.data?.status === 'ok') return { ok: true };
+        if (isDeviceBlocked(res)) return { ok: false, message: blockedText(res), blocked: true };
         return { ok: false, message: panelErrorText(res, 'MPX.PANEL.ERR_ACTIVATE') };
+    }
+
+    /** Cambia el PIN parental en el panel (pide el actual); si el panel no lo acepta, el PIN no cambia. */
+    async setPin(oldPin: string, newPin: string): Promise<{ ok: boolean; message?: UiText }> {
+        const res = await this.request<{ ok?: boolean; pin?: unknown }>('set_pin', { old_pin: oldPin, pin: newPin });
+        if (res.ok && res.data?.ok === true) {
+            saveParentalPin(newPin);
+            return { ok: true };
+        }
+        if (isDeviceBlocked(res)) return { ok: false, message: blockedText(res) };
+        return { ok: false, message: panelErrorText(res, 'MPX.PARENTAL.ERR_SAVE') };
+    }
+
+    /**
+     * Tema de prueba del dueño (Pantalla Falsa, solo con Omitir): Auto-Demo (demo) o una cuenta del tema. No registra
+     * nada en el panel ni vence. status 401 = no es una cuenta del tema (sigue el inicio de sesión de siempre).
+     */
+    async reviewLogin(username: string, password: string, demo: boolean): Promise<ReviewLogin> {
+        const res = await this.request<{ status?: string; movies?: unknown; series?: unknown }>(
+            'review_login',
+            demo ? { demo: 1 } : { username, password }
+        );
+        if (res.ok && res.data?.status === 'ok') {
+            return { ok: true, content: { movies: reviewVideos(res.data.movies), series: reviewVideos(res.data.series) } };
+        }
+        return { ok: false, status: res.status, message: panelErrorText(res, 'MPX.PANEL.ERR_CONNECT') };
     }
 
     /** A reseller demo code (see isResellerCode) registers the demo under that reseller. */
@@ -225,6 +307,7 @@ export class PanelLoginService {
                 duration: Number(res.data.demo_duration) || 0,
             };
         }
+        if (isDeviceBlocked(res)) return { ok: false, message: blockedText(res), blocked: true, device: true };
         return {
             ok: false,
             message: panelErrorText(res, 'MPX.PANEL.ERR_DEMO'),

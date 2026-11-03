@@ -1312,7 +1312,8 @@
             "ERR_HTTP": "Panel error ({{status}}).",
             "ERR_CHECK_DEVICE": "Could not verify the device.",
             "ERR_ACTIVATE": "Could not activate the device.",
-            "ERR_DEMO": "Could not create the demo."
+            "ERR_DEMO": "Could not create the demo.",
+            "ERR_BLOCKED": "This device is blocked. Contact your provider."
         },
         "LOGIN": {
             "TITLE": "Sign in",
@@ -1534,7 +1535,10 @@
             "TAG_NOVELA": "Soap operas",
             "TAG_WESTERN": "Western",
             "TAG_MUSICAL": "Music",
-            "TAG_DEPORTES": "Sports"
+            "TAG_DEPORTES": "Sports",
+            "TOP10_WEEK": "Top 10 this week",
+            "TOP10_MOVIES_WEEK": "Top 10 movies this week",
+            "TOP10_SERIES_WEEK": "Top 10 series this week"
         },
         "ADD": {
             "TITLE": "Add connection",
@@ -1567,6 +1571,34 @@
             "NEXTDNS": "Avoids geo-blocking",
             "OPENDNS": "Cisco OpenDNS",
             "SETTINGS_HINT": "Change the DNS if your internet provider blocks the panel or the channels. Does not apply to MPV/VLC."
+        },
+        "PARENTAL": {
+            "SECTION": "Parental control",
+            "HIDE_ADULT": "Hide adult content",
+            "PIN": "PIN",
+            "UNLOCK": "Unlock",
+            "LOCK": "Lock again",
+            "CHANGE": "Change PIN",
+            "CURRENT": "Current PIN",
+            "NEW": "New PIN",
+            "SAVE": "Save",
+            "NOTE": "The PIN is this device's PIN in the panel (0000 by default). Once unlocked, adult content shows until the app is closed.",
+            "HIDDEN": "Adult content hidden.",
+            "SHOWN": "Adult content visible.",
+            "UNLOCKED": "Unlocked until the app is closed.",
+            "WRONG_PIN": "Wrong PIN.",
+            "FOUR_DIGITS": "The PIN must have 4 digits.",
+            "SAVED": "PIN saved in the panel.",
+            "ERR_SAVE": "The panel did not save the PIN."
+        },
+        "REVIEW": {
+            "MOVIES": "Movies",
+            "SERIES": "Series",
+            "SETTINGS": "Settings",
+            "LOGOUT": "Log out",
+            "BACK": "Back",
+            "ERROR": "This video could not be played.",
+            "EMPTY": "No videos."
         }
     }
 }

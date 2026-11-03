@@ -17,3 +17,5 @@ export * from './lib/sort.service';
 export * from './lib/tmdb';
 export * from './lib/xtream-pending-restore.service';
 export * from './lib/panel-sync';
+export * from './lib/parental/parental-control.service';
+

@@ -10,8 +10,8 @@ const RECHECK_MS = 10 * 60_000;
 /**
  * Keeps an open session tied to the panel while the app runs: a demo ends at
  * its exact time and a line the panel no longer gives this device (deleted,
- * expired demo) closes the session and goes back to /login. A panel that does
- * not answer changes nothing.
+ * expired demo) or a device put on the panel's blacklist closes the session
+ * and goes back to /login. A panel that does not answer changes nothing.
  */
 @Injectable({ providedIn: 'root' })
 export class PanelSessionGuardService {
@@ -38,7 +38,9 @@ export class PanelSessionGuardService {
         if (!demoOver) {
             if (now - this.lastCheck < RECHECK_MS) return;
             this.lastCheck = now;
-            if ((await this.panel.checkDevice(true)).status !== 'inactive') return;
+            // no line any more, or the device was put on the panel's blacklist: back to /login (which shows why)
+            const status = (await this.panel.checkDevice(true)).status;
+            if (status !== 'inactive' && status !== 'blocked') return;
         }
         this.stop();
         await this.session.clear();

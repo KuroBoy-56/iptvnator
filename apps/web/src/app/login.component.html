@@ -99,11 +99,13 @@
                 }
             }
 
+            @if (!review()) {
             <div class="nf-login-dns">
                 <app-secure-dns-picker />
             </div>
+            }
 
-            @if (deviceId()) {
+            @if (deviceId() && !review()) {
                 <p class="nf-device">{{ 'MPX.LOGIN.DEVICE_ID' | translate }} <code>{{ deviceId() }}</code></p>
             }
             <p class="nf-login-hint">

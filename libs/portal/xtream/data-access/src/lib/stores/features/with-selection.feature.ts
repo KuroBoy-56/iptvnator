@@ -1,4 +1,5 @@
-import { computed } from '@angular/core';
+import { computed, inject } from '@angular/core';
+import { ParentalControlService } from '@iptvnator/services';
 import {
     patchState,
     signalStoreFeature,
@@ -186,6 +187,11 @@ export function withSelection() {
         withState<SelectionState>(initialSelectionState),
 
         withComputed((store) => {
+            const parental = inject(ParentalControlService);
+            const categoryName = (c: unknown): string => {
+                const o = (c ?? {}) as { category_name?: unknown; name?: unknown };
+                return String(o.category_name ?? o.name ?? '');
+            };
             const getItemDate = (
                 item: XtreamSelectionItem,
                 categoryType: ContentType
@@ -497,11 +503,14 @@ export function withSelection() {
 
                     // Access parent store categories (from withContent)
                     const storeAny = store as ParentSelectionStoreLike;
-                    return type === 'live'
-                        ? storeAny.liveCategories?.() || []
-                        : type === 'vod'
-                          ? storeAny.vodCategories?.() || []
-                          : storeAny.serialCategories?.() || [];
+                    const list =
+                        type === 'live'
+                            ? storeAny.liveCategories?.() || []
+                            : type === 'vod'
+                              ? storeAny.vodCategories?.() || []
+                              : storeAny.serialCategories?.() || [];
+                    // control parental: sin las categorías para adultos mientras esté bloqueado con el PIN
+                    return parental.visible(list, categoryName);
                 }),
             };
         }),

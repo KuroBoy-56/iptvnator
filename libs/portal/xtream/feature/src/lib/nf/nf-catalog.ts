@@ -1,5 +1,6 @@
 import { computed, effect, inject, signal, untracked } from '@angular/core';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { ParentalControlService } from '@iptvnator/services';
 import { NfHeroService, NfHeroSlide } from './nf-hero.service';
 import { NfItem, toNfItems } from './nf-item';
 import { NfLibrary, NfLibraryService } from './nf-library.service';
@@ -39,17 +40,30 @@ export function injectNfCatalog(
     const playlistId = computed(
         () => store.playlistId() ?? store.currentPlaylist()?.id ?? ''
     );
-    const movies = computed(() =>
-        toNfItems(store.vodStreams() as unknown[], 'movie')
-    );
-    const series = computed(() =>
-        toNfItems(store.serialStreams() as unknown[], 'series')
-    );
-    const movieCategories = computed(() =>
+    const parental = inject(ParentalControlService);
+
+    // control parental: sin las categorías para adultos (ni sus títulos) mientras esté bloqueado con el PIN
+    const allMovieCategories = computed(() =>
         toCategories(store.vodCategories() as unknown[])
     );
-    const seriesCategories = computed(() =>
+    const allSeriesCategories = computed(() =>
         toCategories(store.serialCategories() as unknown[])
+    );
+    const movieCategories = computed(() =>
+        parental.visible(allMovieCategories(), (c) => c.name)
+    );
+    const seriesCategories = computed(() =>
+        parental.visible(allSeriesCategories(), (c) => c.name)
+    );
+    const withoutHidden = (items: NfItem[], cats: NfCategory[]): NfItem[] => {
+        const hidden = parental.hiddenIds(cats, (c) => c.name, (c) => c.id);
+        return hidden.size ? items.filter((i) => !hidden.has(i.categoryId)) : items;
+    };
+    const movies = computed(() =>
+        withoutHidden(toNfItems(store.vodStreams() as unknown[], 'movie'), allMovieCategories())
+    );
+    const series = computed(() =>
+        withoutHidden(toNfItems(store.serialStreams() as unknown[], 'series'), allSeriesCategories())
     );
     const ready = computed(() => movies().length > 0 || series().length > 0);
 
