@@ -157,6 +157,31 @@
                 "outputPath": "dist/executables"
             }
         },
+        "prepare-store": {
+            "dependsOn": ["electron-backend:generate-builder-metadata"],
+            "executor": "nx:run-commands",
+            "cache": false,
+            "options": {
+                "command": "node tools/packaging/prepare-store.mjs",
+                "cwd": "{workspaceRoot}"
+            }
+        },
+        "make-store": {
+            "dependsOn": [
+                "electron-backend:build",
+                "electron-backend:generate-builder-metadata",
+                "electron-backend:prepare-store"
+            ],
+            "executor": "nx-electron:make",
+            "cache": false,
+            "options": {
+                "name": "electron-backend",
+                "frontendProject": "web",
+                "sourcePath": "dist/apps",
+                "outputPath": "dist/store",
+                "makerOptionsPath": "apps/electron-backend/src/app/options/maker.store.options.json"
+            }
+        },
         "generate-builder-metadata": {
             "dependsOn": ["electron-backend:build"],
             "executor": "nx:run-commands",

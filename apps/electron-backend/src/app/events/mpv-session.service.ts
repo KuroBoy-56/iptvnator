@@ -10,6 +10,7 @@ import {
     MPV_REUSE_INSTANCE,
     store,
 } from '../services/store.service';
+import { externalPlayerWorkingDir } from './external-player-cwd';
 import {
     buildExternalPlayerSpawnSpec,
     buildPlayerArgsWithCustomArguments,
@@ -228,6 +229,8 @@ export async function openMpvPlayer(request: OpenExternalPlayerRequest) {
             const proc = spawn(spawnSpec.command, spawnSpec.args, {
                 shell: false,
                 detached: !reuseInstance,
+                // Microsoft Store: la carpeta de instalación es de solo lectura (en el EXE queda undefined: igual que antes)
+                cwd: externalPlayerWorkingDir(),
                 // ELIMINADO windowsHide PORQUE PUEDE OCULTAR MPV EN ALGUNOS SISTEMAS
                 stdio: 'ignore'
             });

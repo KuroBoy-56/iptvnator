@@ -1,0 +1,4 @@
+{
+  "$schema": "../../../../../node_modules/nx-electron/src/validation/maker.schema.json",
+  "extends": "dist/store-config/electron-builder.store.resolved.json"
+}

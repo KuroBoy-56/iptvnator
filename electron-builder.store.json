@@ -1,0 +1,28 @@
+{
+    "extends": "electron-builder.json",
+    "directories": {
+        "buildResources": "apps/electron-backend/store",
+        "output": "dist/store"
+    },
+    "publish": null,
+    "win": {
+        "target": [
+            {
+                "target": "appx",
+                "arch": ["x64"]
+            }
+        ],
+        "icon": "apps/web/src/assets/icons/icon.png"
+    },
+    "appx": {
+        "displayName": "MPX Player",
+        "backgroundColor": "transparent",
+        "languages": ["es-MX", "en-US", "pt-BR", "fr-FR"],
+        "minVersion": "10.0.17763.0",
+        "maxVersionTested": "10.0.26100.0",
+        "showNameOnTiles": false,
+        "addAutoLaunchExtension": false,
+        "setBuildNumber": false,
+        "artifactName": "MPX-Player-${version}-store-${arch}.${ext}"
+    }
+}
