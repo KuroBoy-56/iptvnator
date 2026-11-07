@@ -4,6 +4,8 @@
         <input
             #queryInput
             type="search"
+            inputmode="search"
+            enterkeyhint="search"
             spellcheck="false"
             [value]="query()"
             (input)="onQueryInput($event)"

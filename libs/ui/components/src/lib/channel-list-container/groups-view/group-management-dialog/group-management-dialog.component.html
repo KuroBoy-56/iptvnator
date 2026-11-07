@@ -30,6 +30,8 @@
         <mat-icon class="search-inline__icon">search</mat-icon>
         <input
             type="search"
+            inputmode="search"
+            enterkeyhint="search"
             spellcheck="false"
             [value]="searchTerm()"
             (input)="searchTerm.set($any($event.target).value)"

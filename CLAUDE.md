@@ -103,10 +103,15 @@ pnpm run package:app
 # or
 nx run electron-backend:package
 
-# Create installers/executables
+# Create installers/executables (EXE / NSIS on Windows, output dist/executables)
 pnpm run make:app
 # or
 nx run electron-backend:make
+
+# Microsoft Store package (AppX x64, Windows only, output dist/store; needs the Partner Center
+# identity in APPX_IDENTITY_NAME / APPX_PUBLISHER / APPX_PUBLISHER_DISPLAY_NAME / APPX_APPLICATION_ID)
+pnpm run make:store
+# runs tools/packaging/make-store.mjs -> nx run electron-backend:make-store (see docs/MICROSOFT-STORE.md)
 ```
 
 ### Electron CDP Debugging
@@ -695,6 +700,11 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - Theme: dark only (no theme picker; `SettingsService.changeTheme` always applies `dark-theme`) with the web player palette and `#e50914` accent (`apps/web/src/m3-theme.scss`); a distributor palette repaints the `--nf-*` and app tokens at runtime
 - Netflix UI (same design as the web player and TV app): the workspace shell shows a top bar (`workspace-nf-header`: Inicio, Series, Películas, TV en vivo, Deportes, Explorar, search → `explore?q=`, clock, profile menu with "Idioma de la app") instead of the rail/toolbar; the context sidebar only appears for live TV, settings and sources. Pages: `NfHomeComponent` (billboard, platform tiles, Continuar viendo / Mi lista from the panel, Top 10, platform and genre rows), `NfBrowseComponent` (Películas/Series), `NfExploreComponent` (grid; on `?platform=` pages the name filter is a top-right magnifier, `NfTitleSearchComponent`; the last billboard backdrop stays faded behind its header, `NfHeroService.lastBackdrop`), `NfLibraryPageComponent` (`continue-watching` / `my-list`: "Ver todo" of the panel rows). Panel lists are newest first by `ts` (`panelNewestFirst`). Global `.nf-*` styles live in `apps/web/src/_netflix.scss`; platform/genre keyword tables in `nf/nf-filters.ts` mirror the web player's `includes/core.php`
 
+**Touch screens and pens (Windows)**:
+
+- `apps/web/src/app/touch/input-modality.ts` (installed in `main.ts`) sets `<html data-input="mouse|touch|pen">` from Pointer Events (last input; no event is replaced or duplicated)
+- `apps/web/src/_touch.scss` only adapts interaction: hides the hover-only row arrows and shows «Ver todo» with touch (rows swipe and snap), ~44 px hit areas around small controls without changing their look, wider resize handle (`touch-action: none` only there, never global), `touch-action: manipulation` on links/buttons/cards; search inputs carry `inputmode="search"` + `enterkeyhint="search"` for the Windows touch keyboard. Limits of the native MPV / VLC windows are in `docs/MICROSOFT-STORE.md`
+
 **Internationalization**:
 
 - Uses `@ngx-translate` with 18 language files in `apps/web/src/assets/i18n/`
@@ -770,6 +780,12 @@ pnpm nx run-many --target=test --all
 ```
 
 ### Electron Build Process
+
+Two independent Windows distributions since 1.5.22 (see `docs/MICROSOFT-STORE.md`):
+
+- **EXE** (`pnpm run make:app`): `electron-builder.json` (NSIS), unchanged.
+- **Microsoft Store** (`pnpm run make:store`): `electron-builder.store.json` is applied on top of `electron-builder.json` by `tools/packaging/prepare-store.mjs` (Nx target `electron-backend:prepare-store`; arrays replace instead of the concatenation Electron Builder's `extends` does) and written resolved to `dist/store-config/electron-builder.store.resolved.json`; `electron-backend:make-store` runs the same `nx-electron:make` executor with `makerOptionsPath: apps/electron-backend/src/app/options/maker.store.options.json` and `outputPath: dist/store`. AppX images are generated with Sharp into `apps/electron-backend/store/appx/` from `apps/web/src/assets/icons/icon-1024.png`. The identity comes only from env vars (validated in `tools/packaging/store/store-identity.mjs`, never `com.fourgray.iptvnator`); the package is unsigned (signing env vars are dropped) and `publish: null`. MPV / VLC (`bin/`) are checked before and after the build (`store-players.mjs`); inside the AppX they start with the user folder as working directory (`external-player-cwd.ts`, `process.windowsStore`). Tests: `node --test tools/packaging/store/store-packaging.test.mjs`.
+- **No built-in updater**: the inherited IPTVnator updater (GitHub releases, `electron-updater`, `APP_UPDATE_*` IPC, update panels in Settings) was removed in 1.5.22; Microsoft Store updates the Store build and the EXE will get its own updater later.
 
 The Electron backend depends on the web app being built first:
 

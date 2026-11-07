@@ -34,6 +34,8 @@
             <input
                 #searchInput
                 type="search"
+                inputmode="search"
+                enterkeyhint="search"
                 [placeholder]="'MPX.NAV.SEARCH_PLACEHOLDER' | translate"
                 [attr.aria-label]="'MPX.COMMON.SEARCH' | translate"
                 (keydown.enter)="search(searchInput.value)"

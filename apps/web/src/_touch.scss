@@ -1,0 +1,85 @@
+// ─── Pantallas táctiles y lápices de Windows ─────────────────────────────────
+// Solo cambia cómo se toca, no cómo se ve: mismos colores, tamaños y logotipo. <html data-input> lo pone
+// app/touch/input-modality.ts según el último uso (mouse, touch o pen). No hay `touch-action: none` global: las filas,
+// listas y páginas se siguen desplazando con el dedo (vertical y horizontal); solo el divisor redimensionable lo usa.
+
+// Toque sin la espera del doble toque de zoom y sin selección de texto accidental en botones y tarjetas
+a,
+button,
+[role='button'],
+[role='menuitem'],
+[role='tab'],
+.nf-card,
+.nf-chip {
+    touch-action: manipulation;
+}
+
+html[data-input='touch'],
+html[data-input='pen'] {
+    .nf-card,
+    .nf-chip,
+    .nf-nav a,
+    button {
+        -webkit-user-select: none;
+        user-select: none;
+    }
+}
+
+// Con el dedo las filas se deslizan; las flechas solo aparecían con el mouse encima y, invisibles, tapaban el borde
+// de la primera y la última tarjeta (el toque las movía en vez de abrir el título). «Ver todo» queda visible.
+html[data-input='touch'] {
+    .nf-arrow {
+        display: none;
+    }
+
+    .nf-row-more {
+        opacity: 1;
+        transform: none;
+    }
+
+    // las filas se detienen en una tarjeta al soltar el dedo
+    .nf-slider {
+        scroll-snap-type: x proximity;
+
+        > * {
+            scroll-snap-align: start;
+        }
+    }
+}
+
+// Áreas de toque de ~44 × 44 px alrededor de los controles pequeños, sin cambiar su tamaño visible
+html[data-input='touch'],
+html[data-input='pen'] {
+    .nf-icon-btn,
+    .nf-psearch-btn,
+    .nf-chip,
+    .nf-nav a,
+    .nf-row-more,
+    .nf-menu button {
+        position: relative;
+
+        &::after {
+            content: '';
+            position: absolute;
+            inset: 50% auto auto 50%;
+            width: max(100%, 44px);
+            height: max(100%, 44px);
+            transform: translate(-50%, -50%);
+        }
+    }
+
+    // divisor de los paneles laterales: más ancho para el dedo (la línea visible sigue igual)
+    .resize-handle {
+        width: 24px;
+    }
+}
+
+// el divisor se arrastra con el dedo o el lápiz sin desplazar la página
+.resize-handle {
+    touch-action: none;
+}
+
+// Teclado táctil de Windows: los campos de búsqueda lo abren al tocarlos (Chromium); que no se tape el texto
+html[data-input='touch'] input[type='search'] {
+    scroll-margin-bottom: 40vh;
+}

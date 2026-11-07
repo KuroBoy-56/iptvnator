@@ -31,6 +31,8 @@
             <input
                 #searchInput
                 type="search"
+                inputmode="search"
+                enterkeyhint="search"
                 spellcheck="false"
                 [value]="searchQuery()"
                 (input)="onSearchInput($event)"

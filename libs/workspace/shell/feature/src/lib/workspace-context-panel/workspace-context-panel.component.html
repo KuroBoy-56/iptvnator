@@ -89,6 +89,8 @@
             <input
                 #searchInput
                 type="search"
+                inputmode="search"
+                enterkeyhint="search"
                 spellcheck="false"
                 [value]="categorySearchTerm()"
                 (input)="onSearchInput($event)"

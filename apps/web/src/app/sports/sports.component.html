@@ -43,6 +43,8 @@
             <div class="sp-search">
                 <input
                     type="search"
+                    inputmode="search"
+                    enterkeyhint="search"
                     [placeholder]="'MPX.SPORTS.SEARCH' | translate"
                     [attr.aria-label]="'MPX.SPORTS.SEARCH' | translate"
                     (input)="onQuery($any($event.target).value)"
@@ -184,6 +186,8 @@
             <div class="sp-search">
                 <input
                     type="search"
+                    inputmode="search"
+                    enterkeyhint="search"
                     [placeholder]="'MPX.SPORTS.SEARCH_TEAM' | translate"
                     [attr.aria-label]="'MPX.SPORTS.SEARCH_TEAM' | translate"
                     [value]="fixtures.query()"

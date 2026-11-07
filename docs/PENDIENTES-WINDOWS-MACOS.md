@@ -139,6 +139,27 @@ Notas: el .p12 y las contraseñas nunca van al repositorio, solo a los secretos.
 repartir el .dmg) hace falta otro certificado (*Apple Distribution* / *Mac Installer Distribution*) y la app con
 sandbox: es otro trabajo, se hace solo si se decide publicar ahí.
 
+## 8. Windows 1.5.22 (Microsoft Store, sin actualizador, tacto) — lo que toca a macOS (solo anotado, sin hacer)
+
+En `master` (7 de noviembre): versión **1.5.22**, sin el actualizador heredado de IPTVnator (GitHub releases,
+`electron-updater`), compilación aparte para Microsoft Store (`pnpm run make:store`, ver `docs/MICROSOFT-STORE.md`) y
+adaptación a pantallas táctiles. Respaldo de la versión anterior: rama `respaldo-windows-0.22.0`. **No se llevó a
+`macos` ni se compiló** (orden del dueño). Para cuando se haga el merge `master` → `macos`:
+
+- **Versión 1.5.22 y sin actualizador**: llegan solos con el merge. El Mac tampoco tendrá actualizador integrado;
+  `build-macos.yml` no usa `latest-mac.yml` ni `electron-updater`, así que no hay que cambiarlo. Revisar que el bloque
+  `mac` de `electron-builder.json` (dmg + zip, `forceCodeSigning`, `notarize`) siga igual: el merge no lo toca.
+- **Microsoft Store**: solo Windows. `make:store` se detiene en un Mac con un aviso; no afecta a `make:mac`.
+- **Mac App Store** (si algún día se quiere): necesitaría el destino `mas`, App Sandbox y su propia identidad. Con App
+  Sandbox, MPV integrado (libmpv dentro del .app) puede funcionar, pero **MPV y VLC externos** no se pueden lanzar como
+  hoy (un programa con sandbox no ejecuta otros .app ni binarios fuera de su paquete); habría que llevarlos dentro del
+  .app firmados con `com.apple.security.inherit`. Hoy el Mac se distribuye fuera de la tienda (dmg / zip notarizados).
+- **Tacto**: los Mac no tienen pantalla táctil; `input-modality.ts` queda en «mouse» y `_touch.scss` no cambia nada
+  ahí (el trackpad sigue igual). El lápiz no aplica.
+- **`external-player-cwd.ts`**: solo actúa con `process.windowsStore` (paquete AppX); en el Mac no cambia nada.
+- Después del merge, compilar `macos` en Actions (Build macOS app) y probar: inicio de sesión, MPV / VLC, MPV integrado,
+  Ajustes › Acerca de (solo la versión, sin «Buscar actualizaciones»).
+
 ## Orden propuesto
 1 → 2 → 4 → 3 → 5 → 6 (todos obligatorios en Windows y macOS); el 7 solo necesita los secretos. Cada punto: código en `master` con pruebas
 (`pnpm nx test web`, lint), `[skip ci]` (Windows lo compilas tú), y merge en `macos` para que GitHub compile el Mac.
