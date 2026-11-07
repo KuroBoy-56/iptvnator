@@ -41,7 +41,7 @@ const epgFixtureXml = `<?xml version="1.0" encoding="UTF-8"?>
 `;
 
 test.describe('Electron Settings', () => {
-    test('@settings @electron shows manual app update fallback when self-update is unavailable', async ({
+    test('@settings @electron has no built-in app updater (no GitHub releases)', async ({
         dataDir,
     }) => {
         const app = await launchElectronApp(dataDir);
@@ -49,17 +49,15 @@ test.describe('Electron Settings', () => {
         try {
             await openSettings(app.mainWindow);
 
-            await expect(app.mainWindow.getByTestId('app-update-status')).toBeVisible();
-            await expect(app.mainWindow.getByTestId('app-update-check')).toBeVisible();
             await expect(
-                app.mainWindow.getByTestId('app-update-open-release')
-            ).toBeVisible();
-            await expect(
-                app.mainWindow.getByTestId('app-update-download')
+                app.mainWindow.locator('[data-test-id^="app-update"]')
             ).toHaveCount(0);
-            await expect(
-                app.mainWindow.getByTestId('app-update-install')
-            ).toHaveCount(0);
+            const bridgeKeys = await app.mainWindow.evaluate(() =>
+                Object.keys(
+                    (window as unknown as { electron: object }).electron
+                ).filter((key) => /appupdate/i.test(key))
+            );
+            expect(bridgeKeys).toEqual([]);
         } finally {
             await closeElectronApp(app);
         }

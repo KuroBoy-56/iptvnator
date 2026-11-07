@@ -15,7 +15,6 @@ import { AppLanguage, AUTO_UPDATE_PLAYLISTS, currentAppLanguage, DEFAULT_APP_LAN
 import { SettingsService } from './services/settings.service';
 import { PanelCacheSyncService } from './services/panel-cache-sync.service';
 import { CACHE_CLEAR_NOTICE_MS, PANEL_CACHE_CLEAR_EVENT } from './panel-login/cache-clear.util';
-import { AppUpdateNotificationPanelComponent } from './app-update-notification-panel.component';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 
 const debugAppComponent = createDevLogger('AppComponent');
@@ -24,7 +23,6 @@ const debugAppComponent = createDevLogger('AppComponent');
     selector: 'app-root',
     templateUrl: './app.component.html',
     imports: [
-        AppUpdateNotificationPanelComponent,
         EpgProgressPanelComponent,
         RouterOutlet,
         WindowControlsComponent,

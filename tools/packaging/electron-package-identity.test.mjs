@@ -99,13 +99,14 @@ const embeddedMpvWin32Source = fs.readFileSync(
 const { validatePackagedEmbeddedMpv } = require('./embedded-mpv-packaging.cjs');
 
 test('Linux package identity does not expose the internal Electron backend project name', () => {
-    assert.equal(electronBuilderConfig.productName, 'IPTVnator');
-    assert.equal(electronBuilderConfig.extraMetadata?.name, 'iptvnator');
-    assert.equal(electronBuilderConfig.extraMetadata?.productName, 'IPTVnator');
-    assert.equal(electronBuilderConfig.linux?.executableName, 'iptvnator');
+    // MPX Player: visible name «MPX Player»; the data folder keeps the old name «LatMpx TV+» so updates keep the session
+    assert.equal(electronBuilderConfig.productName, 'MPX Player');
+    assert.equal(electronBuilderConfig.extraMetadata?.name, 'LatMpx TV+');
+    assert.equal(electronBuilderConfig.extraMetadata?.productName, 'MPX Player');
+    assert.equal(electronBuilderConfig.linux?.executableName, 'MPX Player');
     assert.equal(
         electronBuilderConfig.linux?.desktop?.entry?.StartupWMClass,
-        'iptvnator'
+        'MPX Player'
     );
     assert.ok(
         electronBuilderConfig.linux?.executableArgs?.includes(
@@ -114,56 +115,17 @@ test('Linux package identity does not expose the internal Electron backend proje
     );
 });
 
-test('GitHub Releases auto-update metadata is generated and uploaded', () => {
-    const releaseFiles = buildAndMakeWorkflow.match(
-        /files: \|\n([\s\S]*?)\n\s+env:/
-    )?.[1];
-
-    assert.ok(releaseFiles, 'release upload files block must exist');
-    assert.ok(
+test('no built-in updater: nothing points at the GitHub releases of IPTVnator', () => {
+    // 1.5.22: the Microsoft Store build is updated by the Store; the EXE build will get its own updater later
+    assert.equal(
         packageMetadata.dependencies?.['electron-updater'],
-        'electron-updater must be a runtime dependency because the packaged app imports it'
+        undefined,
+        'electron-updater was removed together with the inherited GitHub updater'
     );
-    assert.deepEqual(electronBuilderConfig.publish, [
-        {
-            provider: 'github',
-            owner: '4gray',
-            repo: 'iptvnator',
-        },
-    ]);
-    assert.deepEqual(electronBuilderConfig.mac?.target, [
-        {
-            target: 'dmg',
-            arch: ['x64', 'arm64'],
-        },
-        {
-            target: 'zip',
-            arch: ['x64', 'arm64'],
-        },
-    ]);
-    assert.match(buildAndMakeWorkflow, /dist\/executables\/\*\*\/latest\.yml/);
-    assert.match(
-        buildAndMakeWorkflow,
-        /dist\/executables\/\*\*\/latest-mac\.yml/
-    );
-    assert.match(
-        buildAndMakeWorkflow,
-        /dist\/executables\/\*\*\/latest-linux\*\.yml/
-    );
-    assert.match(buildAndMakeWorkflow, /dist\/executables\/\*\*\/\*\.blockmap/);
-    assert.match(buildAndMakeWorkflow, /Merge macOS updater metadata/);
-    assert.match(buildAndMakeWorkflow, /artifacts\/latest-mac\.yml/);
+    assert.equal(electronBuilderConfig.publish, undefined);
     assert.doesNotMatch(
-        releaseFiles,
-        /artifacts\/macos-(?:x64|arm64)-artifacts\/latest-mac\.yml/
-    );
-    assert.match(
-        buildAndMakeWorkflow,
-        /artifacts\/linux-artifacts\/latest-linux\*\.yml/
-    );
-    assert.match(
-        buildAndMakeWorkflow,
-        /artifacts\/windows-artifacts\/latest\.yml/
+        JSON.stringify(electronBuilderConfig),
+        /4gray\/iptvnator\/releases|api\.github\.com/
     );
 
     const makeCommands = [

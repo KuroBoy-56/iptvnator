@@ -1,20 +1,10 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import { createPanelBridge } from '../panel/panel.preload';
-import {
-    APP_UPDATE_CHECK,
-    APP_UPDATE_DOWNLOAD,
-    APP_UPDATE_GET_RELEASE_NOTES,
-    APP_UPDATE_GET_STATUS,
-    APP_UPDATE_INSTALL,
-    APP_UPDATE_STATUS_CHANGED,
-} from '@iptvnator/shared/interfaces/ipc-commands';
 import type {
     EmbeddedMpvBounds,
     EmbeddedMpvRecordingStartOptions,
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
-    ElectronBridgeAppUpdateReleaseNotesRequest,
-    ElectronBridgeAppUpdateStatus,
     ElectronBridgeDbOperationEvent,
     ElectronBridgeDownloadStartPayload,
     ElectronBridgeEpgLookupOptions,
@@ -298,23 +288,6 @@ const electronApi: any = {
     },
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
     platform: process.platform,
-    getAppUpdateStatus: () => ipcRenderer.invoke(APP_UPDATE_GET_STATUS),
-    checkForAppUpdate: () => ipcRenderer.invoke(APP_UPDATE_CHECK),
-    downloadAppUpdate: () => ipcRenderer.invoke(APP_UPDATE_DOWNLOAD),
-    installAppUpdate: () => ipcRenderer.invoke(APP_UPDATE_INSTALL),
-    getAppUpdateReleaseNotes: (
-        request?: ElectronBridgeAppUpdateReleaseNotesRequest
-    ) => ipcRenderer.invoke(APP_UPDATE_GET_RELEASE_NOTES, request),
-    onAppUpdateStatusChange: (
-        callback: (status: ElectronBridgeAppUpdateStatus) => void
-    ) => {
-        const handler = (
-            _event: Electron.IpcRendererEvent,
-            status: ElectronBridgeAppUpdateStatus
-        ) => callback(status);
-        ipcRenderer.on(APP_UPDATE_STATUS_CHANGED, handler);
-        return () => ipcRenderer.off(APP_UPDATE_STATUS_CHANGED, handler);
-    },
     minimizeWindow: () => ipcRenderer.invoke(WINDOW_MINIMIZE),
     toggleMaximizeWindow: () => ipcRenderer.invoke(WINDOW_TOGGLE_MAXIMIZE),
     closeWindow: () => ipcRenderer.invoke(WINDOW_CLOSE),

@@ -26,10 +26,6 @@ ipcMain.handle('get-app-version', (event) => {
   return environment.version;
 });
 
-ipcMain.handle('APP_UPDATE:GET_STATUS', (event) => {
-  return { status: 'idle', updateAvailable: false };
-});
-
 ipcMain.on('quit', (event, code) => {
   app.exit(code);
 });

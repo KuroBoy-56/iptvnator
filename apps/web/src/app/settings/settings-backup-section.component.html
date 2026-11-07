@@ -64,14 +64,9 @@
     </div>
 
     @if (isPwa()) {
+        <!-- sin enlace a las descargas de IPTVnator (otro desarrollador): solo el aviso -->
         <div class="settings-note">
             {{ 'SETTINGS.EPG_NOTE' | translate }}
-            &nbsp;<a
-                href="https://github.com/4gray/iptvnator/releases"
-                target="_blank"
-                rel="noreferrer"
-                >{{ 'SETTINGS.EPG_NOTE_URL_TEXT' | translate }}</a
-            >
         </div>
     }
 </section>

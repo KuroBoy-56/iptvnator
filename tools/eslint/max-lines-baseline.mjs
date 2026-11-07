@@ -27,8 +27,6 @@ export const maxLinesBaseline = [
     'apps/electron-backend/src/app/events/player.events.spec.ts',
     'apps/electron-backend/src/app/events/playlist.events.spec.ts',
     'apps/electron-backend/src/app/events/vlc-session.service.ts',
-    'apps/electron-backend/src/app/services/app-update.service.spec.ts',
-    'apps/electron-backend/src/app/services/app-update.service.ts',
     'apps/electron-backend/src/app/services/embedded-mpv-native-source.spec.ts',
     'apps/electron-backend/src/app/services/embedded-mpv-native.service.spec.ts',
     'apps/electron-backend/src/app/services/embedded-mpv-native.service.ts',

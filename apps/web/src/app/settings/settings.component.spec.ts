@@ -35,8 +35,6 @@ import {
 } from '@iptvnator/services';
 import {
     EmbeddedMpvSupport,
-    ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
-    ElectronBridgeAppUpdateStatus,
     Language,
     PlaylistMeta,
     StartupBehavior,
@@ -45,7 +43,6 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import { SettingsComponent } from './settings.component';
-import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
 
 import { signal } from '@angular/core';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util';
@@ -55,7 +52,7 @@ import {
     selectIsEpgAvailable,
 } from '@iptvnator/m3u-state';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
-import { from, of } from 'rxjs';
+import { of } from 'rxjs';
 import { ElectronServiceStub } from '../services/electron.service.stub';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsService } from '../services/settings.service';
@@ -110,13 +107,6 @@ const DEFAULT_SETTINGS = {
     tmdb: { enabled: false, apiKey: '' },
 };
 
-const DEFAULT_APP_UPDATE_STATUS: ElectronBridgeAppUpdateStatus = {
-    currentVersion: '0.22.0',
-    manualDownloadUrl: 'https://github.com/4gray/iptvnator/releases/latest',
-    status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Idle,
-    supportedSelfUpdate: true,
-};
-
 class MockSettingsStore {
     private _settings = signal(DEFAULT_SETTINGS);
 
@@ -151,15 +141,7 @@ class MockSettingsStore {
 }
 
 class MockSettingsService {
-    getAppVersion = jest.fn().mockReturnValue(from(Promise.resolve('1.0.0')));
     changeTheme = jest.fn();
-    isVersionOutdated = jest.fn().mockImplementation(
-        (currentVersion: string, latestVersion: string) =>
-            currentVersion.localeCompare(latestVersion, undefined, {
-                numeric: true,
-                sensitivity: 'base',
-            }) < 0
-    );
 }
 
 interface SettingsSectionScrollDirectiveTestApi {
@@ -167,10 +149,8 @@ interface SettingsSectionScrollDirectiveTestApi {
 }
 
 interface SettingsComponentPrivateTestApi {
-    loadAppUpdateStatus(): Promise<void>;
     matDialog: MatDialog;
     waitForUiFeedbackFrame(): Promise<void>;
-    waitForAppUpdateStatusRetry(): Promise<void>;
 }
 
 describe('SettingsComponent', () => {
@@ -316,22 +296,9 @@ describe('SettingsComponent', () => {
             fetchEpg: jest.fn().mockResolvedValue({ success: true }),
             forceFetchEpg: jest.fn().mockResolvedValue({ success: true }),
             getAppVersion: jest.fn().mockResolvedValue('1.0.0'),
-            getAppUpdateStatus: jest
-                .fn()
-                .mockResolvedValue(DEFAULT_APP_UPDATE_STATUS),
             getChannelPrograms: jest.fn().mockResolvedValue([]),
             getEpgChannelsByRange: jest.fn().mockResolvedValue([]),
             getLocalIpAddresses: jest.fn().mockResolvedValue([]),
-            checkForAppUpdate: jest
-                .fn()
-                .mockResolvedValue(DEFAULT_APP_UPDATE_STATUS),
-            downloadAppUpdate: jest
-                .fn()
-                .mockResolvedValue(DEFAULT_APP_UPDATE_STATUS),
-            installAppUpdate: jest
-                .fn()
-                .mockResolvedValue(DEFAULT_APP_UPDATE_STATUS),
-            onAppUpdateStatusChange: jest.fn(() => jest.fn()),
             openInMpv: jest.fn(),
             openInVlc: jest.fn(),
             platform: 'linux',
@@ -357,7 +324,6 @@ describe('SettingsComponent', () => {
         snackBar = TestBed.inject(MatSnackBar) as unknown as MatSnackBarStub;
 
         component = fixture.componentInstance;
-        component.checkAppVersion = jest.fn();
         component.fetchLocalIpAddresses = jest
             .fn()
             .mockResolvedValue(undefined);
@@ -384,150 +350,24 @@ describe('SettingsComponent', () => {
         expect(component).toBeTruthy();
     });
 
-    it('loads the desktop app update status and subscribes to status pushes', async () => {
-        const pushedStatus: ElectronBridgeAppUpdateStatus = {
-            ...DEFAULT_APP_UPDATE_STATUS,
-            latestVersion: '0.23.0',
-            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available,
-        };
+    it('shows the installed version without checking GitHub releases (no built-in updater)', async () => {
+        jest.spyOn(electronService, 'getAppVersion').mockReturnValue('1.5.22');
+        const fetchSpy = jest.fn();
+        const originalFetch = globalThis.fetch;
+        globalThis.fetch = fetchSpy as unknown as typeof fetch;
 
-        await fixture.whenStable();
-        const statusHandler = (
-            window.electron.onAppUpdateStatusChange as jest.Mock
-        ).mock.calls[0][0] as (status: ElectronBridgeAppUpdateStatus) => void;
-        statusHandler(pushedStatus);
-
-        expect(window.electron.getAppUpdateStatus).toHaveBeenCalledTimes(1);
-        expect(window.electron.onAppUpdateStatusChange).toHaveBeenCalledTimes(
-            1
-        );
-        expect(component.appUpdateStatus()).toEqual(pushedStatus);
-    });
-
-    it('retries the initial app update status load when IPC handlers are still starting', async () => {
-        const retriedStatus: ElectronBridgeAppUpdateStatus = {
-            ...DEFAULT_APP_UPDATE_STATUS,
-            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
-            supportedSelfUpdate: false,
-        };
-        await fixture.whenStable();
-        (window.electron.getAppUpdateStatus as jest.Mock)
-            .mockReset()
-            .mockRejectedValueOnce(new Error('No handler registered'))
-            .mockResolvedValueOnce(retriedStatus);
-        jest.spyOn(
-            privateApi(component),
-            'waitForAppUpdateStatusRetry'
-        ).mockResolvedValue(undefined);
-
-        await privateApi(component).loadAppUpdateStatus();
-
-        expect(window.electron.getAppUpdateStatus).toHaveBeenCalledTimes(2);
-        expect(component.appUpdateStatus()).toEqual(retriedStatus);
-    });
-
-    it('waits for the desktop app update bridge method before loading status', async () => {
-        const retriedStatus: ElectronBridgeAppUpdateStatus = {
-            ...DEFAULT_APP_UPDATE_STATUS,
-            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
-            supportedSelfUpdate: false,
-        };
-        await fixture.whenStable();
-        delete (window.electron as Partial<typeof window.electron>)
-            .getAppUpdateStatus;
-        let retryCount = 0;
-        const getStatus = jest.fn().mockResolvedValue(retriedStatus);
-        jest.spyOn(
-            privateApi(component),
-            'waitForAppUpdateStatusRetry'
-        ).mockImplementation(async () => {
-            retryCount += 1;
-
-            if (retryCount === 1) {
-                window.electron.getAppUpdateStatus = getStatus;
-            }
-        });
-
-        await privateApi(component).loadAppUpdateStatus();
-
-        expect(retryCount).toBe(1);
-        expect(getStatus).toHaveBeenCalledTimes(1);
-        expect(component.appUpdateStatus()).toEqual(retriedStatus);
-    });
-
-    it('forwards app update actions to the desktop bridge', async () => {
-        await component.checkForAppUpdate();
-        await component.downloadAppUpdate();
-        await component.installAppUpdate();
-
-        expect(window.electron.checkForAppUpdate).toHaveBeenCalledTimes(1);
-        expect(window.electron.downloadAppUpdate).toHaveBeenCalledTimes(1);
-        expect(window.electron.installAppUpdate).toHaveBeenCalledTimes(1);
-    });
-
-    it('opens the manual release URL from unsupported update status', () => {
-        const openSpy = jest.spyOn(window, 'open').mockReturnValue(null);
-        component.appUpdateStatus.set({
-            ...DEFAULT_APP_UPDATE_STATUS,
-            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
-            supportedSelfUpdate: false,
-        });
-
-        component.openManualAppUpdate();
-
-        expect(openSpy).toHaveBeenCalledWith(
-            DEFAULT_APP_UPDATE_STATUS.manualDownloadUrl,
-            '_blank',
-            'noreferrer'
-        );
-    });
-
-    it('opens release notes dialog for the latest update version', () => {
-        const openSpy = jest
-            .spyOn(privateApi(component).matDialog, 'open')
-            .mockReturnValue(createDialogRef(false));
-        component.appUpdateStatus.set({
-            ...DEFAULT_APP_UPDATE_STATUS,
-            latestVersion: '0.23.0',
-            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available,
-        });
-
-        component.openAppUpdateReleaseNotes();
-
-        expect(openSpy).toHaveBeenCalledWith(
-            AppUpdateReleaseNotesDialogComponent,
-            expect.objectContaining({
-                data: {
-                    initialVersion: '0.23.0',
-                },
-            })
-        );
-    });
-
-    it('opens release notes dialog for the current version when no update is available', () => {
-        const openSpy = jest
-            .spyOn(privateApi(component).matDialog, 'open')
-            .mockReturnValue(createDialogRef(false));
-        component.appUpdateStatus.set({
-            ...DEFAULT_APP_UPDATE_STATUS,
-            latestVersion: '0.21.0',
-            release: {
-                version: '0.21.0',
-            },
-            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.NotAvailable,
-        });
-
-        component.openAppUpdateReleaseNotes();
-
-        expect(openSpy).toHaveBeenCalledWith(
-            AppUpdateReleaseNotesDialogComponent,
-            expect.objectContaining({
-                data: {
-                    initialVersion: DEFAULT_APP_UPDATE_STATUS.currentVersion,
-                    fallbackToLatest: true,
-                },
-            })
-        );
+        try {
+            await component.ngOnInit();
+            expect(component.version).toBe('1.5.22');
+            expect(fetchSpy).not.toHaveBeenCalled();
+            expect(
+                (component as unknown as Record<string, unknown>)[
+                    'checkAppVersion'
+                ]
+            ).toBeUndefined();
+        } finally {
+            globalThis.fetch = originalFetch;
+        }
     });
 
     it('should render a compact page header outside dialog mode', () => {
@@ -545,7 +385,6 @@ describe('SettingsComponent', () => {
         const dialogFixture = TestBed.createComponent(SettingsComponent);
         const dialogComponent = dialogFixture.componentInstance;
 
-        dialogComponent.checkAppVersion = jest.fn();
         dialogComponent.fetchLocalIpAddresses = jest
             .fn()
             .mockResolvedValue(undefined);
@@ -583,7 +422,6 @@ describe('SettingsComponent', () => {
                 scrollTo,
             } as unknown as HTMLElement;
 
-            scrollComponent.checkAppVersion = jest.fn();
             scrollComponent.fetchLocalIpAddresses = jest
                 .fn()
                 .mockResolvedValue(undefined);
@@ -716,7 +554,6 @@ describe('SettingsComponent', () => {
                 TestBed.createComponent(SettingsComponent);
             const partialBridgeComponent =
                 partialBridgeFixture.componentInstance;
-            partialBridgeComponent.checkAppVersion = jest.fn();
             partialBridgeComponent.fetchLocalIpAddresses = jest
                 .fn()
                 .mockResolvedValue(undefined);
@@ -770,7 +607,6 @@ describe('SettingsComponent', () => {
                 TestBed.createComponent(SettingsComponent);
             const launchOnlyBridgeComponent =
                 launchOnlyBridgeFixture.componentInstance;
-            launchOnlyBridgeComponent.checkAppVersion = jest.fn();
             launchOnlyBridgeComponent.fetchLocalIpAddresses = jest
                 .fn()
                 .mockResolvedValue(undefined);
@@ -833,52 +669,6 @@ describe('SettingsComponent', () => {
                     .players()
                     .some((player) => player.id === VideoPlayer.EmbeddedMpv)
             ).toBe(true);
-        });
-    });
-
-    describe('Version check', () => {
-        const latestVersion = '1.0.0';
-        const currentVersion = '0.1.0';
-
-        beforeEach(() => {
-            const settingsService = TestBed.inject(SettingsService);
-            (settingsService.getAppVersion as jest.Mock).mockReturnValue(
-                of(latestVersion)
-            );
-
-            // Add translation mock
-            jest.spyOn(translate, 'instant').mockImplementation((key) => {
-                if (key === 'SETTINGS.NEW_VERSION_AVAILABLE') {
-                    return 'New version available';
-                }
-                if (key === 'SETTINGS.LATEST_VERSION') {
-                    return 'Latest version installed';
-                }
-                return key;
-            });
-        });
-
-        it('should return true if version is outdated', () => {
-            jest.spyOn(electronService, 'getAppVersion').mockReturnValue(
-                currentVersion
-            );
-            const isOutdated =
-                component.isCurrentVersionOutdated(latestVersion);
-            expect(isOutdated).toBeTruthy();
-        });
-
-        it('should update notification message if version is outdated', () => {
-            jest.spyOn(translate, 'instant');
-            jest.spyOn(electronService, 'getAppVersion').mockReturnValue(
-                currentVersion
-            );
-            component.showVersionInformation(latestVersion);
-            expect(translate.instant).toHaveBeenCalledWith(
-                'SETTINGS.NEW_VERSION_AVAILABLE'
-            );
-            expect(component.updateMessage).toBe(
-                'New version available: 1.0.0'
-            );
         });
     });
 
@@ -1025,7 +815,6 @@ describe('SettingsComponent', () => {
 
         const browserFixture = TestBed.createComponent(SettingsComponent);
         const browserComponent = browserFixture.componentInstance;
-        browserComponent.checkAppVersion = jest.fn();
         browserComponent.fetchLocalIpAddresses = jest
             .fn()
             .mockResolvedValue(undefined);
@@ -1208,7 +997,6 @@ describe('SettingsComponent', () => {
             partialFileSaveFixture = TestBed.createComponent(SettingsComponent);
             const partialFileSaveComponent =
                 partialFileSaveFixture.componentInstance;
-            partialFileSaveComponent.checkAppVersion = jest.fn();
             partialFileSaveComponent.fetchLocalIpAddresses = jest
                 .fn()
                 .mockResolvedValue(undefined);
@@ -1458,7 +1246,6 @@ describe('SettingsComponent', () => {
 
         const webFixture = TestBed.createComponent(SettingsComponent);
         const webComponent = webFixture.componentInstance;
-        webComponent.checkAppVersion = jest.fn();
         webComponent.fetchLocalIpAddresses = jest
             .fn()
             .mockResolvedValue(undefined);

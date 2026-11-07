@@ -28,13 +28,8 @@ export const VIEW_ADD_PLAYLIST = 'VIEW:PLAYLISTS';
 export const AUTO_UPDATE_PLAYLISTS = 'AUTO_UPDATE';
 export const AUTO_UPDATE_PLAYLISTS_RESPONSE = 'AUTO_UPDATE_RESPONSE';
 
-// Application updates
-export const APP_UPDATE_GET_STATUS = 'APP_UPDATE:GET_STATUS';
-export const APP_UPDATE_CHECK = 'APP_UPDATE:CHECK';
-export const APP_UPDATE_DOWNLOAD = 'APP_UPDATE:DOWNLOAD';
-export const APP_UPDATE_INSTALL = 'APP_UPDATE:INSTALL';
-export const APP_UPDATE_GET_RELEASE_NOTES = 'APP_UPDATE:GET_RELEASE_NOTES';
-export const APP_UPDATE_STATUS_CHANGED = 'APP_UPDATE:STATUS_CHANGED';
+// Application updates: none built in. The Microsoft Store build is updated by the Store; the EXE build will get its
+// own updater later (the inherited GitHub releases updater of IPTVnator was removed in 1.5.22).
 
 // Experimental
 export const OPEN_MPV_PLAYER = 'OPEN_MPV_PLAYER';

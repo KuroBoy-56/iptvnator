@@ -2,14 +2,6 @@ import {
     DB_WORKER_OPERATIONS,
     DbWorkerOperation,
 } from '../workers/database-worker.types';
-import {
-    APP_UPDATE_CHECK,
-    APP_UPDATE_DOWNLOAD,
-    APP_UPDATE_GET_RELEASE_NOTES,
-    APP_UPDATE_GET_STATUS,
-    APP_UPDATE_INSTALL,
-    APP_UPDATE_STATUS_CHANGED,
-} from '@iptvnator/shared/interfaces';
 import type { ElectronBridgeApi } from '@iptvnator/shared/interfaces';
 import {
     dbPreloadCases,
@@ -138,55 +130,23 @@ describe('main preload DB IPC contract', () => {
         );
     });
 
-    it('exposes app update commands and status events through the typed bridge', async () => {
-        const api = getExposedApi();
-        const callback = jest.fn();
-        const status = {
-            currentVersion: '0.22.0',
-            latestVersion: '0.23.0',
-            manualDownloadUrl:
-                'https://github.com/4gray/iptvnator/releases/latest',
-            status: 'available',
-            supportedSelfUpdate: true,
-        };
+    it('does not expose the removed GitHub app updater on the bridge', () => {
+        // MPX Player 1.5.22: no built-in updater (Microsoft Store updates the Store build; the EXE build will get its
+        // own updater). The inherited IPTVnator one queried GitHub releases.
+        const api = getExposedApi() as unknown as Record<string, unknown>;
 
-        await api.getAppUpdateStatus();
-        await api.checkForAppUpdate();
-        await api.downloadAppUpdate();
-        await api.installAppUpdate();
-        await api.getAppUpdateReleaseNotes({
-            direction: 'previous',
-            version: 'v0.23.0',
-        });
-        const unsubscribe = api.onAppUpdateStatusChange(callback);
-        const handler = mockIpcRenderer.on.mock.calls.at(-1)?.[1];
-
-        handler({}, status);
-        unsubscribe();
-
-        expect(mockIpcRenderer.invoke).toHaveBeenCalledWith(
-            APP_UPDATE_GET_STATUS
-        );
-        expect(mockIpcRenderer.invoke).toHaveBeenCalledWith(APP_UPDATE_CHECK);
-        expect(mockIpcRenderer.invoke).toHaveBeenCalledWith(
-            APP_UPDATE_DOWNLOAD
-        );
-        expect(mockIpcRenderer.invoke).toHaveBeenCalledWith(APP_UPDATE_INSTALL);
-        expect(mockIpcRenderer.invoke).toHaveBeenCalledWith(
-            APP_UPDATE_GET_RELEASE_NOTES,
-            {
-                direction: 'previous',
-                version: 'v0.23.0',
-            }
-        );
-        expect(mockIpcRenderer.on).toHaveBeenCalledWith(
-            APP_UPDATE_STATUS_CHANGED,
-            expect.any(Function)
-        );
-        expect(callback).toHaveBeenCalledWith(status);
-        expect(mockIpcRenderer.off).toHaveBeenCalledWith(
-            APP_UPDATE_STATUS_CHANGED,
-            handler
+        for (const name of [
+            'getAppUpdateStatus',
+            'checkForAppUpdate',
+            'downloadAppUpdate',
+            'installAppUpdate',
+            'getAppUpdateReleaseNotes',
+            'onAppUpdateStatusChange',
+        ]) {
+            expect(api[name]).toBeUndefined();
+        }
+        expect(mockIpcRenderer.invoke).not.toHaveBeenCalledWith(
+            expect.stringMatching(/^APP_UPDATE:/)
         );
     });
 

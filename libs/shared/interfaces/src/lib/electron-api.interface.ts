@@ -126,20 +126,6 @@ export const ELECTRON_BRIDGE_DOWNLOAD_STATUSES = {
 export type ElectronBridgeDownloadStatus =
     (typeof ELECTRON_BRIDGE_DOWNLOAD_STATUSES)[keyof typeof ELECTRON_BRIDGE_DOWNLOAD_STATUSES];
 
-export const ELECTRON_BRIDGE_APP_UPDATE_STATUSES = {
-    Unsupported: 'unsupported',
-    Idle: 'idle',
-    Checking: 'checking',
-    Available: 'available',
-    NotAvailable: 'not-available',
-    Downloading: 'downloading',
-    Downloaded: 'downloaded',
-    Error: 'error',
-} as const;
-
-export type ElectronBridgeAppUpdateStatusValue =
-    (typeof ELECTRON_BRIDGE_APP_UPDATE_STATUSES)[keyof typeof ELECTRON_BRIDGE_APP_UPDATE_STATUSES];
-
 export const ELECTRON_BRIDGE_GLOBAL_RECENTLY_ADDED_KINDS = {
     All: 'all',
     Series: 'series',
@@ -169,50 +155,6 @@ export interface ElectronBridgeDialogFilter {
 export interface ElectronBridgeWindowState {
     isMaximized: boolean;
     isFullScreen: boolean;
-}
-
-export interface ElectronBridgeAppUpdateRelease {
-    version: string;
-    releaseDate?: string;
-    releaseName?: string | null;
-    releaseNotes?: string | null;
-}
-
-export interface ElectronBridgeAppUpdateProgress {
-    bytesPerSecond?: number;
-    percent: number;
-    total?: number;
-    transferred?: number;
-}
-
-export interface ElectronBridgeAppUpdateStatus {
-    status: ElectronBridgeAppUpdateStatusValue;
-    currentVersion: string;
-    latestVersion?: string;
-    release?: ElectronBridgeAppUpdateRelease;
-    progress?: ElectronBridgeAppUpdateProgress;
-    error?: string;
-    supportedSelfUpdate: boolean;
-    manualDownloadUrl: string;
-}
-
-export type ElectronBridgeAppUpdateReleaseNotesDirection = 'previous' | 'next';
-
-export interface ElectronBridgeAppUpdateReleaseNotesRequest {
-    version?: string;
-    direction?: ElectronBridgeAppUpdateReleaseNotesDirection;
-    fallbackToLatest?: boolean;
-}
-
-export interface ElectronBridgeAppUpdateReleaseNotes {
-    version: string;
-    tagName: string;
-    releaseName?: string | null;
-    publishedAt?: string | null;
-    bodyMarkdown: string;
-    htmlUrl: string;
-    hasPrevious: boolean;
-    hasNext: boolean;
 }
 
 export interface ElectronBridgeAiSettings {
@@ -513,16 +455,6 @@ export interface ElectronBridgeApi extends PanelBridgeApi {
     ) => () => void;
     getAppVersion: () => Promise<string>;
     platform: string;
-    getAppUpdateStatus: () => Promise<ElectronBridgeAppUpdateStatus>;
-    checkForAppUpdate: () => Promise<ElectronBridgeAppUpdateStatus>;
-    downloadAppUpdate: () => Promise<ElectronBridgeAppUpdateStatus>;
-    installAppUpdate: () => Promise<ElectronBridgeAppUpdateStatus>;
-    getAppUpdateReleaseNotes: (
-        request?: ElectronBridgeAppUpdateReleaseNotesRequest
-    ) => Promise<ElectronBridgeAppUpdateReleaseNotes>;
-    onAppUpdateStatusChange: (
-        callback: (status: ElectronBridgeAppUpdateStatus) => void
-    ) => () => void;
     minimizeWindow: () => Promise<void>;
     toggleMaximizeWindow: () => Promise<ElectronBridgeWindowState>;
     closeWindow: () => Promise<void>;

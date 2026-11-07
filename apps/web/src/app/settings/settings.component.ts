@@ -38,8 +38,6 @@ import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     EmbeddedMpvSupport,
     CoverSize,
-    ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
-    ElectronBridgeAppUpdateStatus,
     EpgViewMode,
     StreamFormat,
     Theme,
@@ -89,10 +87,6 @@ import {
     buildSettingsPlaylistDeleteSummary,
 } from './settings-playlist-summary.utils';
 import { SettingsSnackbarService } from './settings-snackbar.service';
-import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
-
-const APP_UPDATE_STATUS_LOAD_ATTEMPTS = 60;
-const APP_UPDATE_STATUS_LOAD_RETRY_DELAY_MS = 250;
 
 @Component({
     templateUrl: './settings.component.html',
@@ -200,8 +194,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
     ]);
 
     version = '';
-    updateMessage = '';
-    readonly appUpdateStatus = signal<ElectronBridgeAppUpdateStatus | null>(null);
     epgAvailable$ = this.store.select(selectIsEpgAvailable);
     readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);
 
@@ -235,8 +227,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
             this.playlistDeleteSummary().total > 0
     );
 
-    private unsubscribeAppUpdateStatus: (() => void) | null = null;
-
     readonly removeAllProgressLabel = computed(() => {
         return buildRemoveAllProgressLabel({
             isRemovingAllPlaylists: this.isRemovingAllPlaylists(),
@@ -254,9 +244,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
         this.setSettings();
         this.bindDashboardControlsEnabledState();
         void this.loadEmbeddedMpvSupport();
-        this.checkAppVersion();
-        this.bindAppUpdateStatusEvents();
-        void this.loadAppUpdateStatus();
+        // solo la versión instalada: sin consultar las versiones de GitHub (era el IPTVnator original, no MPX Player)
+        this.version = this.dataService.getAppVersion();
         void this.fetchLocalIpAddresses();
 
         if (!this.isDialog) {
@@ -297,118 +286,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy(): void {
-        this.unsubscribeAppUpdateStatus?.();
-        this.unsubscribeAppUpdateStatus = null;
         this.settingsCtx.reset();
-    }
-
-    private bindAppUpdateStatusEvents(): void {
-        if (!this.isDesktop || !window.electron?.onAppUpdateStatusChange) {
-            return;
-        }
-
-        this.unsubscribeAppUpdateStatus =
-            window.electron.onAppUpdateStatusChange((status) => {
-                this.appUpdateStatus.set(status);
-            });
-    }
-
-    private async loadAppUpdateStatus(): Promise<void> {
-        if (!this.isDesktop) {
-            return;
-        }
-
-        let lastError: unknown;
-
-        for (
-            let attempt = 1;
-            attempt <= APP_UPDATE_STATUS_LOAD_ATTEMPTS;
-            attempt += 1
-        ) {
-            const electron = window.electron;
-
-            if (electron?.getAppUpdateStatus) {
-                try {
-                    this.appUpdateStatus.set(
-                        await electron.getAppUpdateStatus()
-                    );
-                    return;
-                } catch (error) {
-                    lastError = error;
-                }
-            }
-
-            if (attempt === APP_UPDATE_STATUS_LOAD_ATTEMPTS) {
-                console.warn(
-                    'Failed to load app update status:',
-                    lastError ??
-                        new Error('Desktop app update bridge is unavailable')
-                );
-                return;
-            }
-
-            await this.waitForAppUpdateStatusRetry();
-        }
-    }
-
-    private async waitForAppUpdateStatusRetry(): Promise<void> {
-        await new Promise<void>((resolve) => {
-            setTimeout(resolve, APP_UPDATE_STATUS_LOAD_RETRY_DELAY_MS);
-        });
-    }
-
-    async checkForAppUpdate(): Promise<void> {
-        if (!this.isDesktop || !window.electron?.checkForAppUpdate) {
-            return;
-        }
-        this.appUpdateStatus.set(await window.electron.checkForAppUpdate());
-    }
-
-    async downloadAppUpdate(): Promise<void> {
-        if (!this.isDesktop || !window.electron?.downloadAppUpdate) {
-            return;
-        }
-        this.appUpdateStatus.set(await window.electron.downloadAppUpdate());
-    }
-
-    async installAppUpdate(): Promise<void> {
-        if (!this.isDesktop || !window.electron?.installAppUpdate) {
-            return;
-        }
-        this.appUpdateStatus.set(await window.electron.installAppUpdate());
-    }
-
-    openManualAppUpdate(): void {
-        const manualDownloadUrl = this.appUpdateStatus()?.manualDownloadUrl;
-        if (!manualDownloadUrl) {
-            return;
-        }
-        window.open(manualDownloadUrl, '_blank', 'noreferrer');
-    }
-
-    openAppUpdateReleaseNotes(): void {
-        const status = this.appUpdateStatus();
-        const isUpdateRelease =
-            status?.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available ||
-            status?.status ===
-                ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloading ||
-            status?.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded;
-        const initialReleaseNotesVersion = isUpdateRelease
-            ? (status?.latestVersion ??
-              status?.release?.version ??
-              status?.currentVersion)
-            : status?.currentVersion;
-
-        this.matDialog.open(AppUpdateReleaseNotesDialogComponent, {
-            autoFocus: false,
-            data: {
-                ...(!isUpdateRelease ? { fallbackToLatest: true } : {}),
-                initialVersion: initialReleaseNotesVersion,
-            },
-            maxWidth: 'calc(100vw - 32px)',
-            restoreFocus: true,
-            width: '720px',
-        });
     }
 
     async fetchLocalIpAddresses(): Promise<void> {
@@ -517,37 +395,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
     setEpgUrls(epgUrls: string[] | string): void {
         applyEpgUrlsToFormArray(this.epgUrl, epgUrls);
-    }
-
-    checkAppVersion(): void {
-        this.settingsService
-            .getAppVersion()
-            .pipe(take(1))
-            .subscribe((version) => this.showVersionInformation(version));
-    }
-
-    showVersionInformation(currentVersion: string): void {
-        const isOutdated = this.isCurrentVersionOutdated(currentVersion);
-
-        if (isOutdated) {
-            this.updateMessage = `${
-                this.translate.instant(
-                    'SETTINGS.NEW_VERSION_AVAILABLE'
-                ) as string
-            }: ${currentVersion}`;
-        } else {
-            this.updateMessage = this.translate.instant(
-                'SETTINGS.LATEST_VERSION'
-            );
-        }
-    }
-
-    isCurrentVersionOutdated(latestVersion: string): boolean {
-        this.version = this.dataService.getAppVersion();
-        return this.settingsService.isVersionOutdated(
-            this.version,
-            latestVersion
-        );
     }
 
     onSubmit(): void {
