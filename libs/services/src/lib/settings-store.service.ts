@@ -25,9 +25,15 @@ import {
     migrateLegacyLanguage,
     normalizeDashboardRailsSettings,
 } from '@iptvnator/shared/interfaces';
+import {
+    defaultVideoPlayer,
+    markPlayerMigrated,
+    migrateDefaultPlayer,
+} from './default-player';
 
 const DEFAULT_SETTINGS: Settings = {
-    player: VideoPlayer.VideoJs,
+    // MPV in the desktop app (Windows, macOS, Linux), Video.js in the PWA
+    player: defaultVideoPlayer(),
     streamFormat: 'm3u8' as unknown as StreamFormat,
     openStreamOnDoubleClick: false,
     language: APP_LANGUAGE_AUTO,
@@ -135,9 +141,12 @@ export const SettingsStore = signalStore(
                         storedSettings.language,
                         migrated
                     );
+                    // the old Video.js default becomes MPV once (desktop app)
+                    const player = migrateDefaultPlayer(storedSettings.player);
                     patchState(store, {
                         ...DEFAULT_SETTINGS,
                         ...storedSettings,
+                        ...(player !== undefined ? { player } : {}),
                         language,
                         settingsLoaded: true,
                         // BUGS REMOVIDOS: Aquí estaban "quemados" el player y el streamFormat.
@@ -145,14 +154,16 @@ export const SettingsStore = signalStore(
                             storedSettings.dashboardRails
                         ),
                     });
-                    if (!migrated) {
-                        if (language !== storedSettings.language) {
-                            await firstValueFrom(
-                                storage.set(STORE_KEY.Settings, this.getSettings())
-                            );
-                        }
-                        markLanguageMigrated();
+                    if (
+                        (!migrated && language !== storedSettings.language) ||
+                        player !== storedSettings.player
+                    ) {
+                        await firstValueFrom(
+                            storage.set(STORE_KEY.Settings, this.getSettings())
+                        );
                     }
+                    if (!migrated) markLanguageMigrated();
+                    markPlayerMigrated();
                     void this.sanitizeEmbeddedMpvSelection().catch((error) => {
                         console.warn('Failed to verify embedded MPV support', error);
                     });
@@ -163,6 +174,7 @@ export const SettingsStore = signalStore(
                         // BUGS REMOVIDOS: Aquí también estaban quemados en el fallback.
                     });
                     markLanguageMigrated();
+                    markPlayerMigrated();
                 }
             } catch (error) {
                 console.error('Failed to load settings:', error);

@@ -13,6 +13,7 @@ export * from './lib/playlists.service';
 export * from './lib/portal-status.service';
 export * from './lib/runtime-capabilities.service';
 export * from './lib/settings-store.service';
+export * from './lib/default-player';
 export * from './lib/sort.service';
 export * from './lib/tmdb';
 export * from './lib/xtream-pending-restore.service';

@@ -92,7 +92,8 @@ import {
     PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
-    PlaybackPositionService
+    PlaybackPositionService,
+    defaultVideoPlayer,
 } from '@iptvnator/services';
 import {
     Channel,
@@ -245,7 +246,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     readonly activeView = toSignal(this.activatedRoute.params.pipe(map((params) => params['view'] || 'all')), { initialValue: 'all' });
 
-    playerSettings: Partial<Settings> = { player: VideoPlayer.VideoJs, showCaptions: false };
+    playerSettings: Partial<Settings> = { player: defaultVideoPlayer(), showCaptions: false };
 
     readonly isDesktop = this.runtime.isElectron;
     readonly supportsEpg = this.runtime.supportsEpg;
@@ -603,7 +604,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         this.storage.get(STORE_KEY.Settings).subscribe((settings: unknown) => {
             if (settings && Object.keys(settings as Settings).length > 0) {
                 this.playerSettings = {
-                    player: (settings as Settings).player || VideoPlayer.VideoJs,
+                    player: (settings as Settings).player || defaultVideoPlayer(),
                     showCaptions: (settings as Settings).showCaptions || false,
                 };
             }
